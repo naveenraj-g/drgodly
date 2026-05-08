@@ -8,7 +8,16 @@
       "Bash(pnpm dev *)",
       "Bash(curl *)",
       "Bash(pkill -f \"next dev\")",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "PowerShell(head *)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm exec *)",
+      "Bash(xargs grep -l \"useActionState\\\\|useTransition\\\\|catch\\\\|error\\\\|Error\")",
+      "Bash(xargs grep -l \"useActionState\\\\|createApiKeyAction\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\noname\\\\fhir-server\" -Recurse -Filter *.py)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\drgodly-mvp\" -Recurse -Force)",
+      "Bash(Select-Object -Property FullName)"
     ]
   }
 }

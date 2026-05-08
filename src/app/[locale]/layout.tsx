@@ -8,7 +8,7 @@ import { setRequestLocale } from "next-intl/server";
 import { routing } from "@/i18n/routing";
 import NextTopLoader from "nextjs-toploader";
 import { ThemeProvider } from "@/theme/ThemeProvider";
-import { Navbar } from "@/components/layout/Navbar";
+import { Toaster } from "@/components/ui/sonner";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -39,24 +39,13 @@ export default async function RootLayout({
       lang={locale}
       className={`${dmSans.className} antialiased`}
       suppressHydrationWarning
-      data-theme="zinc-light"
     >
-      <head>
-        {/* Reads localStorage before first paint — eliminates theme flash */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('app-theme');if(t){document.documentElement.setAttribute('data-theme',t);}else{var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.setAttribute('data-theme',d?'zinc-dark':'zinc-light');}}catch(e){}})()`,
-          }}
-        />
-      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <NextIntlClientProvider>
-            <TooltipProvider>
-              <Navbar />
-              {children}
-            </TooltipProvider>
+            <TooltipProvider>{children}</TooltipProvider>
           </NextIntlClientProvider>
+          <Toaster />
           <NextTopLoader showSpinner={false} color="var(--progress-bar)" />
         </ThemeProvider>
       </body>
