@@ -17,7 +17,9 @@
       "Bash(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\noname\\\\fhir-server\" -Recurse -Filter *.py)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\drgodly-mvp\" -Recurse -Force)",
-      "Bash(Select-Object -Property FullName)"
+      "Bash(Select-Object -Property FullName)",
+      "Bash(Get-ChildItem -Path . -Recurse -Name)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\drgodly-mvp\" -Recurse | Select-Object -First 50 | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"D:\\\\work\\\\code\\\\drgodly-mvp\\\\\"\\), \"\" })"
     ]
   }
 }

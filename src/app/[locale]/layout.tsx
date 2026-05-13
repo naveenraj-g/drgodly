@@ -40,7 +40,7 @@ export default async function RootLayout({
       className={`${dmSans.className} antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body suppressHydrationWarning>
         <ThemeProvider>
           <NextIntlClientProvider>
             <TooltipProvider>{children}</TooltipProvider>
