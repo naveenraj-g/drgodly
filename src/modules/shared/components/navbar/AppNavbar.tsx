@@ -9,6 +9,7 @@ import { CommandSearch } from "./CommandSearch";
 import { AppLauncher } from "./AppLauncher";
 import { NavUser } from "../NavUser";
 import LocaleSwitcher from "../LocaleSwitcher";
+import { ThemeSwitcher } from "@/theme/ThemeSwitcher";
 
 type TUser = {
   name: string;
@@ -35,17 +36,21 @@ const AppNavbar = ({ user }: { user: TUser }) => {
       ref={headerRef}
       className={cn(
         "sticky top-0 left-0 z-50 w-full bg-background transition-shadow duration-300",
-        scrolled && "shadow-sm"
+        scrolled && "shadow-sm",
       )}
     >
       <nav className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <SidebarTrigger className="cursor-pointer max-md:scale-125" variant="outline" />
+          <SidebarTrigger
+            className="cursor-pointer max-md:scale-125"
+            variant="outline"
+          />
           <Separator orientation="vertical" className="!h-6" />
           <CommandSearch />
         </div>
         <div className="flex items-center gap-4">
           <LocaleSwitcher />
+          <ThemeSwitcher />
           <Bell className="h-5 w-5 text-zinc-500 dark:text-zinc-300 cursor-pointer" />
           <AppLauncher />
           <NavUser user={user} />

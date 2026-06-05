@@ -1,33 +1,3 @@
-export const homeSidebarData = {
-  navGroups: [
-    {
-      title: "General",
-      items: [
-        {
-          title: "Dashboard",
-          url: "/bezs",
-          icon: "layout-dashboard",
-        },
-        {
-          title: "Calendar",
-          url: "/bezs/calendar",
-          icon: "calendar-range",
-        },
-      ],
-    },
-    {
-      title: "Others",
-      items: [
-        {
-          title: "Settings",
-          url: "/bezs/settings",
-          icon: "settings",
-        },
-      ],
-    },
-  ],
-};
-
 export const settingsSidebarData = {
   navGroups: [
     {

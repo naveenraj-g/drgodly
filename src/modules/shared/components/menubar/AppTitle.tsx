@@ -25,8 +25,10 @@ export function AppTitle() {
               <Activity className="size-4" />
             </div>
             <div className="grid flex-1 text-start text-sm leading-tight">
-              <span className="truncate font-bold">Dr. Godly</span>
-              <span className="truncate text-xs text-muted-foreground">Healthcare Platform</span>
+              <span className="truncate font-bold">DrGodly</span>
+              <span className="truncate text-xs text-muted-foreground">
+                Healthcare Platform
+              </span>
             </div>
           </Link>
         </SidebarMenuButton>

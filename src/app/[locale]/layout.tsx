@@ -35,12 +35,11 @@ export default async function RootLayout({
   setRequestLocale(locale);
 
   return (
-    <html
-      lang={locale}
-      className={`${dmSans.className} antialiased`}
-      suppressHydrationWarning
-    >
-      <body suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
+      <body
+        className={`${dmSans.className} antialiased`}
+        suppressHydrationWarning
+      >
         <ThemeProvider>
           <NextIntlClientProvider>
             <TooltipProvider>{children}</TooltipProvider>

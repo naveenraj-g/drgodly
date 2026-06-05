@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/navigation";
+import { getServerSession } from "@/modules/server/auth/get-session";
 import {
   Bell,
   ChevronRight,
@@ -20,25 +21,29 @@ const settingsGroups = [
       {
         icon: UserCircle,
         title: "Profile",
-        description: "Manage your personal information, avatar, and connected accounts.",
+        description:
+          "Manage your personal information, avatar, and connected accounts.",
         href: "/bezs/settings/profile",
       },
       {
         icon: KeyRound,
         title: "Password & Authentication",
-        description: "Change your password, email, and configure two-factor authentication.",
+        description:
+          "Change your password, email, and configure two-factor authentication.",
         href: "/bezs/settings/security",
       },
       {
         icon: MonitorSmartphone,
         title: "Active Sessions",
-        description: "View and revoke devices currently signed in to your account.",
+        description:
+          "View and revoke devices currently signed in to your account.",
         href: "/bezs/settings/sessions",
       },
       {
         icon: Shield,
         title: "Privacy",
-        description: "Control data visibility, consent, and account activity logs.",
+        description:
+          "Control data visibility, consent, and account activity logs.",
         href: null,
       },
     ],
@@ -49,7 +54,8 @@ const settingsGroups = [
       {
         icon: Globe,
         title: "Regional Preferences",
-        description: "Set your country, timezone, date format, currency, and number format.",
+        description:
+          "Set your country, timezone, date format, currency, and number format.",
         href: null,
       },
       {
@@ -66,7 +72,8 @@ const settingsGroups = [
       {
         icon: Bell,
         title: "Notification Settings",
-        description: "Control how and when you receive email, push, and SMS alerts.",
+        description:
+          "Control how and when you receive email, push, and SMS alerts.",
         href: null,
       },
     ],
@@ -83,14 +90,15 @@ const settingsGroups = [
       {
         icon: CreditCard,
         title: "Billing & Subscription",
-        description: "View your current plan, manage payment methods, and invoices.",
+        description:
+          "View your current plan, manage payment methods, and invoices.",
         href: null,
       },
     ],
   },
 ];
 
-export default function BezsSettingsPage() {
+export default async function BezsSettingsPage() {
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto">
@@ -122,7 +130,9 @@ export default function BezsSettingsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-foreground">{item.title}</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {item.title}
+                          </p>
                           {!item.href && (
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
                               Soon
@@ -152,7 +162,10 @@ export default function BezsSettingsPage() {
                   }
 
                   return (
-                    <div key={item.title} className="opacity-60 cursor-not-allowed">
+                    <div
+                      key={item.title}
+                      className="opacity-60 cursor-not-allowed"
+                    >
                       {inner}
                     </div>
                   );

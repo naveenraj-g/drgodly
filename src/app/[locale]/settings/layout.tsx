@@ -8,7 +8,7 @@ import { MenuBar } from "@/modules/shared/components/menubar/MenuBar";
 
 export const dynamic = "force-dynamic";
 
-const BezsSidebarLayout = async ({ children }: { children: React.ReactNode }) => {
+const SettingsLayout = async ({ children }: { children: React.ReactNode }) => {
   const session = await getServerSession();
   const locale = await getLocale();
 
@@ -22,6 +22,7 @@ const BezsSidebarLayout = async ({ children }: { children: React.ReactNode }) =>
     email: session.user.email,
     image: session.user.image,
     username: session.user.username,
+    activeOrganizationId: session.session.activeOrganizationId,
   };
 
   return (
@@ -38,4 +39,4 @@ const BezsSidebarLayout = async ({ children }: { children: React.ReactNode }) =>
   );
 };
 
-export default BezsSidebarLayout;
+export default SettingsLayout;

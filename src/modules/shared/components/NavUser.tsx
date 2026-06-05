@@ -79,10 +79,7 @@ export function NavUser({ user }: { user: TUser }) {
         <DropdownMenuSeparator />
 
         <DropdownMenuItem asChild className="cursor-pointer">
-          <Link
-            href="/bezs/settings"
-            className="flex items-center gap-2 w-full"
-          >
+          <Link href="/settings" className="flex items-center gap-2 w-full">
             <Settings2 className="size-4" />
             Settings
           </Link>
