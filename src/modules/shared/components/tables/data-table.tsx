@@ -211,6 +211,15 @@ export function DataTable<TData>({
   const pinnedRight = table.getState().columnPinning.right?.length ?? 0;
   const isPinned    = pinnedLeft > 0 || pinnedRight > 0;
 
+  // Column resizing — only needs `table-layout:fixed` when pinning is also
+  // active (sticky offsets require pixel-accurate column widths). For resizing
+  // alone, auto-layout fills the container correctly; explicit `width` hints on
+  // <th> are enough for TanStack's resize handler to work.
+  const isResizable   = !!table.options.columnResizeMode;
+  const isResizingAny = isResizable && !!table.getState().columnSizingInfo?.isResizingColumn;
+  // Fixed layout is only required when columns are pinned.
+  const useFixedLayout = isPinned;
+
   return (
     <div
       className={cn("flex w-full flex-col gap-2.5", className)}
@@ -225,22 +234,22 @@ export function DataTable<TData>({
        * 2. position:sticky on pinned columns works — overflow-hidden would
        *    suppress sticky behaviour by blocking the scroll container.
        */}
-      <div className="overflow-x-auto rounded-md border">
+      <div className={cn("overflow-x-auto rounded-md border", isResizingAny && "select-none")}>
         {/*
-         * When pinning is active:
-         *   - className "table-fixed" sets table-layout:fixed so every cell
-         *     gets exactly its column.getSize() pixels — no auto redistribution.
-         *   - style.width = getTotalSize() gives the table an explicit pixel
-         *     width equal to the sum of all column sizes, so the horizontal
-         *     scroll container knows how far to scroll and sticky offsets
-         *     (getStart / getAfter) are pixel-accurate.
-         * When no columns are pinned the table stays in auto-layout (fills
-         * its container, columns size to content) which looks better for
-         * narrow tables that don't need to scroll.
+         * Fixed layout is active only when columns are pinned:
+         *   - "table-fixed" makes every cell honour its exact getSize() pixels,
+         *     which is required for getStart("left") / getAfter("right") sticky
+         *     offsets to be pixel-accurate.
+         *   - width = getTotalSize() gives the scroll container a concrete
+         *     scrollable width so sticky columns never overlap each other.
+         * Resizing alone does NOT need fixed layout — the browser respects
+         * `width` hints on <th> in auto-layout and the table keeps w-full,
+         * so it fills its container without the "last column expands" issue
+         * that fixed layout causes when column sizes sum < container width.
          */}
         <Table
-          className={isPinned ? "table-fixed" : undefined}
-          style={isPinned ? { width: table.getTotalSize() } : undefined}
+          className={useFixedLayout ? "table-fixed" : undefined}
+          style={useFixedLayout ? { width: table.getTotalSize() } : undefined}
         >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -249,10 +258,20 @@ export function DataTable<TData>({
                   <TableHead
                     key={header.id}
                     colSpan={header.colSpan}
-                    style={getColumnPinningStyle({
-                      column: header.column,
-                      withBorder: true,
-                    })}
+                    /*
+                     * group/resize + relative let the resize handle (absolute
+                     * child) show on hover of the entire header cell.
+                     * Named group variant avoids conflicts with other group usage.
+                     */
+                    className={cn(isResizable && "group/resize relative")}
+                    style={{
+                      ...getColumnPinningStyle({
+                        column: header.column,
+                        withBorder: true,
+                      }),
+                      // Explicit width is required for table-layout:fixed resize accuracy
+                      ...(isResizable && { width: header.getSize() }),
+                    }}
                   >
                     {header.isPlaceholder
                       ? null
@@ -260,6 +279,23 @@ export function DataTable<TData>({
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
+                    {/*
+                     * Resize handle — invisible by default, appears on header hover,
+                     * turns primary-coloured while actively dragging.
+                     * Only rendered when resizing is enabled for this table AND the
+                     * column opts in (enableResizing !== false on the column def).
+                     */}
+                    {isResizable && header.column.getCanResize() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className={cn(
+                          "absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none",
+                          "bg-transparent transition-colors group-hover/resize:bg-border",
+                          header.column.getIsResizing() && "bg-primary opacity-100",
+                        )}
+                      />
+                    )}
                   </TableHead>
                 ))}
               </TableRow>

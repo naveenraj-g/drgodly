@@ -1,13 +1,14 @@
 /**
  * @file column-pinning-example.tsx
- * @description Example demonstrating column pinning (sticky left/right columns).
+ * @description Example demonstrating column pinning (sticky left/right columns)
+ * combined with column resizing (drag the right edge of any header to resize).
  *
  * The table is intentionally wide (12 columns) so horizontal scrolling is
- * required, making pinning visually meaningful. "Patient" is pinned left and
- * "Actions" is pinned right by default via `initialColumnPinning`.
- *
- * Users can also pin/unpin any column interactively through the "View" button
- * in the toolbar — each column row there has ← / → pin controls.
+ * required, making both features visually meaningful.
+ * - "Participant" is pinned left, "Actions" is pinned right by default.
+ * - Hover any header to reveal the resize handle (right edge); drag to resize.
+ * - Use the "View" toolbar button to interactively pin/unpin columns.
+ * - "Actions" has enableResizing: false — it stays at its fixed width.
  *
  * @layer client/table-examples
  */
@@ -296,6 +297,8 @@ const COLUMNS: ColumnDef<TrialParticipant>[] = [
     },
     enableSorting: false,
     enableHiding: false,
+    enableResizing: false, // actions column stays at fixed width
+    size: 60,
     meta: { exportable: false },
   },
 ];
@@ -305,14 +308,12 @@ const COLUMNS: ColumnDef<TrialParticipant>[] = [
 // ---------------------------------------------------------------------------
 
 /**
- * Demonstrates column pinning on a wide 12-column table.
+ * Demonstrates column pinning + column resizing on a wide 12-column table.
  *
- * By default:
- * - "Participant" (name) is pinned to the left — always visible as you scroll right.
- * - "Actions" is pinned to the right — always reachable regardless of scroll position.
- *
- * Use the "View" button in the toolbar to interactively pin or unpin any
- * column using the ← / → buttons next to each column name.
+ * - "Participant" pinned left, "Actions" pinned right by default.
+ * - Hover any resizable header to reveal the drag handle on its right edge.
+ * - "Actions" column is not resizable (fixed at 60 px).
+ * - Use the "View" button to interactively pin/unpin columns.
  */
 export function ColumnPinningExample() {
   const { table } = useDataTable({
@@ -324,6 +325,10 @@ export function ColumnPinningExample() {
       left:  ["name"],
       right: ["actions"],
     },
+    // "onChange" resizes columns live as the user drags (Excel-like behaviour)
+    columnResizeMode: "onChange",
+    // Reasonable defaults so columns aren't squished below a usable width
+    defaultColumn: { size: 150, minSize: 60, maxSize: 600 },
   });
 
   const clearFilters = React.useCallback(
@@ -352,9 +357,10 @@ export function ColumnPinningExample() {
         <h2 className="text-lg font-semibold">Column Pinning</h2>
         <p className="text-sm text-muted-foreground">
           Wide table (12 columns) with "Participant" pinned left and "Actions"
-          pinned right by default. Use the{" "}
-          <span className="font-medium">View</span> button to interactively
-          pin or unpin any column using the ← / → controls.
+          pinned right by default. Hover any column header to reveal the resize
+          handle on its right edge — drag to adjust width. Use the{" "}
+          <span className="font-medium">View</span> button to pin or unpin
+          columns with the ← / → controls.
         </p>
       </div>
 
