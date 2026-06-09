@@ -20,6 +20,9 @@ import {
   CustomToolbarExample,
   ServerTableExample,
   RowActionsExample,
+  ColumnPinningExample,
+  RowExpandDetailExample,
+  RowExpandSubrowsExample,
 } from "@/modules/client/table-examples";
 
 // ---------------------------------------------------------------------------
@@ -76,6 +79,21 @@ export default function TableExamplesPage() {
 
       {/* Example 7: Row actions, custom empty state, loading prop */}
       <RowActionsExample />
+
+      <Separator />
+
+      {/* Example 8: Column pinning — sticky left/right columns on a wide table */}
+      <ColumnPinningExample />
+
+      <Separator />
+
+      {/* Example 9: Row expand — full-width detail panel beneath each row */}
+      <RowExpandDetailExample />
+
+      <Separator />
+
+      {/* Example 10: Row expand — sub-rows / tree (department → staff) */}
+      <RowExpandSubrowsExample />
     </div>
   );
 }

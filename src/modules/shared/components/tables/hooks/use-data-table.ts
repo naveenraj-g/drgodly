@@ -15,6 +15,7 @@
 
 import {
   getCoreRowModel,
+  getExpandedRowModel,
   getFacetedMinMaxValues,
   getFacetedRowModel,
   getFacetedUniqueValues,
@@ -23,6 +24,8 @@ import {
   getSortedRowModel,
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnPinningState,
+  type ExpandedState,
   type PaginationState,
   type RowSelectionState,
   type SortingState,
@@ -46,6 +49,7 @@ interface UseDataTableProps<TData>
     | "getFacetedRowModel"
     | "getFacetedUniqueValues"
     | "getFacetedMinMaxValues"
+    | "getExpandedRowModel"
     | "state"
     | "onSortingChange"
     | "onColumnFiltersChange"
@@ -53,6 +57,7 @@ interface UseDataTableProps<TData>
     | "onRowSelectionChange"
     | "onPaginationChange"
     | "onGlobalFilterChange"
+    | "onExpandedChange"
   > {
   /** Column definitions — forwarded directly to TanStack Table */
   columns: ColumnDef<TData, unknown>[];
@@ -84,6 +89,20 @@ interface UseDataTableProps<TData>
    * @default ""
    */
   initialGlobalFilter?: string;
+  /**
+   * Initial column pinning state. Pin columns to the left or right edge.
+   * @example { left: ["select", "name"], right: ["actions"] }
+   * @default {}
+   */
+  initialColumnPinning?: ColumnPinningState;
+  /**
+   * Initial expanded row state. Pass row IDs that should start expanded.
+   * Useful for tree / sub-row tables where you want to pre-open certain nodes.
+   * Use `true` to expand all rows.
+   * @example { "dept-cardio": true }
+   * @default {}
+   */
+  initialExpanded?: ExpandedState;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +133,8 @@ export function useDataTable<TData>({
   initialColumnVisibility = {},
   initialPageSize = 10,
   initialGlobalFilter = "",
+  initialColumnPinning = {},
+  initialExpanded = {},
   ...tableProps
 }: UseDataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
@@ -129,6 +150,11 @@ export function useDataTable<TData>({
   // Global filter state — drives the table-level search across all columns
   const [globalFilter, setGlobalFilter] =
     React.useState<string>(initialGlobalFilter);
+  // Column pinning state — left/right sticky columns
+  const [columnPinning, setColumnPinning] =
+    React.useState<ColumnPinningState>(initialColumnPinning);
+  // Row expansion state — tracks which rows are expanded (detail panel or sub-rows)
+  const [expanded, setExpanded] = React.useState<ExpandedState>(initialExpanded);
 
   const table = useReactTable({
     data,
@@ -141,6 +167,8 @@ export function useDataTable<TData>({
       rowSelection,
       pagination,
       globalFilter,
+      columnPinning,
+      expanded,
     },
     // -----------------------------------------------------------------------
     // State updaters
@@ -151,9 +179,11 @@ export function useDataTable<TData>({
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnPinningChange: setColumnPinning,
+    onExpandedChange: setExpanded,
     // -----------------------------------------------------------------------
     // Row models — all enabled for client-side filtering, sorting, pagination,
-    // and faceted values (used by range / select / date filter controls)
+    // faceted values, and row expansion (sub-rows + detail panel)
     // -----------------------------------------------------------------------
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -162,6 +192,7 @@ export function useDataTable<TData>({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
+    getExpandedRowModel: getExpandedRowModel(),
     // Client-side processing — do not use manual flags here
     enableRowSelection: true,
   });

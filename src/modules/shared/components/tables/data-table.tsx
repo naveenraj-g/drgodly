@@ -16,6 +16,7 @@
 
 import {
   flexRender,
+  type Row,
   type Table as TanstackTable,
 } from "@tanstack/react-table";
 import * as React from "react";
@@ -92,6 +93,25 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
    * When omitted rows use the default medium spacing.
    */
   rowHeight?: RowHeightValue;
+  /**
+   * Detail-panel expand pattern. When provided, each row that returns
+   * `row.getCanExpand() === true` gets a full-width panel row rendered
+   * directly beneath it when expanded.
+   *
+   * For sub-rows (tree data), you do NOT need this prop — TanStack's
+   * expanded row model handles sub-rows automatically inside the normal
+   * row list. Use `getSubRows` in `useDataTable` instead.
+   *
+   * @example
+   * ```tsx
+   * renderSubComponent={(row) => (
+   *   <div className="p-4">
+   *     <p>{row.original.notes}</p>
+   *   </div>
+   * )}
+   * ```
+   */
+  renderSubComponent?: (row: Row<TData>) => React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +193,7 @@ export function DataTable<TData>({
   actionBar,
   pageSizeOptions,
   rowHeight,
+  renderSubComponent,
   children,
   className,
   ...props
@@ -182,17 +203,45 @@ export function DataTable<TData>({
   const rowHeightClass  = rowHeight ? ROW_HEIGHT_CLASSES[rowHeight] : undefined;
   const hasRows         = table.getRowModel().rows.length > 0;
 
+  // When any column is pinned, switch to table-layout:fixed so that each cell
+  // honours its explicit width. In auto-layout mode the browser recalculates
+  // column widths from content, causing getStart("left") / getAfter("right")
+  // offsets to be wrong and pinned columns to overlap each other.
+  const pinnedLeft  = table.getState().columnPinning.left?.length  ?? 0;
+  const pinnedRight = table.getState().columnPinning.right?.length ?? 0;
+  const isPinned    = pinnedLeft > 0 || pinnedRight > 0;
+
   return (
     <div
-      className={cn("flex w-full flex-col gap-2.5 overflow-auto", className)}
+      className={cn("flex w-full flex-col gap-2.5", className)}
       {...props}
     >
       {/* Toolbar / search / filter slot */}
       {children}
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-md border">
-        <Table>
+      {/*
+       * overflow-x-auto here (not overflow-hidden) so that:
+       * 1. Wide tables scroll horizontally within the border box.
+       * 2. position:sticky on pinned columns works — overflow-hidden would
+       *    suppress sticky behaviour by blocking the scroll container.
+       */}
+      <div className="overflow-x-auto rounded-md border">
+        {/*
+         * When pinning is active:
+         *   - className "table-fixed" sets table-layout:fixed so every cell
+         *     gets exactly its column.getSize() pixels — no auto redistribution.
+         *   - style.width = getTotalSize() gives the table an explicit pixel
+         *     width equal to the sum of all column sizes, so the horizontal
+         *     scroll container knows how far to scroll and sticky offsets
+         *     (getStart / getAfter) are pixel-accurate.
+         * When no columns are pinned the table stays in auto-layout (fills
+         * its container, columns size to content) which looks better for
+         * narrow tables that don't need to scroll.
+         */}
+        <Table
+          className={isPinned ? "table-fixed" : undefined}
+          style={isPinned ? { width: table.getTotalSize() } : undefined}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -200,7 +249,10 @@ export function DataTable<TData>({
                   <TableHead
                     key={header.id}
                     colSpan={header.colSpan}
-                    style={getColumnPinningStyle({ column: header.column })}
+                    style={getColumnPinningStyle({
+                      column: header.column,
+                      withBorder: true,
+                    })}
                   >
                     {header.isPlaceholder
                       ? null
@@ -225,23 +277,46 @@ export function DataTable<TData>({
             ) : hasRows ? (
               /* ── Data rows ───────────────────────────────────────────────── */
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                  className={rowHeightClass}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      style={getColumnPinningStyle({ column: cell.column })}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                /*
+                 * React.Fragment lets us return two sibling <tr> elements per
+                 * row (the data row + the optional expanded detail panel) while
+                 * keeping a stable key on the fragment wrapper.
+                 */
+                <React.Fragment key={row.id}>
+                  <TableRow
+                    data-state={row.getIsSelected() ? "selected" : undefined}
+                    className={rowHeightClass}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        style={getColumnPinningStyle({
+                          column: cell.column,
+                          withBorder: true,
+                        })}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {/*
+                   * Detail-panel row — only rendered when:
+                   * 1. renderSubComponent is provided (detail-panel pattern)
+                   * 2. The row is currently expanded
+                   * Sub-rows don't need this; TanStack inserts them into
+                   * the row model automatically.
+                   */}
+                  {renderSubComponent && row.getIsExpanded() && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={visibleCols} className="p-0">
+                        {renderSubComponent(row)}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))
             ) : (
               /* ── Empty state ─────────────────────────────────────────────── */

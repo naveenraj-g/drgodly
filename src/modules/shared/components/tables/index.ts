@@ -39,6 +39,7 @@ export {
   DataTableRowActions,
   type RowAction,
 } from "./data-table-row-actions";
+export { DataTableExpandButton } from "./data-table-expand-button";
 
 // Specific filter controls (for use outside the toolbar)
 export { DataTableFacetedFilter } from "./data-table-faceted-filter";

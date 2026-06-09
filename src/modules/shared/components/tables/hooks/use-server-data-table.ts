@@ -50,6 +50,7 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnPinningState,
   type OnChangeFn,
   type PaginationState,
   type RowSelectionState,
@@ -136,6 +137,12 @@ interface UseServerDataTableProps<TData>
    * @default ""
    */
   initialGlobalFilter?: string;
+  /**
+   * Initial column pinning state.
+   * @example { left: ["name"], right: ["actions"] }
+   * @default {}
+   */
+  initialColumnPinning?: ColumnPinningState;
 }
 
 interface UseServerDataTableReturn<TData> {
@@ -201,6 +208,7 @@ export function useServerDataTable<TData>({
   initialColumnVisibility = {},
   initialPageSize = 10,
   initialGlobalFilter = "",
+  initialColumnPinning = {},
   ...tableProps
 }: UseServerDataTableProps<TData>): UseServerDataTableReturn<TData> {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
@@ -215,6 +223,9 @@ export function useServerDataTable<TData>({
   });
   const [globalFilter, setGlobalFilter] =
     React.useState<string>(initialGlobalFilter);
+  // Column pinning state — left/right sticky columns
+  const [columnPinning, setColumnPinning] =
+    React.useState<ColumnPinningState>(initialColumnPinning);
 
   /** Resets the page index to 0 without touching any other state */
   const resetPage = React.useCallback(() => {
@@ -240,6 +251,7 @@ export function useServerDataTable<TData>({
       rowSelection,
       pagination,
       globalFilter,
+      columnPinning,
     },
     // ── Change handlers ──────────────────────────────────────────────────────
     onSortingChange: setSorting,
@@ -248,6 +260,7 @@ export function useServerDataTable<TData>({
     onRowSelectionChange: setRowSelection,
     onPaginationChange: setPagination,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnPinningChange: setColumnPinning,
     // ── Row models ───────────────────────────────────────────────────────────
     // Only the core model is strictly required in server mode.
     // `getPaginationRowModel` is included so the pagination UI (rows-per-page

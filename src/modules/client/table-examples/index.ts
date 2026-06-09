@@ -12,3 +12,6 @@ export { GridViewExample } from "./components/grid-view-example";
 export { CustomToolbarExample } from "./components/custom-toolbar-example";
 export { ServerTableExample } from "./components/server-table-example";
 export { RowActionsExample } from "./components/row-actions-example";
+export { ColumnPinningExample } from "./components/column-pinning-example";
+export { RowExpandDetailExample } from "./components/row-expand-detail-example";
+export { RowExpandSubrowsExample } from "./components/row-expand-subrows-example";
