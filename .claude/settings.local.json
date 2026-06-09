@@ -19,7 +19,19 @@
       "Bash(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\drgodly-mvp\" -Recurse -Force)",
       "Bash(Select-Object -Property FullName)",
       "Bash(Get-ChildItem -Path . -Recurse -Name)",
-      "PowerShell(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\drgodly-mvp\" -Recurse | Select-Object -First 50 | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"D:\\\\work\\\\code\\\\drgodly-mvp\\\\\"\\), \"\" })"
+      "PowerShell(Get-ChildItem -Path \"D:\\\\work\\\\code\\\\drgodly-mvp\" -Recurse | Select-Object -First 50 | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"D:\\\\work\\\\code\\\\drgodly-mvp\\\\\"\\), \"\" })",
+      "Bash(Get-ChildItem *)",
+      "Bash(Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"E:\\\\work\\\\code\\\\drgodly-mvp\\\\src\\\\modules\\\\client\\\\telemedicine\\\\components\\\\doctor\\\\services\\\\subComponents\" -File | ForEach-Object { $_.FullName })",
+      "Bash(npx tsc *)",
+      "Bash(npx next *)",
+      "Bash(node -e \"const p = require\\('./package.json'\\); const deps = {...p.dependencies, ...p.devDependencies}; const keys = Object.keys\\(deps\\).filter\\(k => /query|swr|axios|fetch|tanstack/.test\\(k\\)\\); console.log\\(JSON.stringify\\(keys, null, 2\\)\\)\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\(JSON.stringify\\({...p.dependencies,...p.devDependencies}, null, 2\\)\\)\")",
+      "Bash(pnpm remove *)",
+      "Bash(dir E:\\\\work\\\\code\\\\a2ui\\\\src\\\\modules\\\\client\\\\ai-hub\\\\a2ui\\\\components *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
