@@ -385,9 +385,17 @@ export function ServerTableExample() {
   const searchColumnsRef = React.useRef<Set<string>>(
     new Set(SEARCHABLE_COLUMNS.map((c) => c.id)),
   );
-  const columnSearchFn = React.useMemo(
-    () => createColumnSearchFilterFn<Patient>(searchColumnsRef),
+  /**
+   * Stable getter for the current column-scope Set. Avoids passing the React
+   * ref directly into useMemo (React compiler "ref access during render" check).
+   */
+  const getSearchColumns = React.useCallback(
+    () => searchColumnsRef.current,
     [],
+  );
+  const columnSearchFn = React.useMemo(
+    () => createColumnSearchFilterFn<Patient>(getSearchColumns),
+    [getSearchColumns],
   );
   const onColumnIdsChange = React.useCallback((ids: string[]) => {
     searchColumnsRef.current = new Set(ids);

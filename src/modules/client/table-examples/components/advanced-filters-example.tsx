@@ -169,7 +169,7 @@ const COLUMNS: ColumnDef<Product>[] = [
       <DataTableColumnHeader column={column} label="Price ($)" />
     ),
     cell: ({ row }) => (
-      <span>${(row.getValue("price") as number).toLocaleString()}</span>
+      <span>${(row.getValue("price") as number).toLocaleString("en-US")}</span>
     ),
     enableSorting: true,
     enableColumnFilter: true,

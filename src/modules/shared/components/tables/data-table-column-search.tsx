@@ -51,15 +51,19 @@ export interface SearchableColumn {
 
 /**
  * Factory that returns a stable TanStack `globalFilterFn` whose column scope
- * is driven by a mutable `Set` ref. Pass this to `useDataTable` or
- * `useReactTable` as `globalFilterFn`, and keep the ref in sync via
+ * is driven by a getter function. Pass this to `useDataTable` or
+ * `useReactTable` as `globalFilterFn`, and keep the underlying Set in sync via
  * `onColumnIdsChange`.
  *
- * Because the function closes over a `React.MutableRefObject`, it is stable
- * across renders and never needs to be recreated — the ref update propagates
+ * Accepts a getter `() => Set<string>` rather than a React ref so that React's
+ * compiler does not flag ref access during render (the getter is only invoked
+ * inside TanStack's filter pass, never during the React render phase).
+ *
+ * Because the function closes over the getter (not the Set directly), it is
+ * stable across renders and never needs to be recreated — the getter reads the
  * to the next filter pass automatically.
  *
- * @param columnIdsRef - A ref holding the Set of column ids to search.
+ * @param getColumnIds - A stable getter that returns the current Set of column ids to search.
  * @returns A globalFilterFn compatible with TanStack Table.
  *
  * @example
@@ -67,25 +71,29 @@ export interface SearchableColumn {
  * const searchColumnsRef = React.useRef<Set<string>>(
  *   new Set(["name", "role", "department"]),
  * );
+ * // Wrap in useCallback so the getter is stable and can be passed without
+ * // triggering React's "ref access during render" compiler check.
+ * const getSearchColumns = React.useCallback(() => searchColumnsRef.current, []);
  * const columnSearchFn = React.useMemo(
- *   () => createColumnSearchFilterFn(searchColumnsRef),
- *   [], // stable
+ *   () => createColumnSearchFilterFn(getSearchColumns),
+ *   [getSearchColumns],
  * );
  * const { table } = useDataTable({ columns, data, globalFilterFn: columnSearchFn });
  * ```
  */
 export function createColumnSearchFilterFn<TData>(
-  columnIdsRef: React.MutableRefObject<Set<string>>,
+  getColumnIds: () => Set<string>,
 ) {
   return function columnSearchFilterFn(
     row: import("@tanstack/react-table").Row<TData>,
     columnId: string,
     filterValue: string,
   ): boolean {
+    const columnIds = getColumnIds();
     // If no columns are selected, show all rows (no restriction)
-    if (columnIdsRef.current.size === 0) return true;
+    if (columnIds.size === 0) return true;
     // Only apply to columns in the current selection
-    if (!columnIdsRef.current.has(columnId)) return false;
+    if (!columnIds.has(columnId)) return false;
     const value = row.getValue(columnId);
     return String(value ?? "")
       .toLowerCase()

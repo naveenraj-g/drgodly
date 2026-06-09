@@ -257,12 +257,12 @@ const COLUMNS: ColumnDef<OrgNode>[] = [
       row.depth === 0 ? (
         /* Department: annual budget */
         <span className="font-medium tabular-nums">
-          ${(row.original.budget ?? 0).toLocaleString()}
+          ${(row.original.budget ?? 0).toLocaleString("en-US")}
         </span>
       ) : (
         /* Staff: annual salary */
         <span className="tabular-nums text-muted-foreground">
-          ${(row.original.salary ?? 0).toLocaleString()}
+          ${(row.original.salary ?? 0).toLocaleString("en-US")}
         </span>
       ),
     enableSorting: false,

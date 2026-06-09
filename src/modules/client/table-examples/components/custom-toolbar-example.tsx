@@ -199,7 +199,7 @@ const COLUMNS: ColumnDef<StaffMember>[] = [
       <DataTableColumnHeader column={column} label="Salary" />
     ),
     cell: ({ row }) => (
-      <span>${(row.getValue("salary") as number).toLocaleString()}</span>
+      <span>${(row.getValue("salary") as number).toLocaleString("en-US")}</span>
     ),
     enableSorting: true,
     enableColumnFilter: true,
@@ -323,13 +323,23 @@ export function CustomToolbarExample() {
   );
 
   /**
+   * Stable getter for the current column-scope Set. useCallback keeps the
+   * reference stable so useMemo below is not re-run on every render, and avoids
+   * passing a React ref directly to a function (React compiler warning).
+   */
+  const getSearchColumns = React.useCallback(
+    () => searchColumnsRef.current,
+    [],
+  );
+
+  /**
    * Stable custom globalFilterFn that only matches the columns currently
-   * selected in the column-scope dropdown. Created once; reads from the ref
+   * selected in the column-scope dropdown. Created once; reads from the getter
    * at filter time so selection changes are reflected without table rebuild.
    */
   const columnSearchFn = React.useMemo(
-    () => createColumnSearchFilterFn<StaffMember>(searchColumnsRef),
-    [], // stable — ref identity never changes
+    () => createColumnSearchFilterFn<StaffMember>(getSearchColumns),
+    [getSearchColumns],
   );
 
   /** Syncs the ref whenever the user changes column selection in the dropdown */
