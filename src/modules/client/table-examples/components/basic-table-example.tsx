@@ -47,26 +47,186 @@ interface Patient {
 
 /** 20 fictional patient records for demonstration purposes */
 const DEMO_PATIENTS: Patient[] = [
-  { id: "P001", name: "Alice Johnson", age: 34, gender: "female", status: "active", department: "Cardiology", lastVisit: "2024-05-10" },
-  { id: "P002", name: "Bob Smith", age: 52, gender: "male", status: "active", department: "Neurology", lastVisit: "2024-06-01" },
-  { id: "P003", name: "Carol White", age: 28, gender: "female", status: "pending", department: "Orthopedics", lastVisit: "2024-04-15" },
-  { id: "P004", name: "David Brown", age: 67, gender: "male", status: "inactive", department: "Oncology", lastVisit: "2023-12-20" },
-  { id: "P005", name: "Eva Martinez", age: 41, gender: "female", status: "active", department: "Cardiology", lastVisit: "2024-06-05" },
-  { id: "P006", name: "Frank Lee", age: 58, gender: "male", status: "active", department: "Dermatology", lastVisit: "2024-05-28" },
-  { id: "P007", name: "Grace Kim", age: 23, gender: "female", status: "active", department: "General", lastVisit: "2024-06-03" },
-  { id: "P008", name: "Henry Chen", age: 45, gender: "male", status: "pending", department: "Orthopedics", lastVisit: "2024-05-20" },
-  { id: "P009", name: "Isabel Davis", age: 37, gender: "female", status: "inactive", department: "Neurology", lastVisit: "2024-01-10" },
-  { id: "P010", name: "James Wilson", age: 61, gender: "male", status: "active", department: "Cardiology", lastVisit: "2024-06-02" },
-  { id: "P011", name: "Karen Taylor", age: 49, gender: "female", status: "active", department: "Oncology", lastVisit: "2024-05-30" },
-  { id: "P012", name: "Liam Anderson", age: 31, gender: "male", status: "active", department: "General", lastVisit: "2024-06-04" },
-  { id: "P013", name: "Maya Patel", age: 27, gender: "female", status: "pending", department: "Dermatology", lastVisit: "2024-05-25" },
-  { id: "P014", name: "Noah Garcia", age: 55, gender: "male", status: "active", department: "Neurology", lastVisit: "2024-06-01" },
-  { id: "P015", name: "Olivia Roberts", age: 43, gender: "female", status: "inactive", department: "Cardiology", lastVisit: "2024-02-14" },
-  { id: "P016", name: "Paul Thompson", age: 38, gender: "male", status: "active", department: "Orthopedics", lastVisit: "2024-05-18" },
-  { id: "P017", name: "Quinn Evans", age: 29, gender: "other", status: "active", department: "General", lastVisit: "2024-06-06" },
-  { id: "P018", name: "Rachel Clark", age: 64, gender: "female", status: "active", department: "Oncology", lastVisit: "2024-05-22" },
-  { id: "P019", name: "Samuel Lewis", age: 46, gender: "male", status: "pending", department: "Neurology", lastVisit: "2024-05-14" },
-  { id: "P020", name: "Tina Walker", age: 33, gender: "female", status: "active", department: "Dermatology", lastVisit: "2024-06-07" },
+  {
+    id: "P001",
+    name: "Alice Johnson",
+    age: 34,
+    gender: "female",
+    status: "active",
+    department: "Cardiology",
+    lastVisit: "2024-05-10",
+  },
+  {
+    id: "P002",
+    name: "Bob Smith",
+    age: 52,
+    gender: "male",
+    status: "active",
+    department: "Neurology",
+    lastVisit: "2024-06-01",
+  },
+  {
+    id: "P003",
+    name: "Carol White",
+    age: 28,
+    gender: "female",
+    status: "pending",
+    department: "Orthopedics",
+    lastVisit: "2024-04-15",
+  },
+  {
+    id: "P004",
+    name: "David Brown",
+    age: 67,
+    gender: "male",
+    status: "inactive",
+    department: "Oncology",
+    lastVisit: "2023-12-20",
+  },
+  {
+    id: "P005",
+    name: "Eva Martinez",
+    age: 41,
+    gender: "female",
+    status: "active",
+    department: "Cardiology",
+    lastVisit: "2024-06-05",
+  },
+  {
+    id: "P006",
+    name: "Frank Lee",
+    age: 58,
+    gender: "male",
+    status: "active",
+    department: "Dermatology",
+    lastVisit: "2024-05-28",
+  },
+  {
+    id: "P007",
+    name: "Grace Kim",
+    age: 23,
+    gender: "female",
+    status: "active",
+    department: "General",
+    lastVisit: "2024-06-03",
+  },
+  {
+    id: "P008",
+    name: "Henry Chen",
+    age: 45,
+    gender: "male",
+    status: "pending",
+    department: "Orthopedics",
+    lastVisit: "2024-05-20",
+  },
+  {
+    id: "P009",
+    name: "Isabel Davis",
+    age: 37,
+    gender: "female",
+    status: "inactive",
+    department: "Neurology",
+    lastVisit: "2024-01-10",
+  },
+  {
+    id: "P010",
+    name: "James Wilson",
+    age: 61,
+    gender: "male",
+    status: "active",
+    department: "Cardiology",
+    lastVisit: "2024-06-02",
+  },
+  {
+    id: "P011",
+    name: "Karen Taylor",
+    age: 49,
+    gender: "female",
+    status: "active",
+    department: "Oncology",
+    lastVisit: "2024-05-30",
+  },
+  {
+    id: "P012",
+    name: "Liam Anderson",
+    age: 31,
+    gender: "male",
+    status: "active",
+    department: "General",
+    lastVisit: "2024-06-04",
+  },
+  {
+    id: "P013",
+    name: "Maya Patel",
+    age: 27,
+    gender: "female",
+    status: "pending",
+    department: "Dermatology",
+    lastVisit: "2024-05-25",
+  },
+  {
+    id: "P014",
+    name: "Noah Garcia",
+    age: 55,
+    gender: "male",
+    status: "active",
+    department: "Neurology",
+    lastVisit: "2024-06-01",
+  },
+  {
+    id: "P015",
+    name: "Olivia Roberts",
+    age: 43,
+    gender: "female",
+    status: "inactive",
+    department: "Cardiology",
+    lastVisit: "2024-02-14",
+  },
+  {
+    id: "P016",
+    name: "Paul Thompson",
+    age: 38,
+    gender: "male",
+    status: "active",
+    department: "Orthopedics",
+    lastVisit: "2024-05-18",
+  },
+  {
+    id: "P017",
+    name: "Quinn Evans",
+    age: 29,
+    gender: "other",
+    status: "active",
+    department: "General",
+    lastVisit: "2024-06-06",
+  },
+  {
+    id: "P018",
+    name: "Rachel Clark",
+    age: 64,
+    gender: "female",
+    status: "active",
+    department: "Oncology",
+    lastVisit: "2024-05-22",
+  },
+  {
+    id: "P019",
+    name: "Samuel Lewis",
+    age: 46,
+    gender: "male",
+    status: "pending",
+    department: "Neurology",
+    lastVisit: "2024-05-14",
+  },
+  {
+    id: "P020",
+    name: "Tina Walker",
+    age: 33,
+    gender: "female",
+    status: "active",
+    department: "Dermatology",
+    lastVisit: "2024-06-07",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -200,8 +360,16 @@ const COLUMNS: ColumnDef<Patient>[] = [
     header: () => <span className="sr-only">Actions</span>,
     cell: ({ row }) => {
       const actions: RowAction<Patient>[] = [
-        { label: "View",  icon: Eye,    onClick: (r) => toast.info(`Viewing ${r.original.name}`) },
-        { label: "Edit",  icon: Pencil, onClick: (r) => toast(`Editing ${r.original.name}`) },
+        {
+          label: "View",
+          icon: Eye,
+          onClick: (r) => toast.info(`Viewing ${r.original.name}`),
+        },
+        {
+          label: "Edit",
+          icon: Pencil,
+          onClick: (r) => toast(`Editing ${r.original.name}`),
+        },
       ];
       return <DataTableRowActions row={row} actions={actions} />;
     },
@@ -258,14 +426,18 @@ export function BasicTableExample() {
       <div>
         <h2 className="text-lg font-semibold">Basic Table</h2>
         <p className="text-sm text-muted-foreground">
-          Text search, select / multi-select filters, sortable columns,
-          per-row actions, export.
+          Text search, select / multi-select filters, sortable columns, per-row
+          actions, export.
         </p>
       </div>
       <DataTable table={table} emptyState={emptyState}>
         <div className="flex items-center justify-between gap-2">
           <DataTableToolbar table={table} className="flex-1" />
-          <DataTableExportButton table={table} filename="patients" title="Patients" />
+          <DataTableExportButton
+            table={table}
+            filename="patients"
+            title="Patients"
+          />
         </div>
       </DataTable>
     </div>

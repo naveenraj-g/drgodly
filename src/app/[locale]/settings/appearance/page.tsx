@@ -1,4 +1,4 @@
-import AppearanceSettings from "@/modules/client/bezs/components/settings/AppearanceSettings";
+import AppearanceSettings from "@/modules/client/settings/AppearanceSettings";
 
 export default function AppearanceSettingsPage() {
   return <AppearanceSettings />;

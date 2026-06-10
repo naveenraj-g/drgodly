@@ -47,18 +47,102 @@ interface Task {
 // ---------------------------------------------------------------------------
 
 const DEMO_TASKS: Task[] = [
-  { id: "T001", title: "Schedule annual checkup for Mr. Johnson", priority: "medium", assignee: "Dr. Alice", status: "todo", dueDate: "2024-06-20" },
-  { id: "T002", title: "Review lab results for patient P-4421", priority: "high", assignee: "Dr. Bob", status: "in-progress", dueDate: "2024-06-12" },
-  { id: "T003", title: "Update prescription for Ms. Martinez", priority: "urgent", assignee: "Dr. Alice", status: "in-progress", dueDate: "2024-06-10" },
-  { id: "T004", title: "Follow up with post-surgery patient", priority: "high", assignee: "Dr. Carol", status: "todo", dueDate: "2024-06-15" },
-  { id: "T005", title: "Complete insurance claim documentation", priority: "low", assignee: "Admin", status: "todo", dueDate: "2024-06-30" },
-  { id: "T006", title: "Conduct team training on new EHR module", priority: "medium", assignee: "Dr. Carol", status: "done", dueDate: "2024-06-08" },
-  { id: "T007", title: "Order new supply of surgical gloves", priority: "low", assignee: "Pharmacy", status: "done", dueDate: "2024-06-07" },
-  { id: "T008", title: "Prepare monthly performance report", priority: "medium", assignee: "Admin", status: "todo", dueDate: "2024-06-28" },
-  { id: "T009", title: "Respond to patient complaint #8821", priority: "urgent", assignee: "Dr. Bob", status: "in-progress", dueDate: "2024-06-11" },
-  { id: "T010", title: "Calibrate blood pressure monitors", priority: "low", assignee: "Tech", status: "todo", dueDate: "2024-06-25" },
-  { id: "T011", title: "Review radiology images for Dr. Lee", priority: "high", assignee: "Dr. Alice", status: "todo", dueDate: "2024-06-14" },
-  { id: "T012", title: "Patient discharge planning for Ward 3", priority: "medium", assignee: "Dr. Carol", status: "in-progress", dueDate: "2024-06-13" },
+  {
+    id: "T001",
+    title: "Schedule annual checkup for Mr. Johnson",
+    priority: "medium",
+    assignee: "Dr. Alice",
+    status: "todo",
+    dueDate: "2024-06-20",
+  },
+  {
+    id: "T002",
+    title: "Review lab results for patient P-4421",
+    priority: "high",
+    assignee: "Dr. Bob",
+    status: "in-progress",
+    dueDate: "2024-06-12",
+  },
+  {
+    id: "T003",
+    title: "Update prescription for Ms. Martinez",
+    priority: "urgent",
+    assignee: "Dr. Alice",
+    status: "in-progress",
+    dueDate: "2024-06-10",
+  },
+  {
+    id: "T004",
+    title: "Follow up with post-surgery patient",
+    priority: "high",
+    assignee: "Dr. Carol",
+    status: "todo",
+    dueDate: "2024-06-15",
+  },
+  {
+    id: "T005",
+    title: "Complete insurance claim documentation",
+    priority: "low",
+    assignee: "Admin",
+    status: "todo",
+    dueDate: "2024-06-30",
+  },
+  {
+    id: "T006",
+    title: "Conduct team training on new EHR module",
+    priority: "medium",
+    assignee: "Dr. Carol",
+    status: "done",
+    dueDate: "2024-06-08",
+  },
+  {
+    id: "T007",
+    title: "Order new supply of surgical gloves",
+    priority: "low",
+    assignee: "Pharmacy",
+    status: "done",
+    dueDate: "2024-06-07",
+  },
+  {
+    id: "T008",
+    title: "Prepare monthly performance report",
+    priority: "medium",
+    assignee: "Admin",
+    status: "todo",
+    dueDate: "2024-06-28",
+  },
+  {
+    id: "T009",
+    title: "Respond to patient complaint #8821",
+    priority: "urgent",
+    assignee: "Dr. Bob",
+    status: "in-progress",
+    dueDate: "2024-06-11",
+  },
+  {
+    id: "T010",
+    title: "Calibrate blood pressure monitors",
+    priority: "low",
+    assignee: "Tech",
+    status: "todo",
+    dueDate: "2024-06-25",
+  },
+  {
+    id: "T011",
+    title: "Review radiology images for Dr. Lee",
+    priority: "high",
+    assignee: "Dr. Alice",
+    status: "todo",
+    dueDate: "2024-06-14",
+  },
+  {
+    id: "T012",
+    title: "Patient discharge planning for Ward 3",
+    priority: "medium",
+    assignee: "Dr. Carol",
+    status: "in-progress",
+    dueDate: "2024-06-13",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -173,10 +257,10 @@ const COLUMNS: ColumnDef<Task>[] = [
     cell: ({ row }) => {
       const s = row.getValue("status") as Task["status"];
       const labels: Record<Task["status"], string> = {
-        "todo": "To Do",
+        todo: "To Do",
         "in-progress": "In Progress",
-        "done": "Done",
-        "cancelled": "Cancelled",
+        done: "Done",
+        cancelled: "Cancelled",
       };
       return <Badge variant="outline">{labels[s]}</Badge>;
     },
@@ -218,11 +302,25 @@ const COLUMNS: ColumnDef<Task>[] = [
     header: () => <span className="sr-only">Actions</span>,
     cell: ({ row }) => {
       const actions: RowAction<Task>[] = [
-        { label: "View",   icon: Eye,    onClick: (r) => toast.info(`Viewing task ${r.original.id}`) },
-        { label: "Edit",   icon: Pencil, onClick: (r) => toast(`Editing: ${r.original.title}`),
-          disabled: (r) => r.original.status === "done" || r.original.status === "cancelled" },
-        { label: "Delete", icon: Trash2, onClick: (r) => toast.error(`Deleted task ${r.original.id}`),
-          destructive: true, separator: true },
+        {
+          label: "View",
+          icon: Eye,
+          onClick: (r) => toast.info(`Viewing task ${r.original.id}`),
+        },
+        {
+          label: "Edit",
+          icon: Pencil,
+          onClick: (r) => toast(`Editing: ${r.original.title}`),
+          disabled: (r) =>
+            r.original.status === "done" || r.original.status === "cancelled",
+        },
+        {
+          label: "Delete",
+          icon: Trash2,
+          onClick: (r) => toast.error(`Deleted task ${r.original.id}`),
+          destructive: true,
+          separator: true,
+        },
       ];
       return <DataTableRowActions row={row} actions={actions} />;
     },
@@ -288,7 +386,7 @@ export function SelectionTableExample() {
         <h2 className="text-lg font-semibold">Row Selection & Bulk Actions</h2>
         <p className="text-sm text-muted-foreground">
           Select rows via checkboxes; floating bar appears with export and
-          delete. Each row also has a "…" actions menu.
+          delete. Each row also has a &quot;…&quot; actions menu.
         </p>
       </div>
 

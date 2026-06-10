@@ -1,0 +1,48 @@
+import { redirect } from "@/i18n/navigation";
+import { getServerSession } from "@/modules/server/auth/get-session";
+import { CircleAlert } from "lucide-react";
+import { getLocale } from "next-intl/server";
+
+async function PatientProfilePage() {
+  const session = await getServerSession();
+  const locale = await getLocale();
+
+  if (!session) {
+    redirect({ href: "/login", locale });
+    return;
+  }
+
+  const [patientWithPersonalProfileData, error] =
+    await getPatientWithPersonalProfile({
+      orgId: session.session.activeOrganizationId!,
+      userId: session.user.id,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+  const user = {
+    id: session.user.id,
+    name: session.user.name,
+    username: session.user.username,
+    currentOrgId: session.session.activeOrganizationId,
+  };
+
+  return (
+    <div>
+      {(!patientWithPersonalProfileData ||
+        !patientWithPersonalProfileData.personal) && (
+        <div className="bg-warning/20 text-warning flex items-center gap-2 p-2 px-4 rounded-full mb-4">
+          <CircleAlert className="size-5" />
+          <p>Complete your profile first!</p>
+        </div>
+      )}
+      <PatientProfilePersonalDetails
+        user={user}
+        data={patientWithPersonalProfileData}
+      />
+    </div>
+  );
+}
+
+export default PatientProfilePage;

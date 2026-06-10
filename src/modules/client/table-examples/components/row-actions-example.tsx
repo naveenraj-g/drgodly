@@ -54,18 +54,114 @@ interface Appointment {
 // ---------------------------------------------------------------------------
 
 const INITIAL_DATA: Appointment[] = [
-  { id: "A001", patient: "Aisha Patel",     doctor: "Dr. Torres",   specialty: "Cardiology",  date: "2024-12-01", time: "09:00", status: "scheduled"  },
-  { id: "A002", patient: "Bruno Costa",     doctor: "Dr. Klein",    specialty: "Neurology",   date: "2024-12-01", time: "10:30", status: "completed"  },
-  { id: "A003", patient: "Clara Nguyen",    doctor: "Dr. Sharma",   specialty: "Oncology",    date: "2024-12-02", time: "08:15", status: "cancelled"  },
-  { id: "A004", patient: "David Müller",    doctor: "Dr. Gupta",    specialty: "Orthopedics", date: "2024-12-02", time: "11:00", status: "scheduled"  },
-  { id: "A005", patient: "Evelyn Nakamura", doctor: "Dr. Tanaka",   specialty: "Pediatrics",  date: "2024-12-03", time: "09:45", status: "no-show"    },
-  { id: "A006", patient: "Femi Adeyemi",    doctor: "Dr. Svensson", specialty: "Cardiology",  date: "2024-12-03", time: "14:00", status: "scheduled"  },
-  { id: "A007", patient: "Grace Liu",       doctor: "Dr. Torres",   specialty: "Neurology",   date: "2024-12-04", time: "10:00", status: "completed"  },
-  { id: "A008", patient: "Hassan Ali",      doctor: "Dr. Klein",    specialty: "Orthopedics", date: "2024-12-04", time: "13:30", status: "scheduled"  },
-  { id: "A009", patient: "Irene Johansson", doctor: "Dr. Sharma",   specialty: "Oncology",    date: "2024-12-05", time: "08:00", status: "completed"  },
-  { id: "A010", patient: "James Wright",    doctor: "Dr. Gupta",    specialty: "Cardiology",  date: "2024-12-05", time: "15:00", status: "cancelled"  },
-  { id: "A011", patient: "Keiko Watanabe",  doctor: "Dr. Tanaka",   specialty: "Pediatrics",  date: "2024-12-06", time: "09:00", status: "scheduled"  },
-  { id: "A012", patient: "Luca Bianchi",    doctor: "Dr. Svensson", specialty: "Neurology",   date: "2024-12-06", time: "11:30", status: "no-show"    },
+  {
+    id: "A001",
+    patient: "Aisha Patel",
+    doctor: "Dr. Torres",
+    specialty: "Cardiology",
+    date: "2024-12-01",
+    time: "09:00",
+    status: "scheduled",
+  },
+  {
+    id: "A002",
+    patient: "Bruno Costa",
+    doctor: "Dr. Klein",
+    specialty: "Neurology",
+    date: "2024-12-01",
+    time: "10:30",
+    status: "completed",
+  },
+  {
+    id: "A003",
+    patient: "Clara Nguyen",
+    doctor: "Dr. Sharma",
+    specialty: "Oncology",
+    date: "2024-12-02",
+    time: "08:15",
+    status: "cancelled",
+  },
+  {
+    id: "A004",
+    patient: "David Müller",
+    doctor: "Dr. Gupta",
+    specialty: "Orthopedics",
+    date: "2024-12-02",
+    time: "11:00",
+    status: "scheduled",
+  },
+  {
+    id: "A005",
+    patient: "Evelyn Nakamura",
+    doctor: "Dr. Tanaka",
+    specialty: "Pediatrics",
+    date: "2024-12-03",
+    time: "09:45",
+    status: "no-show",
+  },
+  {
+    id: "A006",
+    patient: "Femi Adeyemi",
+    doctor: "Dr. Svensson",
+    specialty: "Cardiology",
+    date: "2024-12-03",
+    time: "14:00",
+    status: "scheduled",
+  },
+  {
+    id: "A007",
+    patient: "Grace Liu",
+    doctor: "Dr. Torres",
+    specialty: "Neurology",
+    date: "2024-12-04",
+    time: "10:00",
+    status: "completed",
+  },
+  {
+    id: "A008",
+    patient: "Hassan Ali",
+    doctor: "Dr. Klein",
+    specialty: "Orthopedics",
+    date: "2024-12-04",
+    time: "13:30",
+    status: "scheduled",
+  },
+  {
+    id: "A009",
+    patient: "Irene Johansson",
+    doctor: "Dr. Sharma",
+    specialty: "Oncology",
+    date: "2024-12-05",
+    time: "08:00",
+    status: "completed",
+  },
+  {
+    id: "A010",
+    patient: "James Wright",
+    doctor: "Dr. Gupta",
+    specialty: "Cardiology",
+    date: "2024-12-05",
+    time: "15:00",
+    status: "cancelled",
+  },
+  {
+    id: "A011",
+    patient: "Keiko Watanabe",
+    doctor: "Dr. Tanaka",
+    specialty: "Pediatrics",
+    date: "2024-12-06",
+    time: "09:00",
+    status: "scheduled",
+  },
+  {
+    id: "A012",
+    patient: "Luca Bianchi",
+    doctor: "Dr. Svensson",
+    specialty: "Neurology",
+    date: "2024-12-06",
+    time: "11:30",
+    status: "no-show",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -76,10 +172,10 @@ const STATUS_VARIANT: Record<
   Appointment["status"],
   "default" | "secondary" | "destructive" | "outline"
 > = {
-  scheduled:  "default",
-  completed:  "secondary",
-  cancelled:  "destructive",
-  "no-show":  "outline",
+  scheduled: "default",
+  completed: "secondary",
+  cancelled: "destructive",
+  "no-show": "outline",
 };
 
 // ---------------------------------------------------------------------------
@@ -93,7 +189,7 @@ const STATUS_VARIANT: Record<
  * The "Simulate loading" button demonstrates the skeleton overlay.
  */
 export function RowActionsExample() {
-  const [data, setData]       = React.useState<Appointment[]>(INITIAL_DATA);
+  const [data, setData] = React.useState<Appointment[]>(INITIAL_DATA);
   const [loading, setLoading] = React.useState(false);
 
   // ── Row action handlers ──────────────────────────────────────────────────
@@ -105,7 +201,9 @@ export function RowActionsExample() {
 
   /** Stub for "Edit" — in a real app would open a form drawer */
   const handleEdit = React.useCallback((appt: Appointment) => {
-    toast(`Editing ${appt.id}`, { description: `${appt.patient} with ${appt.doctor}` });
+    toast(`Editing ${appt.id}`, {
+      description: `${appt.patient} with ${appt.doctor}`,
+    });
   }, []);
 
   /** Remove the row from local state */
@@ -145,7 +243,11 @@ export function RowActionsExample() {
         ),
         enableSorting: true,
         enableColumnFilter: true,
-        meta: { label: "Patient", variant: "text", placeholder: "Search patient…" },
+        meta: {
+          label: "Patient",
+          variant: "text",
+          placeholder: "Search patient…",
+        },
         filterFn: (row, colId, val: string) =>
           String(row.getValue(colId)).toLowerCase().includes(val.toLowerCase()),
       },
@@ -169,15 +271,14 @@ export function RowActionsExample() {
           label: "Specialty",
           variant: "select",
           options: [
-            { label: "Cardiology",  value: "Cardiology"  },
-            { label: "Neurology",   value: "Neurology"   },
-            { label: "Oncology",    value: "Oncology"    },
+            { label: "Cardiology", value: "Cardiology" },
+            { label: "Neurology", value: "Neurology" },
+            { label: "Oncology", value: "Oncology" },
             { label: "Orthopedics", value: "Orthopedics" },
-            { label: "Pediatrics",  value: "Pediatrics"  },
+            { label: "Pediatrics", value: "Pediatrics" },
           ],
         },
-        filterFn: (row, colId, val: string) =>
-          row.getValue(colId) === val,
+        filterFn: (row, colId, val: string) => row.getValue(colId) === val,
       },
       {
         accessorKey: "date",
@@ -214,14 +315,13 @@ export function RowActionsExample() {
           label: "Status",
           variant: "select",
           options: [
-            { label: "Scheduled",  value: "scheduled"  },
-            { label: "Completed",  value: "completed"  },
-            { label: "Cancelled",  value: "cancelled"  },
-            { label: "No Show",    value: "no-show"    },
+            { label: "Scheduled", value: "scheduled" },
+            { label: "Completed", value: "completed" },
+            { label: "Cancelled", value: "cancelled" },
+            { label: "No Show", value: "no-show" },
           ],
         },
-        filterFn: (row, colId, val: string) =>
-          row.getValue(colId) === val,
+        filterFn: (row, colId, val: string) => row.getValue(colId) === val,
       },
       {
         // Per-row actions column — not sortable, not hideable, not exported
@@ -243,7 +343,8 @@ export function RowActionsExample() {
               icon: Pencil,
               onClick: (r) => handleEdit(r.original),
               // Disable edit for cancelled / no-show appointments
-              disabled: (r) => ["cancelled", "no-show"].includes(r.original.status),
+              disabled: (r) =>
+                ["cancelled", "no-show"].includes(r.original.status),
             },
             {
               label: "Delete",
@@ -312,11 +413,13 @@ export function RowActionsExample() {
     <div className="space-y-2">
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Row Actions · Empty State · Loading</h2>
+          <h2 className="text-lg font-semibold">
+            Row Actions · Empty State · Loading
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Each row has a "…" menu (View / Edit / Delete). Delete all rows
-            matching your filter to see the custom empty state. Use "Reload"
-            to see the skeleton loading overlay.
+            Each row has a &quot;…&quot; menu (View / Edit / Delete). Delete all
+            rows matching your filter to see the custom empty state. Use
+            &quot;Reload&quot; to see the skeleton loading overlay.
           </p>
         </div>
         {/* Reload button to demo the loading prop */}
@@ -331,14 +434,14 @@ export function RowActionsExample() {
         </Button>
       </div>
 
-      <DataTable
-        table={table}
-        loading={loading}
-        emptyState={customEmptyState}
-      >
+      <DataTable table={table} loading={loading} emptyState={customEmptyState}>
         <div className="flex items-center justify-between gap-2">
           <DataTableToolbar table={table} className="flex-1" />
-          <DataTableExportButton table={table} filename="appointments" title="Appointments" />
+          <DataTableExportButton
+            table={table}
+            filename="appointments"
+            title="Appointments"
+          />
         </div>
       </DataTable>
     </div>
