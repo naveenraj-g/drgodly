@@ -41,3 +41,22 @@ yarn-error.log*
 next-env.d.ts
 
 /prisma/generated
+
+# coding agents — internal skills committed, external ones ignored
+.agents
+.commandCode
+.claude/settings.local.json
+.claude/skills/better-auth-best-practices/
+.claude/skills/better-auth-security-best-practices/
+.claude/skills/create-auth-skill/
+.claude/skills/email-and-password-best-practices/
+.claude/skills/organization-best-practices/
+.claude/skills/shadcn/
+.claude/skills/two-factor-authentication-best-practices/
+.claude/skills/frontend-design/
+.claude/skills/react-best-practices/
+.claude/skills/senior-frontend/
+.claude/skills/ui-ux-pro-max/
+
+# downloaded LLM reference docs
+better-auth-llms.txt
