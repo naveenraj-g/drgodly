@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file row-actions-example.tsx
  * @description Demonstrates the three new DataTable features:
  *
@@ -32,7 +32,7 @@ import {
   DataTableToolbar,
   useDataTable,
   type RowAction,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

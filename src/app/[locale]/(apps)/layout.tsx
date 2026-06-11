@@ -1,10 +1,10 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getServerSession } from "@/modules/server/auth/get-session";
-import BreadCrumb from "@/modules/shared/components/BreadCrumb";
-import AppNavbar from "@/modules/shared/components/navbar/AppNavbar";
+import BreadCrumb from "@/modules/client/shared/components/BreadCrumb";
+import AppNavbar from "@/modules/client/shared/components/navbar/AppNavbar";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { MenuBar } from "@/modules/shared/components/menubar/MenuBar";
+import { MenuBar } from "@/modules/client/shared/components/menubar/MenuBar";
 
 export const dynamic = "force-dynamic";
 

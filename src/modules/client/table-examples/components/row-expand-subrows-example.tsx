@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file row-expand-subrows-example.tsx
  * @description Example 10 — Sub-rows / tree data pattern.
  *
@@ -30,7 +30,7 @@ import {
   DataTableColumnHeader,
   DataTableExpandButton,
   useDataTable,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

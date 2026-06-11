@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file index.ts
  * @description Public API barrel for the shared data-table component system.
  * Import everything your feature needs from this single entry point rather
@@ -12,7 +12,7 @@
  *   DataTableWithViews,
  *   DataTableColumnHeader,
  *   useDataTable,
- * } from "@/modules/shared/components/tables";
+ * } from "@/modules/client/shared/components/tables";
  * ```
  *
  * @layer shared/tables

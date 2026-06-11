@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
-import { capitalizeString } from "../helper";
+import { capitalizeString } from "@/modules/shared/helper";
 
 const isProbablyId = (segment: string) => /^[0-9a-fA-F-]{6,}$/.test(segment);
 
@@ -34,14 +34,19 @@ export default function BreadCrumb({ className = "" }: { className?: string }) {
 
           return isLast ? (
             <BreadcrumbItem key={segment}>
-              <BreadcrumbPage className={cn("text-base text-primary font-bold")}>
+              <BreadcrumbPage
+                className={cn("text-base text-primary font-bold")}
+              >
                 {capitalizeString(segment === "bezs" ? "Home" : label)}
               </BreadcrumbPage>
             </BreadcrumbItem>
           ) : (
             <BreadcrumbList key={segment}>
               <BreadcrumbItem>
-                <Link href={`/${linkPath}`} className="text-base hover:text-foreground">
+                <Link
+                  href={`/${linkPath}`}
+                  className="text-base hover:text-foreground"
+                >
                   {segment === "bezs" ? "Home" : capitalizeString(label)}
                 </Link>
               </BreadcrumbItem>

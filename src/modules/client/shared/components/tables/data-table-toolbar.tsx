@@ -40,6 +40,13 @@ import { DataTableViewOptions } from "./data-table-view-options";
 interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
   /** TanStack Table instance used to read column filters and all columns */
   table: Table<TData>;
+  /**
+   * When false, the built-in DataTableViewOptions (column visibility / pin)
+   * button is omitted from the right slot. Useful when you want to suppress
+   * the "View" popover for a specific table.
+   * @default true
+   */
+  showViewOptions?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +65,7 @@ interface DataTableToolbarProps<TData> extends React.ComponentProps<"div"> {
 export function DataTableToolbar<TData>({
   table,
   children,
+  showViewOptions = true,
   className,
   ...props
 }: DataTableToolbarProps<TData>) {
@@ -110,7 +118,7 @@ export function DataTableToolbar<TData>({
       {/* Right side: extra children + column visibility */}
       <div className="flex items-center gap-2">
         {children}
-        <DataTableViewOptions table={table} />
+        {showViewOptions && <DataTableViewOptions table={table} />}
       </div>
     </div>
   );

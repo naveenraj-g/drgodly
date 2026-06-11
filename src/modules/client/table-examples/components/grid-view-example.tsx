@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file grid-view-example.tsx
  * @description Example demonstrating the dual view (table + grid/card) toggle
  * using DataTableWithViews. The same dataset and filters work in both views.
@@ -26,7 +26,7 @@ import {
   DataTableWithViews,
   useDataTable,
   type RowAction,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

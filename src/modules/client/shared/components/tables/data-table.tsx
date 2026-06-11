@@ -211,11 +211,11 @@ export function DataTable<TData>({
   const pinnedRight = table.getState().columnPinning.right?.length ?? 0;
   const isPinned    = pinnedLeft > 0 || pinnedRight > 0;
 
-  // Column resizing — only needs `table-layout:fixed` when pinning is also
-  // active (sticky offsets require pixel-accurate column widths). For resizing
-  // alone, auto-layout fills the container correctly; explicit `width` hints on
-  // <th> are enough for TanStack's resize handler to work.
-  const isResizable   = !!table.options.columnResizeMode;
+  // Column resizing — TanStack defaults columnResizeMode to 'onEnd' internally,
+  // so we cannot use !!columnResizeMode alone to gate the resize UI. We also
+  // check enableColumnResizing !== false so callers can opt out without having
+  // to override TanStack's built-in default.
+  const isResizable   = !!table.options.columnResizeMode && table.options.enableColumnResizing !== false;
   const isResizingAny = isResizable && !!table.getState().columnSizingInfo?.isResizingColumn;
   // Fixed layout is only required when columns are pinned.
   const useFixedLayout = isPinned;

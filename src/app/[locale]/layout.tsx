@@ -9,6 +9,7 @@ import { routing } from "@/i18n/routing";
 import NextTopLoader from "nextjs-toploader";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -41,11 +42,13 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <NextIntlClientProvider>
-            <TooltipProvider>{children}</TooltipProvider>
-          </NextIntlClientProvider>
-          <Toaster />
-          <NextTopLoader showSpinner={false} color="var(--progress-bar)" />
+          <QueryProvider>
+            <NextIntlClientProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+            </NextIntlClientProvider>
+            <Toaster />
+            <NextTopLoader showSpinner={false} color="var(--progress-bar)" />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

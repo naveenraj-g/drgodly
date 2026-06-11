@@ -1,5 +1,5 @@
 /**
- * PatientService — infrastructure layer implementation of IPatientService.
+ * PatientService — infrastructure layer implementation of IPatientsService.
  *
  * Responsibilities:
  *  - Calls the drgodly orchestrator REST API for all patient-related operations.
@@ -39,9 +39,9 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "@/modules/server/shared/errors/commonErrors";
-import { IPatientService } from "../../domain/interfaces/patient.service.interface";
+import { IPatientsService } from "../../domain/interfaces/patient.service.interface";
 
-export class PatientService implements IPatientService {
+export class PatientService implements IPatientsService {
   /** Axios instance scoped to the orchestrator's /patients base path. */
   private readonly client: AxiosInstance;
 

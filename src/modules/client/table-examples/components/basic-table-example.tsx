@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file basic-table-example.tsx
  * @description Example showcasing the basic DataTable with text search,
  * single-select faceted filter, and sortable columns. Uses a static dataset
@@ -24,7 +24,7 @@ import {
   DataTableToolbar,
   useDataTable,
   type RowAction,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TransportOptionsSchema } from "@/modules/entities/schemas/transport";
 
 const GenderSchema = z.enum(["male", "female", "other", "unknown"]);
 
@@ -100,13 +101,7 @@ export const DeletePatientValidationSchema = z.object({ id: z.number() });
 export type TDeletePatient = z.infer<typeof DeletePatientValidationSchema>;
 
 // --- Action schemas (ZSA transport layer input) ---
-
-export const TransportOptionsSchema = z.object({
-  url: z.string().nullish(),
-  shouldRevalidate: z.boolean().optional(),
-  shouldRedirect: z.boolean().optional(),
-  revalidateType: z.enum(["page", "layout"]).optional(),
-});
+// TransportOptionsSchema imported from entities/schemas/transport — canonical source.
 
 export const RegisterPatientActionSchema = z.object({
   payload: RegisterPatientValidationSchema,

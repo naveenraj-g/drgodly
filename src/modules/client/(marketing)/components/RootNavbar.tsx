@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { Button } from "@/components/ui/button";
 import { OAuthPkceButton } from "@/modules/client/auth/components/OAuthPkceButton";
 import { ThemeSwitcher } from "@/theme/ThemeSwitcher";
-import LocaleSwitcher from "@/modules/shared/components/LocaleSwitcher";
-import { NavUser } from "@/modules/shared/components/NavUser";
+import LocaleSwitcher from "@/modules/client/shared/components/LocaleSwitcher";
+import { NavUser } from "@/modules/client/shared/components/NavUser";
 import { Link, useRouter } from "@/i18n/navigation";
 import { motion } from "framer-motion";
 import { Activity } from "lucide-react";

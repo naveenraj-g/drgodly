@@ -1,9 +1,15 @@
-import { IPatientService } from "../core/patient/domain/interfaces/patient.service.interface";
+import { IOrganizationsService } from "../core/organization/domain/interfaces/organization.service.interface";
+import { IPatientsService } from "../core/patient/domain/interfaces/patient.service.interface";
+import { ITerminologyService } from "../core/terminology/domain/interfaces/terminology.service.interface";
 
 export const DI_SYMBOLS = {
-  IPatientService: Symbol.for("IPatientService"),
+  IPatientsService: Symbol.for("IPatientsService"),
+  IOrganizationsService: Symbol.for("IOrganizationsService"),
+  ITerminologyService: Symbol.for("ITerminologyService"),
 };
 
 export interface DI_RETURN_TYPES {
-  IPatientService: IPatientService;
+  IPatientsService: IPatientsService;
+  IOrganizationsService: IOrganizationsService;
+  ITerminologyService: ITerminologyService;
 }

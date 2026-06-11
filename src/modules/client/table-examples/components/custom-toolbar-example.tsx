@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file custom-toolbar-example.tsx
  * @description Example demonstrating the full advanced toolbar:
  * - Scoped search with column-selector dropdown (Name / Role / Department)
@@ -42,7 +42,7 @@ import {
   type RowAction,
   type RowHeightValue,
   type SearchableColumn,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

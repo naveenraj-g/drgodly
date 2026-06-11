@@ -1,10 +1,16 @@
 import { createContainer } from "@evyweb/ioctopus";
 import { DI_RETURN_TYPES, DI_SYMBOLS } from "./types";
-import { registerPatientModule } from "./modules";
+import {
+  registerOrganizationModule,
+  registerPatientModule,
+  registerTerminologyModule,
+} from "./modules";
 
 const ApplicationContainer = createContainer();
 
 registerPatientModule(ApplicationContainer);
+registerOrganizationModule(ApplicationContainer);
+registerTerminologyModule(ApplicationContainer);
 
 export const getInjection = <K extends keyof typeof DI_SYMBOLS>(
   symbol: K

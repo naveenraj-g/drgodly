@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file row-expand-detail-example.tsx
  * @description Example 9 — Row expand / detail panel pattern.
  *
@@ -29,7 +29,7 @@ import {
   DataTableExpandButton,
   DataTableToolbar,
   useDataTable,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

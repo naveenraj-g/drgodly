@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file server-table-example.tsx
  * @description Demonstrates server-side pagination, sorting, filtering, and
  * global search using `useServerDataTable`. All data operations (filter,
@@ -49,7 +49,7 @@ import {
   type RowAction,
   type SearchableColumn,
   type ServerTableState,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

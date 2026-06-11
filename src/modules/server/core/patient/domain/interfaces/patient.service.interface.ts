@@ -7,7 +7,7 @@ import {
   TUpdatePatientDto,
 } from "@/modules/entities/schemas/patient/patient.schema";
 
-export interface IPatientService {
+export interface IPatientsService {
   register(dto: TRegisterPatient): Promise<TPatientResponse>;
   list(query?: TListPatientsQuery): Promise<TPaginatedPatientResponse>;
   getMe(): Promise<TPatientResponse>;

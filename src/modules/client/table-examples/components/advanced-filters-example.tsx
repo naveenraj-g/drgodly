@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file advanced-filters-example.tsx
  * @description Example showcasing all available filter variants: text, number,
  * range (slider), date, dateRange, select, and multiSelect. Uses a fictional
@@ -23,7 +23,7 @@ import {
   DataTableToolbar,
   useDataTable,
   type RowAction,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

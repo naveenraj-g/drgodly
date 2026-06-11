@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file selection-table-example.tsx
  * @description Example demonstrating row selection with a floating bulk-action
  * bar. Users can select individual rows via checkboxes or use the header
@@ -26,7 +26,7 @@ import {
   DataTableToolbar,
   useDataTable,
   type RowAction,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

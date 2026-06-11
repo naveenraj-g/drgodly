@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file column-pinning-example.tsx
  * @description Example demonstrating column pinning (sticky left/right columns)
  * combined with column resizing (drag the right edge of any header to resize).
@@ -30,7 +30,7 @@ import {
   DataTableViewOptions,
   useDataTable,
   type RowAction,
-} from "@/modules/shared/components/tables";
+} from "@/modules/client/shared/components/tables";
 
 // ---------------------------------------------------------------------------
 // Data shape

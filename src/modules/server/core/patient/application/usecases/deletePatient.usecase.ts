@@ -1,6 +1,6 @@
-import { getInjection } from "@/modules/server/di/container";
+﻿import { getInjection } from "@/modules/server/di/container";
 
 export async function deletePatientUseCase(id: number): Promise<void> {
-  const patientService = getInjection("IPatientService");
+  const patientService = getInjection("IPatientsService");
   return patientService.delete(id);
 }
