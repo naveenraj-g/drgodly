@@ -54,7 +54,7 @@
           "description": "Resolve the current patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/api/fhir/v1/patients/me",
+          "url": "$fhir_server_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -62,7 +62,7 @@
           "description": "Fetch status value set for QuestionnaireResponse.",
           "context_key": "status_concepts",
           "tool_name": "get_questionnaire_response_status",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=QuestionnaireResponse&field=status",
+          "url": "$fhir_server_url/terminology/concepts?resource=QuestionnaireResponse&field=status",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -78,7 +78,7 @@
           "type": "http",
           "purpose": "create_questionnaire_response",
           "tool_name": "create_questionnaire_response",
-          "url": "$fhir_server_url/api/fhir/v1/questionnaire-responses/",
+          "url": "$fhir_server_url/questionnaire-responses/",
           "method": "POST",
           "validation_schema": "questionnaire_response_create_schema",
           "retryable": false,

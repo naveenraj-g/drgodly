@@ -44,7 +44,7 @@
       "description": "Silently fetches the current patient record to extract patient_id for use in subsequent steps.",
       "context_resolver": {
         "tool_name": "get_my_patient_profile",
-        "url": "$fhir_server_url/api/fhir/v1/patients/me",
+        "url": "$fhir_gql_url/patients/me",
         "method": "GET",
         "timeout_ms": 5000
       },

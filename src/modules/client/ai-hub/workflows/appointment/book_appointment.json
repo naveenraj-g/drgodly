@@ -3,7 +3,14 @@
   "name": "Book Appointment",
   "description": "Book a healthcare appointment in three steps: select a practitioner, choose a free time slot, then confirm and create the booking.",
   "version": "2.0.0",
-  "tags": ["fhir", "appointment", "booking", "scheduling", "healthcare", "slot"],
+  "tags": [
+    "fhir",
+    "appointment",
+    "booking",
+    "scheduling",
+    "healthcare",
+    "slot"
+  ],
   "llm_hints": {
     "intent_examples": [
       "Book an appointment",
@@ -58,7 +65,7 @@
           "description": "Fetch active practitioners available for booking in this organisation.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners_for_booking",
-          "url": "$fhir_server_url/api/fhir/v1/practitioner-roles/booking",
+          "url": "$fhir_server_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -74,7 +81,7 @@
           "type": "http",
           "purpose": "fetch_available_slots",
           "tool_name": "fetch_available_slots",
-          "url": "$fhir_server_url/api/fhir/v1/slots?practitioner_role_id=$practitioner_role_id&status=free",
+          "url": "$fhir_server_url/slots?practitioner_role_id=$practitioner_role_id&status=free",
           "method": "GET",
           "retryable": true,
           "timeout_ms": 10000
@@ -105,7 +112,7 @@
           "type": "http",
           "purpose": "verify_slot",
           "tool_name": "verify_slot",
-          "url": "$fhir_server_url/api/fhir/v1/slots/$slot_id",
+          "url": "$fhir_server_url/slots/$slot_id",
           "method": "GET",
           "retryable": true,
           "timeout_ms": 10000
@@ -144,7 +151,7 @@
           "description": "Resolve the logged-in user's Patient record — extracts patient_id automatically so the user does not need to enter it.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient_profile",
-          "url": "$fhir_server_url/api/fhir/v1/patients/me",
+          "url": "$fhir_server_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -152,7 +159,7 @@
           "description": "Fetch appointment status value set for the Status select.",
           "context_key": "appointment_status_concepts",
           "tool_name": "get_appointment_status_valueset",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=Appointment&field=status",
+          "url": "$fhir_server_url/terminology/concepts?resource=Appointment&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -160,7 +167,7 @@
           "description": "Fetch appointment-type value set for the Appointment Type select.",
           "context_key": "appointment_type_concepts",
           "tool_name": "get_appointment_type_valueset",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=Appointment&field=appointmentType",
+          "url": "$fhir_server_url/terminology/concepts?resource=Appointment&field=appointmentType",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -176,7 +183,7 @@
           "type": "http",
           "purpose": "create_appointment",
           "tool_name": "create_appointment",
-          "url": "$fhir_server_url/api/fhir/v1/appointments/",
+          "url": "$fhir_server_url/appointments/",
           "method": "POST",
           "validation_schema": "appointment_create_schema",
           "retryable": false,

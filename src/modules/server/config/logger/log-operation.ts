@@ -95,12 +95,18 @@ export function logOperation(stage: LogStage, opts: LogOperationOptions): void {
       });
       break;
 
-    case "error":
+    case "error": {
+      // Error properties (message, stack) are non-enumerable — serialize explicitly.
+      const serializedErr =
+        err instanceof Error
+          ? { message: err.message, stack: err.stack }
+          : err;
       logger.error(`[ERROR] ${name}`, {
         ...baseMeta,
-        error: err,
+        error: serializedErr,
         errorName: errName ?? (err as Error | undefined)?.name ?? "Unknown Error",
       });
       break;
+    }
   }
 }

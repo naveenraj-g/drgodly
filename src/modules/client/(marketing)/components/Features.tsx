@@ -20,7 +20,7 @@ const features = [
   { icon: <Shield className="h-8 w-8 text-primary" />, title: "Secure & Compliant", description: "HIPAA-compliant platform with enterprise-grade security to protect sensitive patient data." },
   { icon: <Clock className="h-8 w-8 text-primary" />, title: "Efficient Scheduling", description: "Streamline appointments and reduce no-shows with intelligent scheduling and reminders." },
   { icon: <Smartphone className="h-8 w-8 text-primary" />, title: "Mobile Access", description: "Access patient records and manage your practice from anywhere with our mobile app." },
-  { icon: <HeartPulse className="h-8 w-8 text-primary" />, title: "Comprehensive EHR", description: "Complete electronic health records system with intuitive interface and powerful features." },
+  { icon: <HeartPulse className="h-8 w-8 text-primary" />, title: "Comprehensive EMR", description: "Complete electronic health records system with intuitive interface and powerful features." },
 ];
 
 export default function Features() {

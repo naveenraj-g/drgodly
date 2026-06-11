@@ -60,7 +60,7 @@
           "description": "Auto-resolve the current patient from the session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/api/fhir/v1/patients/me",
+          "url": "$fhir_server_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -68,7 +68,7 @@
           "description": "Fetch relationship type value set for RelatedPerson.",
           "context_key": "relationship_concepts",
           "tool_name": "get_relationship_valueset",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=RelatedPerson&field=relationship",
+          "url": "$fhir_server_url/terminology/concepts?resource=RelatedPerson&field=relationship",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -76,7 +76,7 @@
           "description": "Fetch administrative-gender value set.",
           "context_key": "gender_concepts",
           "tool_name": "get_gender_valueset",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=RelatedPerson&field=gender",
+          "url": "$fhir_server_url/terminology/concepts?resource=RelatedPerson&field=gender",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -84,7 +84,7 @@
           "description": "Fetch name-use value set.",
           "context_key": "name_use_concepts",
           "tool_name": "get_name_use_valueset",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=RelatedPerson&field=nameUse",
+          "url": "$fhir_server_url/terminology/concepts?resource=RelatedPerson&field=nameUse",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -100,7 +100,7 @@
           "type": "http",
           "purpose": "create_related_person",
           "tool_name": "create_related_person",
-          "url": "$fhir_server_url/api/fhir/v1/related-persons/",
+          "url": "$fhir_server_url/related-persons/",
           "method": "POST",
           "validation_schema": "related_person_create_schema",
           "retryable": false,

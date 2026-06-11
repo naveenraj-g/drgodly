@@ -12,7 +12,11 @@
  * so it always reflects the caller's identity and expiry.
  */
 
-import type { WorkflowStepDefinition, StepContextOutput, ContextResolverDef } from "@/types/workflow";
+import type {
+  WorkflowStepDefinition,
+  StepContextOutput,
+  ContextResolverDef,
+} from "@/types/workflow";
 import { getAuthToken } from "@/modules/server/auth/jwt-token";
 
 // Re-export under the name used throughout the workflow routes.
@@ -26,7 +30,9 @@ export { getAuthToken as getJWTToken };
  * @param steps - Unsorted workflow step definitions.
  * @returns Steps sorted by sequence_number.
  */
-export function sortedSteps(steps: WorkflowStepDefinition[]): WorkflowStepDefinition[] {
+export function sortedSteps(
+  steps: WorkflowStepDefinition[],
+): WorkflowStepDefinition[] {
   return [...steps].sort((a, b) => a.sequence_number - b.sequence_number);
 }
 
@@ -46,12 +52,25 @@ export function sortedSteps(steps: WorkflowStepDefinition[]): WorkflowStepDefini
  * @param context  - Key-value map to substitute into the template.
  * @returns Interpolated URL string.
  */
-export function resolveUrl(template: string, context: Record<string, unknown>): string {
+export function resolveUrl(
+  template: string,
+  context: Record<string, unknown>,
+): string {
+  const fhirBase = (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, "");
   const merged: Record<string, unknown> = {
-    fhir_server_url: process.env.FHIR_SERVER_URL ?? "",
+    fhir_server_url: fhirBase,
     ...context,
   };
-  return template.replace(/\$(\w+)/g, (_, key) => String(merged[key] ?? ""));
+  const resolved = template.replace(/\$(\w+)/g, (_, key) =>
+    String(merged[key] ?? ""),
+  );
+
+  // Workflow definitions may use bare relative paths (e.g. /api/v1/...) without
+  // a $fhir_server_url prefix. Prepend the base URL so fetch gets an absolute URL.
+  if (resolved.startsWith("/")) {
+    return `${fhirBase}${resolved}`;
+  }
+  return resolved;
 }
 
 /**
@@ -75,13 +94,15 @@ export function extractOutputs(
       result[key] = response;
     } else {
       // Dot-notation path support: "me_patient.id" traverses nested objects.
-      const value = def.field.split(".").reduce<unknown>(
-        (acc, k) =>
-          acc != null && typeof acc === "object"
-            ? (acc as Record<string, unknown>)[k]
-            : undefined,
-        response,
-      );
+      const value = def.field
+        .split(".")
+        .reduce<unknown>(
+          (acc, k) =>
+            acc != null && typeof acc === "object"
+              ? (acc as Record<string, unknown>)[k]
+              : undefined,
+          response,
+        );
       // Skip undefined so an output absent from one response doesn't overwrite
       // a value already set by a different call.
       if (value !== undefined) result[key] = value;
@@ -98,7 +119,9 @@ export function extractOutputs(
  * @param data - Raw form data from the client.
  * @returns Cleaned payload with empty/null/NaN values removed.
  */
-export function cleanFormData(data: Record<string, unknown>): Record<string, unknown> {
+export function cleanFormData(
+  data: Record<string, unknown>,
+): Record<string, unknown> {
   const cleaned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (
@@ -153,7 +176,9 @@ export async function runContextResolver(
     method: resolver.method,
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
-    signal: resolver.timeout_ms ? AbortSignal.timeout(resolver.timeout_ms) : undefined,
+    signal: resolver.timeout_ms
+      ? AbortSignal.timeout(resolver.timeout_ms)
+      : undefined,
   });
   if (!res.ok) throw new Error(`Context resolver failed: ${res.status}`);
   const body = await res.json();

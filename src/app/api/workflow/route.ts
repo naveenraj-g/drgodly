@@ -107,7 +107,8 @@ export async function POST(req: Request) {
     // const workflow: WorkflowDefinition = await agentRes.json();
 
     // ** Testing **
-    const workflow: WorkflowDefinition = create_service_request as WorkflowDefinition;
+    const workflow: WorkflowDefinition =
+      create_organization as WorkflowDefinition;
 
     const steps = sortedSteps(workflow.workflow_steps);
     const firstStep = steps[0];
@@ -131,13 +132,21 @@ export async function POST(req: Request) {
     };
 
     if (firstStep.context_resolvers?.length) {
-      stepData = await runContextResolvers(firstStep.context_resolvers, mergedContext, token);
+      stepData = await runContextResolvers(
+        firstStep.context_resolvers,
+        mergedContext,
+        token,
+      );
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
         : {};
       mergedContext = { ...mergedContext, ...stepData, ...extracted };
     } else if (firstStep.context_resolver) {
-      stepData = await runContextResolver(firstStep.context_resolver, mergedContext, token);
+      stepData = await runContextResolver(
+        firstStep.context_resolver,
+        mergedContext,
+        token,
+      );
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
         : {};
@@ -146,10 +155,10 @@ export async function POST(req: Request) {
 
     return Response.json({
       type: "workflow_step",
-      workflow,       // full definition — client caches this for the whole session
+      workflow, // full definition — client caches this for the whole session
       stepIndex: 0,
       step: firstStep,
-      stepData,       // pre-fetched FHIR data for the first step, if any
+      stepData, // pre-fetched FHIR data for the first step, if any
       sessionContext: mergedContext,
     });
   } catch (error) {

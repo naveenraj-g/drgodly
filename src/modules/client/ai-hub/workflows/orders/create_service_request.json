@@ -65,7 +65,7 @@
           "description": "Resolve the logged-in user's Patient record so patient_id is available automatically.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/api/fhir/v1/patients/me",
+          "url": "$fhir_server_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -73,7 +73,7 @@
           "description": "Fetch allowed status codes for ServiceRequest.",
           "context_key": "status_concepts",
           "tool_name": "get_service_request_status",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=ServiceRequest&field=status",
+          "url": "$fhir_server_url/terminology/concepts?resource=ServiceRequest&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -81,7 +81,7 @@
           "description": "Fetch allowed intent codes for ServiceRequest.",
           "context_key": "intent_concepts",
           "tool_name": "get_service_request_intent",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=ServiceRequest&field=intent",
+          "url": "$fhir_server_url/terminology/concepts?resource=ServiceRequest&field=intent",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -89,7 +89,7 @@
           "description": "Fetch allowed priority codes for ServiceRequest.",
           "context_key": "priority_concepts",
           "tool_name": "get_service_request_priority",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=ServiceRequest&field=priority",
+          "url": "$fhir_server_url/terminology/concepts?resource=ServiceRequest&field=priority",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -97,7 +97,7 @@
           "description": "Fetch allowed category codes for ServiceRequest.",
           "context_key": "category_concepts",
           "tool_name": "get_service_request_category",
-          "url": "$fhir_server_url/api/fhir/v1/terminology/concepts?resource=ServiceRequest&field=category",
+          "url": "$fhir_server_url/terminology/concepts?resource=ServiceRequest&field=category",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -105,7 +105,7 @@
           "description": "Load practitioners available for booking to populate the requester select.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/api/fhir/v1/practitioner-roles/booking",
+          "url": "$fhir_server_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -121,7 +121,7 @@
           "type": "http",
           "purpose": "create_service_request",
           "tool_name": "create_service_request",
-          "url": "$fhir_server_url/api/fhir/v1/service-requests/",
+          "url": "$fhir_server_url/service-requests/",
           "method": "POST",
           "validation_schema": "service_request_create_schema",
           "retryable": false,

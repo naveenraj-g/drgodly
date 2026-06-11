@@ -89,7 +89,7 @@ const DEMO_TASKS: Task[] = [
   },
   {
     id: "T006",
-    title: "Conduct team training on new EHR module",
+    title: "Conduct team training on new EMR module",
     priority: "medium",
     assignee: "Dr. Carol",
     status: "done",
