@@ -58,12 +58,16 @@ export class PractitionerRoleRestApiService implements IPractitionerRolesService
   }
 
   /** @inheritdoc */
-  list(query?: TListPractitionerRolesQuery): Promise<TPaginatedPractitionerRoleResponse> {
+  list(
+    query?: TListPractitionerRolesQuery,
+  ): Promise<TPaginatedPractitionerRoleResponse> {
     return this.core.list(query);
   }
 
   /** @inheritdoc */
-  listForBooking(query?: TListPractitionerRolesForBookingQuery): Promise<TPaginatedPractitionerRoleBookingResponse> {
+  listForBooking(
+    query?: TListPractitionerRolesForBookingQuery,
+  ): Promise<TPaginatedPractitionerRoleBookingResponse> {
     return this.core.listForBooking(query);
   }
 
@@ -73,7 +77,10 @@ export class PractitionerRoleRestApiService implements IPractitionerRolesService
   }
 
   /** @inheritdoc */
-  update(id: number, dto: TPractitionerRolePatchDto): Promise<TPractitionerRoleResponse> {
+  update(
+    id: number,
+    dto: TPractitionerRolePatchDto,
+  ): Promise<TPractitionerRoleResponse> {
     return this.core.update(id, dto);
   }
 

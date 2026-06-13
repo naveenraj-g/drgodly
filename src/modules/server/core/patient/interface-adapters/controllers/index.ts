@@ -11,6 +11,7 @@
 
 export { createPatientController, type TCreatePatientControllerOutput } from "./createPatient.controller";
 export { createPatientFullController, type TCreatePatientFullControllerOutput } from "./createPatientFull.controller";
+export { updatePatientFullController, type TUpdatePatientFullControllerOutput } from "./updatePatientFull.controller";
 export { listPatientsController, type TListPatientsControllerOutput } from "./listPatients.controller";
 export { getPatientMeController, type TGetPatientMeControllerOutput } from "./getPatientMe.controller";
 export { getPatientByIdController, type TGetPatientByIdControllerOutput } from "./getPatientById.controller";

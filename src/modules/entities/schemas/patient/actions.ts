@@ -22,6 +22,7 @@ import {
   CreatePatientValidationSchema,
   CreatePatientFullValidationSchema,
   UpdatePatientValidationSchema,
+  UpdatePatientFullValidationSchema,
   ListPatientsValidationSchema,
   GetPatientByIdValidationSchema,
   DeletePatientValidationSchema,
@@ -71,6 +72,13 @@ export const CreatePatientFullActionSchema = z.object({
   transportOptions: TransportOptionsSchema.optional(),
 });
 export type TCreatePatientFullAction = z.infer<typeof CreatePatientFullActionSchema>;
+
+/** Action schema for PATCH /patients/{id}/full — atomic patient + sub-resource update. */
+export const UpdatePatientFullActionSchema = z.object({
+  payload: UpdatePatientFullValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TUpdatePatientFullAction = z.infer<typeof UpdatePatientFullActionSchema>;
 
 export const ListPatientsActionSchema = z.object({
   payload: ListPatientsValidationSchema.optional(),

@@ -32,6 +32,7 @@ import {
   TCreatePractitioner,
   TCreatePractitionerFull,
   TPractitionerPatchDto,
+  TUpdatePractitionerFullDto,
   TListPractitionersQuery,
   // names
   TAddPractitionerName,
@@ -76,6 +77,14 @@ export interface IPractitionersService {
    * @returns The created Practitioner resource with all nested sub-resources.
    */
   createFull(dto: TCreatePractitionerFull): Promise<TPractitionerResponse>;
+
+  /**
+   * Atomically updates a Practitioner's scalar fields and sub-resource arrays.
+   * @param id - Practitioner DB id.
+   * @param dto - Full update payload with optional scalar fields and sub-resource arrays.
+   * @returns The updated Practitioner resource.
+   */
+  updateFull(id: number, dto: TUpdatePractitionerFullDto): Promise<TPractitionerResponse>;
 
   /**
    * Lists Practitioners with optional filters and pagination.

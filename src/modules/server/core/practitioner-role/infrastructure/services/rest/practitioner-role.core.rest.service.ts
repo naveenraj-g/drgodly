@@ -42,7 +42,9 @@ export class PractitionerRoleCoreRestService {
    * @param dto - Creation payload including optional child arrays.
    * @returns The created PractitionerRole.
    */
-  async create(dto: TCreatePractitionerRole): Promise<TPractitionerRoleResponse> {
+  async create(
+    dto: TCreatePractitionerRole,
+  ): Promise<TPractitionerRoleResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
@@ -77,7 +79,9 @@ export class PractitionerRoleCoreRestService {
    * @param query - Optional filter and pagination params.
    * @returns Paginated list.
    */
-  async list(query?: TListPractitionerRolesQuery): Promise<TPaginatedPractitionerRoleResponse> {
+  async list(
+    query?: TListPractitionerRolesQuery,
+  ): Promise<TPaginatedPractitionerRoleResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
@@ -87,7 +91,9 @@ export class PractitionerRoleCoreRestService {
     });
     try {
       const res = await this.client.get<unknown>("/", { params: query });
-      const data = await PaginatedPractitionerRoleResponseSchema.parseAsync(res.data);
+      const data = await PaginatedPractitionerRoleResponseSchema.parseAsync(
+        res.data,
+      );
       logOperation("success", {
         name: "PractitionerRoleCoreRestService.list",
         startTimeMs,
@@ -113,7 +119,9 @@ export class PractitionerRoleCoreRestService {
    * @param query - Optional specialty/day_of_week/active filter params.
    * @returns Paginated booking-enriched list.
    */
-  async listForBooking(query?: TListPractitionerRolesForBookingQuery): Promise<TPaginatedPractitionerRoleBookingResponse> {
+  async listForBooking(
+    query?: TListPractitionerRolesForBookingQuery,
+  ): Promise<TPaginatedPractitionerRoleBookingResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
@@ -123,7 +131,10 @@ export class PractitionerRoleCoreRestService {
     });
     try {
       const res = await this.client.get<unknown>("/booking", { params: query });
-      const data = await PaginatedPractitionerRoleBookingResponseSchema.parseAsync(res.data);
+      const data =
+        await PaginatedPractitionerRoleBookingResponseSchema.parseAsync(
+          res.data,
+        );
       logOperation("success", {
         name: "PractitionerRoleCoreRestService.listForBooking",
         startTimeMs,
@@ -184,7 +195,10 @@ export class PractitionerRoleCoreRestService {
    * @param dto - Scalar fields to update (active, period_start, period_end, availability_exceptions).
    * @returns The updated PractitionerRole resource.
    */
-  async update(id: number, dto: TPractitionerRolePatchDto): Promise<TPractitionerRoleResponse> {
+  async update(
+    id: number,
+    dto: TPractitionerRolePatchDto,
+  ): Promise<TPractitionerRoleResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {

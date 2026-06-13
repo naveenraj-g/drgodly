@@ -19,6 +19,11 @@ export {
 } from "./createPractitionerFull.controller";
 
 export {
+  updatePractitionerFullController,
+  type TUpdatePractitionerFullControllerOutput,
+} from "./updatePractitionerFull.controller";
+
+export {
   listPractitionersController,
   type TListPractitionersControllerOutput,
 } from "./listPractitioners.controller";

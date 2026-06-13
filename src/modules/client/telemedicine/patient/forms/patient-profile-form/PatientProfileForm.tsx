@@ -16,10 +16,9 @@
  *      + name + telecoms + address in one DB transaction (POST /patients/full).
  *
  * Submit pipeline (edit mode):
- *   1. updatePatientAction         — core scalar fields
- *   2. addPatientNameAction        — primary HumanName (or patch if exists)
- *   3. addPatientTelecomAction × N — phones + emails (or patch if exists)
- *   4. addPatientAddressAction     — primary address (or patch if exists)
+ *   1. updatePatientFullAction — single atomic call that updates scalar fields
+ *      + replaces name / telecom / address arrays in one DB transaction
+ *      (PATCH /patients/{id}/full).
  */
 
 "use client";
@@ -37,13 +36,7 @@ import { Form } from "@/components/ui/form";
 
 import {
   createPatientFullAction,
-  updatePatientAction,
-  patchPatientNameAction,
-  addPatientNameAction,
-  patchPatientTelecomAction,
-  addPatientTelecomAction,
-  patchPatientAddressAction,
-  addPatientAddressAction,
+  updatePatientFullAction,
 } from "@/modules/server/presentation/actions/patient";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 
@@ -155,167 +148,64 @@ export function PatientProfileForm({
           return;
         }
       } else {
-        // ── Edit mode: individual patch calls per sub-resource ──────────────────
+        // ── Edit mode: single atomic PATCH /patients/{id}/full ─────────────────
 
-        const patientId = initialPatient.id;
+        const telecoms = [
+          values.phone
+            ? { system: "phone" as const, value: values.phone, rank: 1 }
+            : null,
+          values.alt_phone
+            ? { system: "phone" as const, value: values.alt_phone, rank: 2 }
+            : null,
+          values.email
+            ? { system: "email" as const, value: values.email, rank: 1 }
+            : null,
+          values.alt_email
+            ? { system: "email" as const, value: values.alt_email, rank: 2 }
+            : null,
+        ].filter((t): t is NonNullable<typeof t> => t !== null);
 
-        // 1. Core scalar fields
-        const [, coreErr] = await updatePatientAction({
-          payload: {
-            id: patientId,
-            gender: values.gender || undefined,
-            birth_date: birthDateStr,
-          },
-        });
-        if (coreErr) {
-          handleZSAError({ err: coreErr });
-          return;
-        }
-
-        // 2. Primary name
-        if (values.family_name || values.given_name) {
-          const base = {
-            patient_id: patientId,
-            family: values.family_name || undefined,
-            given: values.given_name ? [values.given_name] : undefined,
-          };
-          const existing = initialPatient?.name?.[0];
-          const [, err] = existing
-            ? await patchPatientNameAction({
-                payload: { ...base, item_id: existing.id },
-              })
-            : await addPatientNameAction({ payload: base });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        // 3–4. Phones
-        const phones =
-          initialPatient?.telecom?.filter((t) => t.system === "phone") ?? [];
-        if (values.phone) {
-          const [, err] = phones[0]
-            ? await patchPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  item_id: phones[0].id,
-                  system: "phone",
-                  value: values.phone,
-                },
-              })
-            : await addPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  system: "phone",
-                  value: values.phone,
-                  rank: 1,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-        if (values.alt_phone) {
-          const [, err] = phones[1]
-            ? await patchPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  item_id: phones[1].id,
-                  system: "phone",
-                  value: values.alt_phone,
-                },
-              })
-            : await addPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  system: "phone",
-                  value: values.alt_phone,
-                  rank: 2,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        // 5–6. Emails
-        const emails =
-          initialPatient?.telecom?.filter((t) => t.system === "email") ?? [];
-        if (values.email) {
-          const [, err] = emails[0]
-            ? await patchPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  item_id: emails[0].id,
-                  system: "email",
-                  value: values.email,
-                },
-              })
-            : await addPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  system: "email",
-                  value: values.email,
-                  rank: 1,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-        if (values.alt_email) {
-          const [, err] = emails[1]
-            ? await patchPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  item_id: emails[1].id,
-                  system: "email",
-                  value: values.alt_email,
-                },
-              })
-            : await addPatientTelecomAction({
-                payload: {
-                  patient_id: patientId,
-                  system: "email",
-                  value: values.alt_email,
-                  rank: 2,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        // 7. Address
         const hasAddress = !!(
           values.address_line ||
           values.address_city ||
           values.address_state ||
           values.address_postal_code
         );
-        if (hasAddress) {
-          const base = {
-            patient_id: patientId,
-            line: values.address_line ? [values.address_line] : undefined,
-            city: values.address_city || undefined,
-            state: values.address_state || undefined,
-            postal_code: values.address_postal_code || undefined,
-          };
-          const existing = initialPatient?.address?.[0];
-          const [, err] = existing
-            ? await patchPatientAddressAction({
-                payload: { ...base, item_id: existing.id },
-              })
-            : await addPatientAddressAction({ payload: base });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
+
+        const [, err] = await updatePatientFullAction({
+          payload: {
+            id: initialPatient.id,
+            gender: values.gender || undefined,
+            birth_date: birthDateStr,
+            names:
+              values.family_name || values.given_name
+                ? [
+                    {
+                      family: values.family_name || undefined,
+                      given: values.given_name
+                        ? [values.given_name]
+                        : undefined,
+                    },
+                  ]
+                : undefined,
+            telecom: telecoms.length ? telecoms : undefined,
+            addresses: hasAddress
+              ? [
+                  {
+                    line: values.address_line
+                      ? [values.address_line]
+                      : undefined,
+                    city: values.address_city || undefined,
+                    state: values.address_state || undefined,
+                    postal_code: values.address_postal_code || undefined,
+                  },
+                ]
+              : undefined,
+          },
+        });
+        if (err) {
+          handleZSAError({ err });
+          return;
         }
       }
 

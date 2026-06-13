@@ -20,6 +20,7 @@ import type {
   TCreatePatientFull,
   TListPatientsQuery,
   TUpdatePatientDto,
+  TUpdatePatientFullDto,
   TAddPatientName,
   TPatchPatientName,
   TAddPatientIdentifier,
@@ -61,6 +62,9 @@ export interface IPatientsService {
 
   /** POST /patients/full — atomically create a Patient with sub-resources. */
   createFull(dto: TCreatePatientFull): Promise<TPatientResponse>;
+
+  /** PATCH /patients/{id}/full — atomically update scalar fields and sub-resource arrays. */
+  updateFull(id: number, dto: TUpdatePatientFullDto): Promise<TPatientResponse>;
 
   /** GET /patients — paginated list with optional filters. */
   list(query?: TListPatientsQuery): Promise<TPaginatedPatientResponse>;

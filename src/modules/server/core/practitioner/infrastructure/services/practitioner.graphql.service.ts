@@ -53,6 +53,12 @@ export class PractitionerGraphQLService implements IPractitionersService {
   async create(_dto: TCreatePractitioner): Promise<TPractitionerResponse> {
     throw new Error("PractitionerGraphQLService.create is not yet implemented. Set FHIR_TRANSPORT=rest.");
   }
+  async createFull(): Promise<TPractitionerResponse> {
+    throw new Error("PractitionerGraphQLService.createFull is not yet implemented.");
+  }
+  async updateFull(): Promise<TPractitionerResponse> {
+    throw new Error("PractitionerGraphQLService.updateFull is not yet implemented.");
+  }
   async list(_query?: TListPractitionersQuery): Promise<TPaginatedPractitionerResponse> {
     throw new Error("PractitionerGraphQLService.list is not yet implemented.");
   }

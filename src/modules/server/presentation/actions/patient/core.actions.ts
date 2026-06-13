@@ -18,12 +18,14 @@ import {
   GetPatientByIdActionSchema,
   ListPatientsActionSchema,
   UpdatePatientActionSchema,
+  UpdatePatientFullActionSchema,
   type TCreatePatientAction,
   type TCreatePatientFullAction,
   type TDeletePatientAction,
   type TGetPatientByIdAction,
   type TListPatientsAction,
   type TUpdatePatientAction,
+  type TUpdatePatientFullAction,
 } from "@/modules/entities/schemas/patient";
 import {
   createPatientController,
@@ -33,6 +35,7 @@ import {
   getPatientMeController,
   listPatientsController,
   updatePatientController,
+  updatePatientFullController,
   type TCreatePatientControllerOutput,
   type TCreatePatientFullControllerOutput,
   type TDeletePatientControllerOutput,
@@ -40,6 +43,7 @@ import {
   type TGetPatientMeControllerOutput,
   type TListPatientsControllerOutput,
   type TUpdatePatientControllerOutput,
+  type TUpdatePatientFullControllerOutput,
 } from "@/modules/server/core/patient/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
@@ -49,10 +53,25 @@ export const createPatientFullAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePatientFullActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TCreatePatientFullAction }) => {
-    return await runWithTransport<TCreatePatientFullControllerOutput>(async () => {
-      const data = await createPatientFullController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
+    return await runWithTransport<TCreatePatientFullControllerOutput>(
+      async () => {
+        const data = await createPatientFullController(input.payload);
+        return { result: data, transport: input.transportOptions };
+      },
+    );
+  });
+
+/** Atomically updates a Patient's scalar fields and sub-resource arrays in a single request. */
+export const updatePatientFullAction = authenticatedProcedure
+  .createServerAction()
+  .input(UpdatePatientFullActionSchema, { skipInputParsing: true })
+  .handler(async ({ input }: { input: TUpdatePatientFullAction }) => {
+    return await runWithTransport<TUpdatePatientFullControllerOutput>(
+      async () => {
+        const data = await updatePatientFullController(input.payload);
+        return { result: data, transport: input.transportOptions };
+      },
+    );
   });
 
 /** Creates a new Patient record. Accepts transportOptions for post-create revalidation. */

@@ -17,6 +17,7 @@ import {
   CreatePractitionerValidationSchema,
   CreatePractitionerFullValidationSchema,
   UpdatePractitionerValidationSchema,
+  UpdatePractitionerFullValidationSchema,
   ListPractitionersValidationSchema,
   GetByIdPractitionerValidationSchema,
   GetMyPractitionerValidationSchema,
@@ -60,6 +61,13 @@ export const CreatePractitionerFullActionSchema = z.object({
   transportOptions: TransportOptionsSchema.optional(),
 });
 export type TCreatePractitionerFullAction = z.infer<typeof CreatePractitionerFullActionSchema>;
+
+/** Action schema for PATCH /practitioners/{id}/full — atomic practitioner + sub-resource update. */
+export const UpdatePractitionerFullActionSchema = z.object({
+  payload: UpdatePractitionerFullValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TUpdatePractitionerFullAction = z.infer<typeof UpdatePractitionerFullActionSchema>;
 
 export const ListPractitionersActionSchema = z.object({
   payload: ListPractitionersValidationSchema.optional(),

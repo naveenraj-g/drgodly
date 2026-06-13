@@ -29,7 +29,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
+
+/** Common professional and personal title options for practitioners. */
+const TITLE_OPTIONS = [
+  { value: "Dr.", label: "Dr. — Doctor" },
+  { value: "Prof.", label: "Prof. — Professor" },
+  { value: "Mr.", label: "Mr." },
+  { value: "Mrs.", label: "Mrs." },
+  { value: "Ms.", label: "Ms." },
+  { value: "Mx.", label: "Mx." },
+  { value: "Rev.", label: "Rev. — Reverend" },
+] as const;
 
 import { SectionHeading } from "../SectionHeading";
 import type { TDoctorProfileForm } from "../schema";
@@ -56,17 +74,23 @@ export function PersonalDetailsSection() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Title</FormLabel>
-              <FormControl>
-                <TerminologySelect
-                  resource="Practitioner"
-                  field="name.prefix"
-                  placeholder="e.g. Dr."
-                  value={field.value ?? null}
-                  onChange={(val) =>
-                    field.onChange(typeof val === "string" ? val : (val?.code ?? ""))
-                  }
-                />
-              </FormControl>
+              <Select
+                value={field.value ?? ""}
+                onValueChange={(val) => field.onChange(val || undefined)}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="e.g. Dr." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {TITLE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

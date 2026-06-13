@@ -44,6 +44,7 @@ import {
   type TCreatePractitioner,
   type TCreatePractitionerFull,
   type TPractitionerPatchDto,
+  type TUpdatePractitionerFullDto,
   type TListPractitionersQuery,
   type TAddPractitionerName,
   type TPatchPractitionerNameDto,
@@ -113,7 +114,16 @@ export class PractitionerRestApiService implements IPractitionersService {
     return this.core.createFull(dto);
   }
   /** @inheritdoc */
-  list(query?: TListPractitionersQuery): Promise<TPaginatedPractitionerResponse> {
+  updateFull(
+    id: number,
+    dto: TUpdatePractitionerFullDto,
+  ): Promise<TPractitionerResponse> {
+    return this.core.updateFull(id, dto);
+  }
+  /** @inheritdoc */
+  list(
+    query?: TListPractitionersQuery,
+  ): Promise<TPaginatedPractitionerResponse> {
     return this.core.list(query);
   }
   /** @inheritdoc */
@@ -125,7 +135,10 @@ export class PractitionerRestApiService implements IPractitionersService {
     return this.core.getById(id);
   }
   /** @inheritdoc */
-  update(id: number, dto: TPractitionerPatchDto): Promise<TPractitionerResponse> {
+  update(
+    id: number,
+    dto: TPractitionerPatchDto,
+  ): Promise<TPractitionerResponse> {
     return this.core.update(id, dto);
   }
   /** @inheritdoc */
@@ -135,13 +148,20 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Names delegations ──────────────────────────────────────────────────────
 
-  addName(pid: number, dto: TAddPractitionerName): Promise<TPractitionerNameResponse> {
+  addName(
+    pid: number,
+    dto: TAddPractitionerName,
+  ): Promise<TPractitionerNameResponse> {
     return this.names.add(pid, dto);
   }
   listNames(pid: number): Promise<TPractitionerNameListResponse> {
     return this.names.list(pid);
   }
-  patchName(pid: number, nameId: number, dto: TPatchPractitionerNameDto): Promise<TPractitionerNameResponse> {
+  patchName(
+    pid: number,
+    nameId: number,
+    dto: TPatchPractitionerNameDto,
+  ): Promise<TPractitionerNameResponse> {
     return this.names.patch(pid, nameId, dto);
   }
   deleteName(pid: number, nameId: number): Promise<void> {
@@ -150,13 +170,20 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Identifiers delegations ────────────────────────────────────────────────
 
-  addIdentifier(pid: number, dto: TAddPractitionerIdentifier): Promise<TPractitionerIdentifierResponse> {
+  addIdentifier(
+    pid: number,
+    dto: TAddPractitionerIdentifier,
+  ): Promise<TPractitionerIdentifierResponse> {
     return this.identifiers.add(pid, dto);
   }
   listIdentifiers(pid: number): Promise<TPractitionerIdentifierListResponse> {
     return this.identifiers.list(pid);
   }
-  patchIdentifier(pid: number, identifierId: number, dto: TPatchPractitionerIdentifierDto): Promise<TPractitionerIdentifierResponse> {
+  patchIdentifier(
+    pid: number,
+    identifierId: number,
+    dto: TPatchPractitionerIdentifierDto,
+  ): Promise<TPractitionerIdentifierResponse> {
     return this.identifiers.patch(pid, identifierId, dto);
   }
   deleteIdentifier(pid: number, identifierId: number): Promise<void> {
@@ -165,13 +192,20 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Telecom delegations ────────────────────────────────────────────────────
 
-  addTelecom(pid: number, dto: TAddPractitionerTelecom): Promise<TPractitionerTelecomResponse> {
+  addTelecom(
+    pid: number,
+    dto: TAddPractitionerTelecom,
+  ): Promise<TPractitionerTelecomResponse> {
     return this.telecom.add(pid, dto);
   }
   listTelecom(pid: number): Promise<TPractitionerTelecomListResponse> {
     return this.telecom.list(pid);
   }
-  patchTelecom(pid: number, telecomId: number, dto: TPatchPractitionerTelecomDto): Promise<TPractitionerTelecomResponse> {
+  patchTelecom(
+    pid: number,
+    telecomId: number,
+    dto: TPatchPractitionerTelecomDto,
+  ): Promise<TPractitionerTelecomResponse> {
     return this.telecom.patch(pid, telecomId, dto);
   }
   deleteTelecom(pid: number, telecomId: number): Promise<void> {
@@ -180,13 +214,20 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Addresses delegations ──────────────────────────────────────────────────
 
-  addAddress(pid: number, dto: TAddPractitionerAddress): Promise<TPractitionerAddressResponse> {
+  addAddress(
+    pid: number,
+    dto: TAddPractitionerAddress,
+  ): Promise<TPractitionerAddressResponse> {
     return this.addresses.add(pid, dto);
   }
   listAddresses(pid: number): Promise<TPractitionerAddressListResponse> {
     return this.addresses.list(pid);
   }
-  patchAddress(pid: number, addressId: number, dto: TPatchPractitionerAddressDto): Promise<TPractitionerAddressResponse> {
+  patchAddress(
+    pid: number,
+    addressId: number,
+    dto: TPatchPractitionerAddressDto,
+  ): Promise<TPractitionerAddressResponse> {
     return this.addresses.patch(pid, addressId, dto);
   }
   deleteAddress(pid: number, addressId: number): Promise<void> {
@@ -195,13 +236,20 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Photos delegations ─────────────────────────────────────────────────────
 
-  addPhoto(pid: number, dto: TAddPractitionerPhoto): Promise<TPractitionerPhotoResponse> {
+  addPhoto(
+    pid: number,
+    dto: TAddPractitionerPhoto,
+  ): Promise<TPractitionerPhotoResponse> {
     return this.photos.add(pid, dto);
   }
   listPhotos(pid: number): Promise<TPractitionerPhotoListResponse> {
     return this.photos.list(pid);
   }
-  patchPhoto(pid: number, photoId: number, dto: TPatchPractitionerPhotoDto): Promise<TPractitionerPhotoResponse> {
+  patchPhoto(
+    pid: number,
+    photoId: number,
+    dto: TPatchPractitionerPhotoDto,
+  ): Promise<TPractitionerPhotoResponse> {
     return this.photos.patch(pid, photoId, dto);
   }
   deletePhoto(pid: number, photoId: number): Promise<void> {
@@ -210,13 +258,22 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Qualifications delegations ─────────────────────────────────────────────
 
-  addQualification(pid: number, dto: TAddPractitionerQualification): Promise<TPractitionerQualificationResponse> {
+  addQualification(
+    pid: number,
+    dto: TAddPractitionerQualification,
+  ): Promise<TPractitionerQualificationResponse> {
     return this.qualifications.add(pid, dto);
   }
-  listQualifications(pid: number): Promise<TPractitionerQualificationListResponse> {
+  listQualifications(
+    pid: number,
+  ): Promise<TPractitionerQualificationListResponse> {
     return this.qualifications.list(pid);
   }
-  patchQualification(pid: number, qualificationId: number, dto: TPatchPractitionerQualificationDto): Promise<TPractitionerQualificationResponse> {
+  patchQualification(
+    pid: number,
+    qualificationId: number,
+    dto: TPatchPractitionerQualificationDto,
+  ): Promise<TPractitionerQualificationResponse> {
     return this.qualifications.patch(pid, qualificationId, dto);
   }
   deleteQualification(pid: number, qualificationId: number): Promise<void> {
@@ -225,13 +282,22 @@ export class PractitionerRestApiService implements IPractitionersService {
 
   // ── Communications delegations ─────────────────────────────────────────────
 
-  addCommunication(pid: number, dto: TAddPractitionerCommunication): Promise<TPractitionerCommunicationResponse> {
+  addCommunication(
+    pid: number,
+    dto: TAddPractitionerCommunication,
+  ): Promise<TPractitionerCommunicationResponse> {
     return this.communications.add(pid, dto);
   }
-  listCommunications(pid: number): Promise<TPractitionerCommunicationListResponse> {
+  listCommunications(
+    pid: number,
+  ): Promise<TPractitionerCommunicationListResponse> {
     return this.communications.list(pid);
   }
-  patchCommunication(pid: number, communicationId: number, dto: TPatchPractitionerCommunicationDto): Promise<TPractitionerCommunicationResponse> {
+  patchCommunication(
+    pid: number,
+    communicationId: number,
+    dto: TPatchPractitionerCommunicationDto,
+  ): Promise<TPractitionerCommunicationResponse> {
     return this.communications.patch(pid, communicationId, dto);
   }
   deleteCommunication(pid: number, communicationId: number): Promise<void> {

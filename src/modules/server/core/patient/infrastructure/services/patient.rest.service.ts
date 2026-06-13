@@ -50,6 +50,7 @@ import type {
   TCreatePatientFull,
   TListPatientsQuery,
   TUpdatePatientDto,
+  TUpdatePatientFullDto,
   TAddPatientName,
   TPatchPatientName,
   TAddPatientIdentifier,
@@ -136,6 +137,14 @@ export class PatientRestApiService implements IPatientsService {
   /** @inheritdoc */
   createFull(dto: TCreatePatientFull): Promise<TPatientResponse> {
     return this.core.createFull(dto);
+  }
+
+  /** @inheritdoc */
+  updateFull(
+    id: number,
+    dto: TUpdatePatientFullDto,
+  ): Promise<TPatientResponse> {
+    return this.core.updateFull(id, dto);
   }
 
   /** @inheritdoc */

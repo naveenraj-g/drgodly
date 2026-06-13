@@ -19,6 +19,7 @@ import {
   type TCreatePatientFull,
   type TListPatientsQuery,
   type TUpdatePatientDto,
+  type TUpdatePatientFullDto,
 } from "@/modules/entities/schemas/patient";
 import { logOperation } from "@/modules/server/config/logger/log-operation";
 import { handlePatientApiError } from "./patient.rest.errors";
@@ -95,6 +96,47 @@ export class PatientCoreRestService {
         startTimeMs,
         err,
         context: { operationId },
+      });
+      if (axios.isAxiosError(err)) handlePatientApiError(err);
+      throw err;
+    }
+  }
+
+  /**
+   * PATCH /patients/{id}/full — atomically updates scalar fields and sub-resource arrays.
+   *
+   * @param id  - The Patient primary key.
+   * @param dto - Patchable scalar fields plus optional sub-resource replacement arrays.
+   * @returns The updated Patient record.
+   * @throws ValidationError | NotFoundError | UnauthorizedError | BadGatewayError
+   */
+  async updateFull(
+    id: number,
+    dto: TUpdatePatientFullDto,
+  ): Promise<TPatientResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+    logOperation("start", {
+      name: "PatientCoreRestService.updateFull",
+      startTimeMs,
+      context: { operationId, patientId: id },
+    });
+    try {
+      const res = await this.client.patch<unknown>(`/patients/${id}/full`, dto);
+      const data = await PatientResponseSchema.parseAsync(res.data);
+      logOperation("success", {
+        name: "PatientCoreRestService.updateFull",
+        startTimeMs,
+        data,
+        context: { operationId, patientId: id },
+      });
+      return data;
+    } catch (err) {
+      logOperation("error", {
+        name: "PatientCoreRestService.updateFull",
+        startTimeMs,
+        err,
+        context: { operationId, patientId: id },
       });
       if (axios.isAxiosError(err)) handlePatientApiError(err);
       throw err;

@@ -18,16 +18,11 @@
  *      DB transaction (POST /practitioners/full).
  *
  * Submit pipeline (edit mode):
- *   1. updatePractitionerAction         — core scalar fields
- *   2. addPractitionerNameAction        — primary HumanName (or patch if exists)
- *   3. addPractitionerTelecomAction × N — phones + emails (or patch)
- *   4. addPractitionerAddressAction     — primary address (or patch)
- *   5. language diff — addPractitionerCommunicationAction for added codes,
- *      deletePractitionerCommunicationAction for removed codes
+ *   1. updatePractitionerFullAction — single atomic call that updates scalar fields
+ *      + replaces name / telecom / address / communications arrays in one DB
+ *      transaction (PATCH /practitioners/{id}/full).
  *
- * Key schema differences from patient module:
- *   - Parent ID field is `practitionerId` (camelCase), not `patient_id`
- *   - Patch schemas use `nameId`, `telecomId`, `addressId`, `communicationId`
+ * Key schema note:
  *   - `prefix` is submitted as string[] (wrapped from the single form string)
  */
 
@@ -46,15 +41,7 @@ import { Form } from "@/components/ui/form";
 
 import {
   createPractitionerFullAction,
-  updatePractitionerAction,
-  addPractitionerNameAction,
-  patchPractitionerNameAction,
-  addPractitionerTelecomAction,
-  patchPractitionerTelecomAction,
-  addPractitionerAddressAction,
-  patchPractitionerAddressAction,
-  addPractitionerCommunicationAction,
-  deletePractitionerCommunicationAction,
+  updatePractitionerFullAction,
 } from "@/modules/server/presentation/actions/practitioner";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 
@@ -178,202 +165,71 @@ export function DoctorProfileForm({
           return;
         }
       } else {
-        // ── Edit mode: individual patch calls per sub-resource ──────────────────
+        // ── Edit mode: single atomic PATCH /practitioners/{id}/full ───────────
 
-        const practitionerId = initialPractitioner.id;
+        const telecoms = [
+          values.phone
+            ? { system: "phone" as const, value: values.phone, rank: 1 }
+            : null,
+          values.alt_phone
+            ? { system: "phone" as const, value: values.alt_phone, rank: 2 }
+            : null,
+          values.email
+            ? { system: "email" as const, value: values.email, rank: 1 }
+            : null,
+          values.alt_email
+            ? { system: "email" as const, value: values.alt_email, rank: 2 }
+            : null,
+        ].filter((t): t is NonNullable<typeof t> => t !== null);
 
-        // 1. Core scalar fields
-        const [, coreErr] = await updatePractitionerAction({
-          payload: {
-            id: practitionerId,
-            gender: values.gender || undefined,
-            birth_date: birthDateStr,
-          },
-        });
-        if (coreErr) {
-          handleZSAError({ err: coreErr });
-          return;
-        }
-
-        // 2. Primary name
-        if (values.family_name || values.given_name || values.prefix) {
-          const base = {
-            practitionerId,
-            family: values.family_name || undefined,
-            given: values.given_name ? [values.given_name] : undefined,
-            // prefix is a FHIR string[] — wrap the single form value
-            prefix: values.prefix ? [values.prefix] : undefined,
-          };
-          const existing = initialPractitioner?.name?.[0];
-          const [, err] = existing
-            ? await patchPractitionerNameAction({
-                payload: { ...base, nameId: existing.id },
-              })
-            : await addPractitionerNameAction({ payload: base });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        // 3–4. Phones
-        const phones =
-          initialPractitioner?.telecom?.filter((t) => t.system === "phone") ??
-          [];
-        if (values.phone) {
-          const [, err] = phones[0]
-            ? await patchPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  telecomId: phones[0].id,
-                  system: "phone",
-                  value: values.phone,
-                },
-              })
-            : await addPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  system: "phone",
-                  value: values.phone,
-                  rank: 1,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-        if (values.alt_phone) {
-          const [, err] = phones[1]
-            ? await patchPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  telecomId: phones[1].id,
-                  system: "phone",
-                  value: values.alt_phone,
-                },
-              })
-            : await addPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  system: "phone",
-                  value: values.alt_phone,
-                  rank: 2,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        // 5–6. Emails
-        const emails =
-          initialPractitioner?.telecom?.filter((t) => t.system === "email") ??
-          [];
-        if (values.email) {
-          const [, err] = emails[0]
-            ? await patchPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  telecomId: emails[0].id,
-                  system: "email",
-                  value: values.email,
-                },
-              })
-            : await addPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  system: "email",
-                  value: values.email,
-                  rank: 1,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-        if (values.alt_email) {
-          const [, err] = emails[1]
-            ? await patchPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  telecomId: emails[1].id,
-                  system: "email",
-                  value: values.alt_email,
-                },
-              })
-            : await addPractitionerTelecomAction({
-                payload: {
-                  practitionerId,
-                  system: "email",
-                  value: values.alt_email,
-                  rank: 2,
-                },
-              });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        // 7. Address
         const hasAddress = !!(
           values.address_line ||
           values.address_city ||
           values.address_state ||
           values.address_postal_code
         );
-        if (hasAddress) {
-          const base = {
-            practitionerId,
-            line: values.address_line ? [values.address_line] : undefined,
-            city: values.address_city || undefined,
-            state: values.address_state || undefined,
-            postal_code: values.address_postal_code || undefined,
-          };
-          const existing = initialPractitioner?.address?.[0];
-          const [, err] = existing
-            ? await patchPractitionerAddressAction({
-                payload: { ...base, addressId: existing.id },
-              })
-            : await addPractitionerAddressAction({ payload: base });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
 
-        // 8. Languages — diff add/delete
-        const existingComms = initialPractitioner?.communication ?? [];
-        const existingCodes = existingComms
-          .map((c) => c.language_code)
-          .filter((c): c is string => !!c);
-        const newCodes = values.language_codes ?? [];
-
-        const toAdd = newCodes.filter((code) => !existingCodes.includes(code));
-        for (const language_code of toAdd) {
-          const [, err] = await addPractitionerCommunicationAction({
-            payload: { practitionerId, language_code },
-          });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
-        }
-
-        const toDelete = existingComms.filter(
-          (c) => c.language_code && !newCodes.includes(c.language_code),
-        );
-        for (const comm of toDelete) {
-          const [, err] = await deletePractitionerCommunicationAction({
-            payload: { practitionerId, itemId: comm.id },
-          });
-          if (err) {
-            handleZSAError({ err });
-            return;
-          }
+        const [, err] = await updatePractitionerFullAction({
+          payload: {
+            id: initialPractitioner.id,
+            gender: values.gender || undefined,
+            birth_date: birthDateStr,
+            names:
+              values.family_name || values.given_name || values.prefix
+                ? [
+                    {
+                      family: values.family_name || undefined,
+                      given: values.given_name
+                        ? [values.given_name]
+                        : undefined,
+                      // prefix is FHIR string[] — wrap the single form string
+                      prefix: values.prefix ? [values.prefix] : undefined,
+                    },
+                  ]
+                : undefined,
+            telecom: telecoms.length ? telecoms : undefined,
+            addresses: hasAddress
+              ? [
+                  {
+                    line: values.address_line
+                      ? [values.address_line]
+                      : undefined,
+                    city: values.address_city || undefined,
+                    state: values.address_state || undefined,
+                    postal_code: values.address_postal_code || undefined,
+                  },
+                ]
+              : undefined,
+            communications: values.language_codes?.length
+              ? values.language_codes.map((language_code) => ({
+                  language_code,
+                }))
+              : undefined,
+          },
+        });
+        if (err) {
+          handleZSAError({ err });
+          return;
         }
       }
 

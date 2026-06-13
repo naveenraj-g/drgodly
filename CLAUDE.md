@@ -10,6 +10,12 @@ Every file written in this project **must** be well-commented. Comments are not 
 - **Inline:** Comment any non-obvious logic, HTTP status mappings, workarounds, or business rules. When in doubt, add the comment.
 - This rule overrides the default "no comments" behavior. Always add comments in this project.
 
+# File Naming Conventions
+
+- **UI component files** (React components, modals, forms, cards, layouts) must use **PascalCase** — e.g. `PractitionerCard.tsx`, `BookAppointment.tsx`, `StepIndicator.tsx`.
+- **Non-component files** (hooks, utilities, actions, schemas, services, configs) use **camelCase** or **kebab-case** as appropriate — e.g. `useBooking.ts`, `appointment.rest.service.ts`.
+- Next.js reserved files (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `route.ts`) keep their lowercase Next.js names regardless of the above.
+
 # Skills
 - **server-module** (`.claude/skills/server-module/SKILL.md`) - scaffold a new clean-arch orchestrator client module. Trigger: `/server-module`
 When the user types `/server-module`, invoke the Skill tool with `skill: "server-module"` before doing anything else.

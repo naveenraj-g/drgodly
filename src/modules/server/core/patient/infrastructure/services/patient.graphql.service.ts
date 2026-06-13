@@ -33,6 +33,8 @@ const NOT_IMPLEMENTED = (method: string) =>
 
 export class PatientGraphQLService implements IPatientsService {
   async create(): Promise<TPatientResponse> { throw new Error(NOT_IMPLEMENTED("create")); }
+  async createFull(): Promise<TPatientResponse> { throw new Error(NOT_IMPLEMENTED("createFull")); }
+  async updateFull(): Promise<TPatientResponse> { throw new Error(NOT_IMPLEMENTED("updateFull")); }
   async list(): Promise<TPaginatedPatientResponse> { throw new Error(NOT_IMPLEMENTED("list")); }
   async getMe(): Promise<TPatientResponse> { throw new Error(NOT_IMPLEMENTED("getMe")); }
   async getById(): Promise<TPatientResponse> { throw new Error(NOT_IMPLEMENTED("getById")); }

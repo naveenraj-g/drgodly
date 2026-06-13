@@ -303,3 +303,26 @@ export const CreatePractitionerFullValidationSchema = CreatePractitionerValidati
   communications: z.array(PractitionerCommunicationBaseSchema).optional(),
 });
 export type TCreatePractitionerFull = z.infer<typeof CreatePractitionerFullValidationSchema>;
+
+/**
+ * Input schema for PATCH /practitioners/{id}/full — atomically updates a Practitioner's
+ * scalar fields and replaces its sub-resource arrays in one DB transaction.
+ * All sub-resource arrays are optional; omitting one leaves it untouched.
+ */
+export const UpdatePractitionerFullValidationSchema = PractitionerPatchBaseSchema.extend({
+  id: z.number().int().positive(),
+  names: z.array(PractitionerNameBaseSchema).optional(),
+  telecom: z.array(PractitionerTelecomBaseSchema).optional(),
+  addresses: z.array(PractitionerAddressBaseSchema).optional(),
+  communications: z.array(PractitionerCommunicationBaseSchema).optional(),
+});
+export type TUpdatePractitionerFull = z.infer<typeof UpdatePractitionerFullValidationSchema>;
+
+/** DTO body for PATCH /practitioners/{id}/full — id excluded (passed as path param). */
+export const UpdatePractitionerFullDtoSchema = PractitionerPatchBaseSchema.extend({
+  names: z.array(PractitionerNameBaseSchema).optional(),
+  telecom: z.array(PractitionerTelecomBaseSchema).optional(),
+  addresses: z.array(PractitionerAddressBaseSchema).optional(),
+  communications: z.array(PractitionerCommunicationBaseSchema).optional(),
+});
+export type TUpdatePractitionerFullDto = z.infer<typeof UpdatePractitionerFullDtoSchema>;

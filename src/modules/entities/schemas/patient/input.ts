@@ -440,3 +440,26 @@ export const CreatePatientFullValidationSchema = CreatePatientValidationSchema.e
   communications: z.array(PatientFullCommunicationItemSchema).optional(),
 });
 export type TCreatePatientFull = z.infer<typeof CreatePatientFullValidationSchema>;
+
+/**
+ * Input schema for PATCH /patients/{id}/full — atomically updates a Patient's
+ * scalar fields and replaces its sub-resource arrays in one DB transaction.
+ * All sub-resource arrays are optional; omitting one leaves it untouched.
+ */
+export const UpdatePatientFullValidationSchema = UpdatePatientDtoSchema.extend({
+  id: z.number().int().positive(),
+  names: z.array(PatientFullNameItemSchema).optional(),
+  telecom: z.array(PatientFullTelecomItemSchema).optional(),
+  addresses: z.array(PatientFullAddressItemSchema).optional(),
+  communications: z.array(PatientFullCommunicationItemSchema).optional(),
+});
+export type TUpdatePatientFull = z.infer<typeof UpdatePatientFullValidationSchema>;
+
+/** DTO body for PATCH /patients/{id}/full — id excluded (passed as path param). */
+export const UpdatePatientFullDtoSchema = UpdatePatientDtoSchema.extend({
+  names: z.array(PatientFullNameItemSchema).optional(),
+  telecom: z.array(PatientFullTelecomItemSchema).optional(),
+  addresses: z.array(PatientFullAddressItemSchema).optional(),
+  communications: z.array(PatientFullCommunicationItemSchema).optional(),
+});
+export type TUpdatePatientFullDto = z.infer<typeof UpdatePatientFullDtoSchema>;

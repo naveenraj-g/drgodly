@@ -238,6 +238,8 @@ export const ListPractitionerRolesForBookingValidationSchema = z.object({
   /** Day of week filter: mon|tue|wed|thu|fri|sat|sun. */
   day_of_week: z.string().optional(),
   active: z.boolean().optional(),
+  /** Filter by organisation ID. */
+  org_id: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),
 });

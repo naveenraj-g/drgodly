@@ -21,5 +21,5 @@ import {
 export async function listAppointmentsUseCase(
   query?: TListAppointmentsQuery,
 ): Promise<TPaginatedAppointmentResponse> {
-  return getInjection("IAppointmentService").list(query);
+  return getInjection("IAppointmentService").list(query ?? {});
 }

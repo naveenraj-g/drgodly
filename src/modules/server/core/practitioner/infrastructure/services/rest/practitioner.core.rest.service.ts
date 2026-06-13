@@ -22,6 +22,7 @@ import {
   type TCreatePractitioner,
   type TCreatePractitionerFull,
   type TPractitionerPatchDto,
+  type TUpdatePractitionerFullDto,
   type TListPractitionersQuery,
 } from "@/modules/entities/schemas/practitioner";
 import { handlePractitionerApiError } from "./practitioner.rest.errors";
@@ -76,7 +77,9 @@ export class PractitionerCoreRestService {
    * @returns The created Practitioner record with all nested sub-resources.
    * @throws ValidationError | ConflictError | UnauthorizedError | BadGatewayError
    */
-  async createFull(dto: TCreatePractitionerFull): Promise<TPractitionerResponse> {
+  async createFull(
+    dto: TCreatePractitionerFull,
+  ): Promise<TPractitionerResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
@@ -107,11 +110,52 @@ export class PractitionerCoreRestService {
   }
 
   /**
+   * PATCH /practitioners/{id}/full — atomically updates scalar fields and sub-resource arrays.
+   * @param id - Practitioner DB id.
+   * @param dto - Patchable scalar fields plus optional sub-resource replacement arrays.
+   * @returns The updated Practitioner resource.
+   */
+  async updateFull(
+    id: number,
+    dto: TUpdatePractitionerFullDto,
+  ): Promise<TPractitionerResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+    logOperation("start", {
+      name: "PractitionerCoreRestService.updateFull",
+      startTimeMs,
+      context: { operationId, id },
+    });
+    try {
+      const res = await this.client.patch<unknown>(`/${id}/full`, dto);
+      const data = await PractitionerResponseSchema.parseAsync(res.data);
+      logOperation("success", {
+        name: "PractitionerCoreRestService.updateFull",
+        startTimeMs,
+        data,
+        context: { operationId, id },
+      });
+      return data;
+    } catch (err) {
+      logOperation("error", {
+        name: "PractitionerCoreRestService.updateFull",
+        startTimeMs,
+        err,
+        context: { operationId, id },
+      });
+      if (axios.isAxiosError(err)) handlePractitionerApiError(err);
+      throw err;
+    }
+  }
+
+  /**
    * GET /practitioners/ — lists Practitioners with optional filters.
    * @param query - Optional filter and pagination params.
    * @returns Paginated list.
    */
-  async list(query?: TListPractitionersQuery): Promise<TPaginatedPractitionerResponse> {
+  async list(
+    query?: TListPractitionersQuery,
+  ): Promise<TPaginatedPractitionerResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
@@ -121,7 +165,9 @@ export class PractitionerCoreRestService {
     });
     try {
       const res = await this.client.get<unknown>("/", { params: query });
-      const data = await PaginatedPractitionerResponseSchema.parseAsync(res.data);
+      const data = await PaginatedPractitionerResponseSchema.parseAsync(
+        res.data,
+      );
       logOperation("success", {
         name: "PractitionerCoreRestService.list",
         startTimeMs,
@@ -157,9 +203,15 @@ export class PractitionerCoreRestService {
       context: { operationId, userId },
     });
     try {
-      const listResult = await this.list({ user_id: userId, limit: 1, offset: 0 });
+      const listResult = await this.list({
+        user_id: userId,
+        limit: 1,
+        offset: 0,
+      });
       if (!listResult.data.length) {
-        throw new NotFoundError(`No Practitioner record found for user ${userId}.`);
+        throw new NotFoundError(
+          `No Practitioner record found for user ${userId}.`,
+        );
       }
       const data = await this.getById(listResult.data[0].id);
       logOperation("success", {
@@ -222,7 +274,10 @@ export class PractitionerCoreRestService {
    * @param dto - Fields to update.
    * @returns The updated Practitioner resource.
    */
-  async update(id: number, dto: TPractitionerPatchDto): Promise<TPractitionerResponse> {
+  async update(
+    id: number,
+    dto: TPractitionerPatchDto,
+  ): Promise<TPractitionerResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
