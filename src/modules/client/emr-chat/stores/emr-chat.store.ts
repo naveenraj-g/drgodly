@@ -14,7 +14,7 @@
  */
 
 import { create } from "zustand";
-import type { TEmrChatSessionSummary } from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+import type { TEmrChatSessionSummary } from "@/modules/entities/schemas/emr-chat";
 
 interface IEmrChatStore {
   /** Flat list of session summaries shown in the sidebar. */

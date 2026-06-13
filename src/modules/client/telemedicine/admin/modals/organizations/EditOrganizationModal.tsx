@@ -33,8 +33,8 @@ import {
 import {
   EditOrgFormSchema,
   type TEditOrgFormSchema,
-} from "@/modules/entities/schemas/organization/organization.schema";
-import { updateOrganizationAction } from "@/modules/server/presentation/actions/organization/organization.actions";
+} from "@/modules/entities/schemas/organization";
+import { updateOrganizationAction } from "@/modules/server/presentation/actions/organization";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 
 import { useAdminStore } from "../../stores/admin.store";

@@ -11,7 +11,7 @@
  */
 
 import { create } from "zustand";
-import { TOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
+import { TOrgResponse } from "@/modules/entities/schemas/organization";
 
 // ── Modal type union ───────────────────────────────────────────────────────────
 

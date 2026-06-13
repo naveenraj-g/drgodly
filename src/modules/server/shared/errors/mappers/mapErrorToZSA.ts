@@ -6,6 +6,8 @@ import {
 } from "@/modules/server/shared/errors/schemaParseError";
 import { ZSAError } from "zsa";
 import { ApplicationError } from "../applicationError";
+import { throwZSAErrorFromStatus } from "./zsaErrorHandling";
+import { ZSA_ERROR_CODES } from "./zsaErrorCodes";
 
 function isNextJsControlError(error: any) {
   return (
@@ -20,7 +22,7 @@ export function mapErrorToZSA(error: unknown): never {
   }
 
   if (error instanceof InputParseError) {
-    throw new ZSAError("INPUT_PARSE_ERROR", {
+    throw new ZSAError(ZSA_ERROR_CODES.INPUT_PARSE_ERROR, {
       inputParseErrors: {
         fieldErrors: error.fieldErrors,
         formErrors: error.formErrors,
@@ -31,21 +33,24 @@ export function mapErrorToZSA(error: unknown): never {
 
   if (error instanceof OutputParseError) {
     throw new ZSAError(
-      "OUTPUT_PARSE_ERROR",
-      "Something went wrong. Please try again later."
+      ZSA_ERROR_CODES.OUTPUT_PARSE_ERROR,
+      "Something went wrong. Please try again later.",
     );
   }
 
   if (error instanceof ApplicationError) {
     if (!error.isOperational) {
-      console.error(error);
+      // console.error(error);
     }
-    throw new ZSAError("ERROR", error.message);
+    throwZSAErrorFromStatus(error.statusCode, error.message);
   }
 
   if (error instanceof Error) {
-    throw new ZSAError("ERROR", error.message);
+    throw new ZSAError(ZSA_ERROR_CODES.ERROR, error.message);
   }
 
-  throw new ZSAError("INTERNAL_SERVER_ERROR", "Something went wrong");
+  throw new ZSAError(
+    ZSA_ERROR_CODES.INTERNAL_SERVER_ERROR,
+    "Something went wrong",
+  );
 }

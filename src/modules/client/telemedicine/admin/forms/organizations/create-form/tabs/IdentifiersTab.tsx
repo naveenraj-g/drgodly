@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
-import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 import { IDENTIFIER_USES } from "../constants";
 
 /** @see CreateOrganizationForm */

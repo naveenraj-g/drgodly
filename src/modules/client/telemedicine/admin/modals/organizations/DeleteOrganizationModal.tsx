@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { useServerAction } from "zsa-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { deleteOrganizationAction } from "@/modules/server/presentation/actions/organization/organization.actions";
+import { deleteOrganizationAction } from "@/modules/server/presentation/actions/organization";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 import { useAdminStore } from "../../stores/admin.store";
 import { organizationKeys } from "../../queries/organization.queries";

@@ -12,7 +12,7 @@ import { ZSAError } from "zsa";
 import {
   TOrgResponse,
   TPaginatedOrgResponse,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 
 /** Row type used by OrganizationsTable and OrganizationsTableColumn. */
 export type TOrganization = TOrgResponse;

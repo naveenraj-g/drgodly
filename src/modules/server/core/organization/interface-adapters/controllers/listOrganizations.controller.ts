@@ -11,7 +11,7 @@
 import {
   ListOrgsValidationSchema,
   TPaginatedOrgResponse,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import { listOrganizationsUseCase } from "../../application/usecases/listOrganizations.usecase";
 

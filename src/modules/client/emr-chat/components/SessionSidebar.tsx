@@ -19,12 +19,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { TEmrChatSessionSummary } from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+import type { TEmrChatSessionSummary } from "@/modules/entities/schemas/emr-chat";
 
 interface SessionGroup {
   label: string;
@@ -140,7 +139,7 @@ export function SessionSidebar({
 
         <Separator className="shrink-0" />
 
-        <ScrollArea className="flex-1 px-2 py-2">
+        <div className="flex-1 overflow-y-auto px-2 py-2">
           {isLoading ? (
             <div className="flex flex-col gap-2 px-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -177,7 +176,7 @@ export function SessionSidebar({
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );

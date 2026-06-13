@@ -39,7 +39,11 @@ Client (useServerAction)
 ```
 src/modules/
 ├── entities/schemas/<resource>/
-│   └── <resource>.schema.ts
+│   ├── response.ts              ← response + paginated schemas
+│   ├── input.ts                 ← validation schemas + DTO types
+│   ├── actions.ts               ← ZSA action schemas
+│   ├── forms.ts                 ← React Hook Form schemas (written by /client-module)
+│   └── index.ts                 ← barrel: re-exports all sub-files
 │
 └── server/
     ├── di/
@@ -54,8 +58,12 @@ src/modules/
     │   ├── domain/interfaces/
     │   │   └── <resource>.service.interface.ts
     │   ├── infrastructure/services/
-    │   │   ├── <resource>.rest.service.ts    ← active implementation
-    │   │   └── <resource>.graphql.service.ts ← stub (placeholder)
+    │   │   ├── <resource>.rest.service.ts         ← simple: all methods here (≤5 methods)
+    │   │   ├── <resource>.graphql.service.ts      ← stub (placeholder)
+    │   │   └── rest/                              ← only when sub-resources exist (>5 methods)
+    │   │       ├── <resource>.rest.errors.ts      ← shared handleError function
+    │   │       ├── <resource>.core.rest.service.ts
+    │   │       └── <resource>.<subresource>.rest.service.ts  ← one file per sub-resource group
     │   ├── application/usecases/
     │   │   └── <operation>.usecase.ts        ← one file per operation
     │   └── interface-adapters/controllers/
@@ -63,8 +71,12 @@ src/modules/
     │       └── <operation>.controller.ts     ← one file per operation
     │
     └── presentation/actions/<resource>/
-        └── <resource>.actions.ts
+        ├── core.actions.ts              ← core CRUD (create, list, getById, update, delete, getMe)
+        ├── <subresource>.actions.ts     ← one file per sub-resource group (4 actions each)
+        └── index.ts                     ← barrel: re-exports all action files
 ```
+> **Simple resources (≤5 methods):** use a single `<resource>.actions.ts` + no `index.ts` needed.
+> **Sub-resource resources (>5 methods):** always split into `core.actions.ts` + one file per sub-resource + `index.ts` barrel.
 
 ---
 
@@ -77,22 +89,15 @@ Read the source API project (orchestrator or fhir-gql) to find:
 
 ---
 
-## Step 2 — `entities/schemas/<resource>/<resource>.schema.ts`
+## Step 2 — `entities/schemas/<resource>/` (split into files)
 
-Schema group order:
-1. **Response schemas** — use `.nullish()` on every optional field (Python's `Optional[X] = None` serialises as explicit JSON `null`, not missing)
-2. **Paginated response** (if list endpoint exists)
-3. **Input validation schemas** — create / update / list / getById / delete
-4. **DTO type** for update (omit `id` — used by service interface)
-5. **Action schemas** — mutating ops include `transportOptions`, reads do not
-6. **Form schemas** — flat UI schemas for React Hook Form (Create + Edit)
+**Never put everything in one schema file.** Split into focused files and barrel-export from `index.ts`. All imports elsewhere always use the barrel path `@/modules/entities/schemas/<resource>` — never from sub-files directly.
+
+### `response.ts`
 
 ```typescript
 import { z } from "zod";
-import { TransportOptionsSchema } from "@/modules/entities/schemas/transport";
-
-// ── Response schemas ───────────────────────────────────────────────────────────
-// Use .nullish() (not .optional()) — the API can return explicit JSON null.
+// Use .nullish() (not .optional()) — the API returns explicit JSON null, not missing keys.
 
 export const <Resource>ResponseSchema = z.object({
   id: z.number(),
@@ -108,8 +113,12 @@ export const Paginated<Resource>ResponseSchema = z.object({
   data: z.array(<Resource>ResponseSchema),
 });
 export type TPaginated<Resource>Response = z.infer<typeof Paginated<Resource>ResponseSchema>;
+```
 
-// ── Input validation schemas ───────────────────────────────────────────────────
+### `input.ts`
+
+```typescript
+import { z } from "zod";
 
 export const Create<Resource>ValidationSchema = z.object({ /* ... */ });
 export type TCreate<Resource> = z.infer<typeof Create<Resource>ValidationSchema>;
@@ -121,36 +130,68 @@ export type TUpdate<Resource>Dto = z.infer<typeof Update<Resource>DtoSchema>;
 export const Update<Resource>ValidationSchema = Update<Resource>BaseSchema.extend({ id: z.number() });
 export type TUpdate<Resource> = z.infer<typeof Update<Resource>ValidationSchema>;
 
-export const List<Resource>sValidationSchema = z.object({ limit: z.number().optional(), offset: z.number().optional() });
+export const List<Resource>sValidationSchema = z.object({
+  limit: z.number().optional(),
+  offset: z.number().optional(),
+});
 export type TList<Resource>sQuery = z.infer<typeof List<Resource>sValidationSchema>;
 
 export const GetById<Resource>ValidationSchema = z.object({ id: z.number() });
+export type TGetById<Resource> = z.infer<typeof GetById<Resource>ValidationSchema>;
+
 export const Delete<Resource>ValidationSchema = z.object({ id: z.number() });
+export type TDelete<Resource> = z.infer<typeof Delete<Resource>ValidationSchema>;
+```
 
-// ── Action schemas ─────────────────────────────────────────────────────────────
-// TransportOptionsSchema imported from shared location — never define it inline.
+### `actions.ts`
 
+```typescript
+import { z } from "zod";
+import { TransportOptionsSchema } from "@/modules/entities/schemas/transport";
+// Import validation schemas from input.ts via relative path — avoids circular barrel import.
+import {
+  Create<Resource>ValidationSchema,
+  Update<Resource>ValidationSchema,
+  List<Resource>sValidationSchema,
+  GetById<Resource>ValidationSchema,
+  Delete<Resource>ValidationSchema,
+} from "./input";
+
+// Mutating ops include transportOptions; reads do not.
 export const Create<Resource>ActionSchema = z.object({
   payload: Create<Resource>ValidationSchema,
   transportOptions: TransportOptionsSchema.optional(),
 });
 export type TCreate<Resource>Action = z.infer<typeof Create<Resource>ActionSchema>;
 
-export const List<Resource>sActionSchema = z.object({ payload: List<Resource>sValidationSchema.optional() });
+export const List<Resource>sActionSchema = z.object({
+  payload: List<Resource>sValidationSchema.optional(),
+});
 export type TList<Resource>sAction = z.infer<typeof List<Resource>sActionSchema>;
 
-export const GetById<Resource>ActionSchema = z.object({ payload: GetById<Resource>ValidationSchema });
+export const GetById<Resource>ActionSchema = z.object({
+  payload: GetById<Resource>ValidationSchema,
+});
+export type TGetById<Resource>Action = z.infer<typeof GetById<Resource>ActionSchema>;
+
 export const Update<Resource>ActionSchema = z.object({
   payload: Update<Resource>ValidationSchema,
   transportOptions: TransportOptionsSchema.optional(),
 });
+export type TUpdate<Resource>Action = z.infer<typeof Update<Resource>ActionSchema>;
+
 export const Delete<Resource>ActionSchema = z.object({
   payload: Delete<Resource>ValidationSchema,
   transportOptions: TransportOptionsSchema.optional(),
 });
+export type TDelete<Resource>Action = z.infer<typeof Delete<Resource>ActionSchema>;
+```
 
-// ── Form schemas ───────────────────────────────────────────────────────────────
-// Flat UI schemas for React Hook Form — intentionally simpler than validation schemas.
+### `forms.ts` (stub — written by `/client-module`)
+
+```typescript
+import { z } from "zod";
+// Flat UI schemas for React Hook Form.
 // The modal maps flat form values to the nested API payload before calling the action.
 
 export const Create<Resource>FormSchema = z.object({ /* flat fields */ });
@@ -158,6 +199,15 @@ export type TCreate<Resource>FormSchema = z.infer<typeof Create<Resource>FormSch
 
 export const Edit<Resource>FormSchema = z.object({ /* flat patchable fields */ });
 export type TEdit<Resource>FormSchema = z.infer<typeof Edit<Resource>FormSchema>;
+```
+
+### `index.ts` (barrel — always re-exports all sub-files)
+
+```typescript
+export * from "./response";
+export * from "./input";
+export * from "./actions";
+export * from "./forms";
 ```
 
 ---
@@ -181,9 +231,16 @@ export interface I<Resource>sService {
 
 ## Step 4 — Services (REST + GraphQL stub)
 
-Create **two files**. The DI module selects between them at startup via `FHIR_TRANSPORT` (or a resource-specific env var).
+**Decide the service structure first based on method count:**
 
-### `<resource>.rest.service.ts` — active implementation
+| Methods | Structure |
+|---|---|
+| ≤ 5 (core CRUD only, no sub-resources) | Single `<resource>.rest.service.ts` — all methods inline |
+| > 5 (has sub-resource groups) | Shell + `rest/` delegation subfolder (see "Sub-resource delegation" below) |
+
+Create **two files** minimum (REST + GraphQL stub). The DI module selects between them via `FHIR_TRANSPORT`.
+
+### `<resource>.rest.service.ts` — simple (≤5 methods)
 
 ```typescript
 /**
@@ -283,6 +340,101 @@ export class <Resource>GraphQLService implements I<Resource>sService {
 }
 ```
 
+### Sub-resource delegation pattern (>5 methods)
+
+When a resource has sub-resource groups (e.g. names, addresses, contacts), the REST service is split into a shell + `rest/` subfolder. The shell wires everything; all HTTP logic lives in the sub-files.
+
+**`rest/<resource>.rest.errors.ts`** — shared error mapper (no `this` dependency, plain function):
+```typescript
+import { AxiosError } from "axios";
+// ... domain error imports
+
+export function handle<Resource>ApiError(error: AxiosError): never {
+  const body = error.response?.data as Record<string, unknown> | undefined;
+  const message = typeof body?.detail === "string"
+    ? body.detail : (error.response?.statusText ?? error.message);
+  switch (error.response?.status) {
+    case 400: throw new ValidationError(message);
+    case 401: throw new UnauthorizedError(message);
+    case 403: throw new ForbiddenError(message);
+    case 404: throw new NotFoundError(message);
+    case 409: throw new ConflictError(message);
+    case 429: throw new RateLimitError(message);
+    default:  throw new BadGatewayError(`API error ${error.response?.status ?? "unknown"}: ${message}`);
+  }
+}
+```
+
+**`rest/<resource>.core.rest.service.ts`** — core CRUD methods:
+```typescript
+export class <Resource>CoreRestService {
+  constructor(private readonly client: AxiosInstance) {}
+
+  async create(dto: TCreate<Resource>): Promise<T<Resource>Response> {
+    const startTimeMs = Date.now(); const operationId = randomUUID();
+    logOperation("start", { name: "<Resource>CoreRestService.create", startTimeMs, context: { operationId } });
+    try {
+      const res = await this.client.post<unknown>("/<resource-path>/", dto);
+      const data = await <Resource>ResponseSchema.parseAsync(res.data);
+      logOperation("success", { name: "<Resource>CoreRestService.create", startTimeMs, data, context: { operationId } });
+      return data;
+    } catch (err) {
+      logOperation("error", { name: "<Resource>CoreRestService.create", startTimeMs, err, context: { operationId } });
+      if (axios.isAxiosError(err)) handle<Resource>ApiError(err);
+      throw err;
+    }
+  }
+  // list, getById, update, delete — same pattern
+}
+```
+
+**`rest/<resource>.<subresource>.rest.service.ts`** — one file per sub-resource group, 4 methods each (add/list/patch/delete). Method names are just `add`, `list`, `patch`, `delete` — the sub-resource is encoded in the class name.
+```typescript
+export class <Resource><Subresource>RestService {
+  constructor(private readonly client: AxiosInstance) {}
+
+  async add(resourceId: number, dto: TAdd<Resource><Subresource>): Promise<T<Resource>Response> { ... }
+  async list(resourceId: number): Promise<T<Resource><Subresource>List> { ... }
+  async patch(resourceId: number, itemId: number, dto: TPatch<Resource><Subresource>): Promise<T<Resource>Response> { ... }
+  async delete(resourceId: number, itemId: number): Promise<void> { ... }
+}
+```
+
+**`<resource>.rest.service.ts`** — thin shell (implements the interface, delegates only):
+```typescript
+export class <Resource>RestApiService implements I<Resource>sService {
+  private readonly core: <Resource>CoreRestService;
+  private readonly <subresource>: <Resource><Subresource>RestService;
+  // ... one property per sub-resource group
+
+  constructor() {
+    const url = process.env.FHIR_GQL_URL;
+    if (!url) throw new Error("FHIR_GQL_URL is not configured");
+
+    const client = axios.create({ baseURL: url, headers: { "Content-Type": "application/json" }, timeout: 10_000, maxRedirects: 5 });
+    client.interceptors.request.use(async (config) => {
+      config.headers.Authorization = `Bearer ${await getAuthToken()}`;
+      return config;
+    });
+
+    this.core = new <Resource>CoreRestService(client);
+    this.<subresource> = new <Resource><Subresource>RestService(client);
+    // ...
+  }
+
+  // Every method is a one-liner delegation:
+  create(dto: TCreate<Resource>) { return this.core.create(dto); }
+  add<Subresource>(id: number, dto: TAdd<Resource><Subresource>) { return this.<subresource>.add(id, dto); }
+  // ...
+}
+```
+
+**Key points:**
+- Axios client created **once** in the shell constructor and passed to every sub-service
+- `handleError` is a **standalone exported function** in `rest.errors.ts` — not a class method
+- Sub-service method names are short (`add`/`list`/`patch`/`delete`) — context comes from the class name
+- Shell body is `@inheritdoc` delegations only — no business logic
+
 ---
 
 ## Step 5 — Use cases (one file per operation)
@@ -301,6 +453,8 @@ export async function create<Resource>UseCase(dto: TCreate<Resource>): Promise<T
 
 ## Step 6 — Controllers (one file per operation)
 
+**Every controller lives in its own file.** The `index.ts` is a barrel only — it never contains controller logic.
+
 ```typescript
 // interface-adapters/controllers/create<Resource>.controller.ts
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
@@ -316,7 +470,23 @@ export async function create<Resource>Controller(input: unknown): Promise<TCreat
 }
 ```
 
-Always create `interface-adapters/controllers/index.ts` barrel exporting all controllers + output types.
+Sub-resource controllers follow the same pattern — one file each:
+```
+addPatientName.controller.ts   listPatientNames.controller.ts
+patchPatientName.controller.ts deletePatientName.controller.ts
+```
+
+`interface-adapters/controllers/index.ts` — barrel only, re-exports all controllers + output types:
+```typescript
+export * from "./create<Resource>.controller";
+export * from "./list<Resource>s.controller";
+export * from "./getById<Resource>.controller";
+export * from "./update<Resource>.controller";
+export * from "./delete<Resource>.controller";
+// sub-resource controllers...
+export * from "./add<Resource>Name.controller";
+// ...
+```
 
 ---
 
@@ -359,12 +529,17 @@ export function register<Resource>Module(container: Container) {
 
 ## Step 8 — Server actions
 
+**Simple resources (≤5 ops):** single `<resource>.actions.ts` file.
+
+**Sub-resource resources (>5 ops):** split by group — `core.actions.ts` + one file per sub-resource + `index.ts` barrel. Never put all 30+ actions in one file.
+
+### `core.actions.ts` — core CRUD + getMe
+
 ```typescript
-// presentation/actions/<resource>/<resource>.actions.ts
+// presentation/actions/<resource>/core.actions.ts
 "use server";
 
-// Use adminProcedure for admin-area resources (organization management, etc.)
-// Use authenticatedProcedure for user-facing resources (patient-owned data, etc.)
+// adminProcedure for admin-area resources, authenticatedProcedure for user-facing resources
 import { adminProcedure } from "../procedures";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 
@@ -388,12 +563,46 @@ export const list<Resource>sAction = adminProcedure
       return { result: data };
     });
   });
+// getById, update, delete, getMe follow the same pattern.
+```
+
+### `<subresource>.actions.ts` — 4 actions per sub-resource group
+
+```typescript
+// presentation/actions/<resource>/names.actions.ts
+"use server";
+import { adminProcedure } from "../procedures";
+import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
+
+export const add<Resource>NameAction = adminProcedure
+  .createServerAction()
+  .input(Add<Resource>NameActionSchema, { skipInputParsing: true })
+  .handler(async ({ input }) => {
+    return await runWithTransport(async () => {
+      const data = await add<Resource>NameController(input.payload);
+      return { result: data, transport: input.transportOptions };
+    });
+  });
+// list, patch, delete follow same pattern.
+```
+
+### `index.ts` — barrel re-exporting all action files
+
+```typescript
+// presentation/actions/<resource>/index.ts
+export * from "./core.actions";
+export * from "./names.actions";
+export * from "./identifiers.actions";
+// ... one line per sub-resource file
 ```
 
 ---
 
 ## Rules
 
+- **File splitting**: Never write a large file that mixes multiple concerns. Split into focused files; always add an `index.ts` barrel. Schema folder is always split into `response.ts` / `input.ts` / `actions.ts` / `forms.ts` / `index.ts`. If any file would exceed ~120 lines with distinct concerns, split it further and create sub-folders as needed.
+- **Barrel imports only**: All imports from other modules always use the folder barrel (e.g. `@/modules/entities/schemas/<resource>`) — never import from internal sub-files across module boundaries.
+- **Service structure threshold**: ≤5 methods → single `<resource>.rest.service.ts` with all logic inline. >5 methods (sub-resources exist) → shell + `rest/` subfolder using the delegation pattern. One sub-service file per sub-resource group; one shared `rest.errors.ts`; shell only wires and delegates.
 - **Service naming**: `I<Resource>sService` (plural interface), `<Resource>RestApiService` / `<Resource>GraphQLService` (classes)
 - **Two service files always**: REST (active) + GraphQL (stub). DI module switches via `process.env.FHIR_TRANSPORT ?? "rest"`
 - **Response schema fields**: `.nullish()` not `.optional()` — APIs return explicit `null`, not missing keys
@@ -403,6 +612,9 @@ export const list<Resource>sAction = adminProcedure
 - **`skipInputParsing: true`** on all ZSA actions — validation is the controller's job
 - **Axios, never fetch** — `AxiosInstance` with `baseURL`, `Content-Type`, `timeout: 10_000`, JWT interceptor
 - **`handleError(error: AxiosError): never`** — synchronous, return type `never`; `if (axios.isAxiosError(err)) this.handleError(err); throw err;`
+- **Error field**: fhir-gql resources → `body?.detail` (FastAPI default). Orchestrator resources → `body?.message`. Never mix them.
+- **Controllers — individual files**: Every controller is its own file (`create<Resource>.controller.ts`, `add<Resource>Name.controller.ts`, etc.). The `index.ts` is a barrel only — zero logic inside it.
+- **Actions — split by group**: Resources with sub-resources always split actions into `core.actions.ts` + one `<subresource>.actions.ts` per group + `index.ts` barrel. Never write a single file with 30+ actions.
 - **Comments**: file-level block + JSDoc on every class/function/method (project rule)
 
 ## Key Reference Files

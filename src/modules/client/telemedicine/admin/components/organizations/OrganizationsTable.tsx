@@ -43,7 +43,7 @@ import {
   useServerDataTable,
   type TableViewMode,
 } from "@/modules/client/shared/components/tables";
-import { TOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
+import { TOrgResponse } from "@/modules/entities/schemas/organization";
 import { useAdminStore } from "../../stores/admin.store";
 import { ORGANIZATIONS_COLUMNS } from "./OrganizationsTableColumn";
 import { OrganizationDetailPanel } from "./OrganizationDetailPanel";

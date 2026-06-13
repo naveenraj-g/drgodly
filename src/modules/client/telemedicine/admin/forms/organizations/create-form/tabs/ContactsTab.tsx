@@ -22,7 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 import { NAME_USES, ADDRESS_USES, ADDRESS_TYPES } from "../constants";
 import { ContactTelecomRows } from "../ContactTelecomRows";
 

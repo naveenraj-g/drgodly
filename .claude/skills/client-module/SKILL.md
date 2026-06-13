@@ -78,10 +78,12 @@ src/
 
 ## Step 1 — Entities: add form schemas
 
-In `entities/schemas/<resource>/<resource>.schema.ts`, add at the end if not already present:
+The schema folder is always split into multiple files (see `/server-module` rule). Form schemas live in their own file:
+
+**Write to `entities/schemas/<resource>/forms.ts`** (create if it doesn't exist, never append to other schema files):
 
 ```typescript
-// ── Form schemas ───────────────────────────────────────────────────────────────
+import { z } from "zod";
 
 /**
  * Flat form schema for the "Create <Resource>" modal.
@@ -102,13 +104,15 @@ export const Edit<Resource>FormSchema = z.object({
 export type TEdit<Resource>FormSchema = z.infer<typeof Edit<Resource>FormSchema>;
 ```
 
+Then ensure `entities/schemas/<resource>/index.ts` barrel includes `export * from "./forms";` (add it if missing).
+
 ---
 
 ## Step 2 — Types
 
 ```typescript
 // types/<resource>.type.ts
-import { T<Resource>Response, TPaginated<Resource>Response } from "@/modules/entities/schemas/<resource>/<resource>.schema";
+import { T<Resource>Response, TPaginated<Resource>Response } from "@/modules/entities/schemas/<resource>";
 
 export type T<Resource> = T<Resource>Response;
 
@@ -127,7 +131,7 @@ If the section already has a store (`stores/<section>.store.ts`), **add** the ne
 ```typescript
 // stores/<section>.store.ts
 import { create } from "zustand";
-import { T<Resource>Response } from "@/modules/entities/schemas/<resource>/<resource>.schema";
+import { T<Resource>Response } from "@/modules/entities/schemas/<resource>";
 
 /** All modal identifiers for the <section> section. */
 export type ModalType =
@@ -169,7 +173,7 @@ export const <section>Store = _use<Section>Store;
 
 ```typescript
 // queries/<resource>.queries.ts
-import { TPaginated<Resource>Response } from "@/modules/entities/schemas/<resource>/<resource>.schema";
+import { TPaginated<Resource>Response } from "@/modules/entities/schemas/<resource>";
 import { list<Resource>sAction } from "@/modules/server/presentation/actions/<resource>/<resource>.actions";
 
 export const <resource>Keys = {
@@ -206,7 +210,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTableColumnHeader, DataTableExpandButton, DataTableRowActions, type RowAction }
   from "@/modules/client/shared/components/tables";
-import { T<Resource>Response } from "@/modules/entities/schemas/<resource>/<resource>.schema";
+import { T<Resource>Response } from "@/modules/entities/schemas/<resource>";
 import { <section>Store } from "../../stores/<section>.store";
 
 export const <RESOURCE>_ROW_ACTIONS: RowAction<T<Resource>Response>[] = [
@@ -276,7 +280,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable, DataTableExportButton, DataTableGridSkeleton, DataTableGridView,
   DataTablePagination, DataTableSelectionBar, DataTableToolbar, DataTableViewToggle,
   useServerDataTable, type TableViewMode } from "@/modules/client/shared/components/tables";
-import { T<Resource>Response } from "@/modules/entities/schemas/<resource>/<resource>.schema";
+import { T<Resource>Response } from "@/modules/entities/schemas/<resource>";
 import { use<Section>Store } from "../../stores/<section>.store";
 import { <RESOURCE>_COLUMNS } from "./<Resource>TableColumn";
 import { <resource>Keys, fetch<Resource>s } from "../../queries/<resource>.queries";
@@ -386,7 +390,7 @@ import { useServerAction } from "zsa-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Create<Resource>FormSchema, type TCreate<Resource>FormSchema }
-  from "@/modules/entities/schemas/<resource>/<resource>.schema";
+  from "@/modules/entities/schemas/<resource>";
 import { create<Resource>Action } from "@/modules/server/presentation/actions/<resource>/<resource>.actions";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 import { use<Section>Store } from "../../stores/<section>.store";
@@ -533,7 +537,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { FormInput, FormSelect, FormSwitch }
   from "@/modules/client/shared/components/CustomFormFields";
 import type { TCreate<Resource>FormSchema }
-  from "@/modules/entities/schemas/<resource>/<resource>.schema";
+  from "@/modules/entities/schemas/<resource>";
 
 interface Create<Resource>FormProps {
   onSubmit: (values: TCreate<Resource>FormSchema) => Promise<void>;
@@ -632,6 +636,8 @@ export default async function <Resource>sPage() {
 
 ## Rules
 
+- **File splitting**: Never write a large file that mixes multiple concerns. Split client files into focused files with sub-folders as needed; always add an `index.ts` or barrel where a folder has multiple files. If any component file would exceed ~120 lines with distinct concerns, split it. Schema form schemas always go in their own `forms.ts` file.
+- **Barrel imports only**: Import from `@/modules/entities/schemas/<resource>` (the barrel), never from internal sub-files like `response.ts` or `input.ts` directly.
 - **Modal owns form**: `useForm` + `FormProvider` + `useServerAction` live in the modal, not the form component
 - **Form is a dumb shell**: reads via `useFormContext()`, renders layout only, no action logic
 - **`handleZSAError`** on every `onError`: maps field errors → `form.setError()`, auth errors → toast

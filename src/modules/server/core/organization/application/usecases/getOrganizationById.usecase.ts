@@ -5,7 +5,7 @@
  * Operation: fetch a single Organization by its numeric ID
  */
 
-import { TOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
+import { TOrgResponse } from "@/modules/entities/schemas/organization";
 import { getInjection } from "@/modules/server/di/container";
 
 /**

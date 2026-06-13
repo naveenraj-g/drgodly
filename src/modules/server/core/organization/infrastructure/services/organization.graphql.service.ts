@@ -23,7 +23,7 @@ import {
   TPaginatedOrgResponse,
   TPatchOrgDto,
   TRegisterOrg,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 import { IOrganizationsService } from "../../domain/interfaces/organization.service.interface";
 
 export class OrganizationGraphQLService implements IOrganizationsService {

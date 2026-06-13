@@ -10,7 +10,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { TOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
+import { TOrgResponse } from "@/modules/entities/schemas/organization";
 import { Row } from "@tanstack/react-table";
 
 /** Maps FHIR org type codes to readable labels. */

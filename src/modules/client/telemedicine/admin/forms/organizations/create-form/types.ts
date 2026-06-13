@@ -2,7 +2,7 @@
  * Shared prop types for the Create Organization form and its sub-components.
  */
 
-import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 /**
  * Props accepted by the top-level CreateOrganizationForm shell.

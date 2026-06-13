@@ -37,8 +37,8 @@ import {
 import {
   CreateOrgFormSchema,
   type TCreateOrgFormSchema,
-} from "@/modules/entities/schemas/organization/organization.schema";
-import { registerOrganizationAction } from "@/modules/server/presentation/actions/organization/organization.actions";
+} from "@/modules/entities/schemas/organization";
+import { registerOrganizationAction } from "@/modules/server/presentation/actions/organization";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 
 import { useAdminStore } from "../../stores/admin.store";

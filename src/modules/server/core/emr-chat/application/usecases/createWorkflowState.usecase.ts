@@ -12,7 +12,7 @@ import { getInjection } from "@/modules/server/di/container";
 import type {
   TCreateWorkflowState,
   TEmrWorkflowState,
-} from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+} from "@/modules/entities/schemas/emr-chat";
 
 /**
  * Persists a new workflow run.
@@ -23,6 +23,6 @@ import type {
 export async function createWorkflowStateUseCase(
   dto: TCreateWorkflowState,
 ): Promise<TEmrWorkflowState> {
-  const service = getInjection("IEmrChatService");
+  const service = getInjection("IEmrChatRepository");
   return service.createWorkflowState(dto);
 }

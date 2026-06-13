@@ -29,7 +29,7 @@ import {
   TPaginatedOrgResponse,
   TPatchOrgDto,
   TRegisterOrg,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 import { getAuthToken } from "@/modules/server/auth/jwt-token";
 import { logOperation } from "@/modules/server/config/logger/log-operation";
 import {
@@ -84,8 +84,8 @@ export class OrganizationRestApiService implements IOrganizationsService {
   private handleError(error: AxiosError): never {
     const body = error.response?.data as Record<string, unknown> | undefined;
     const message =
-      typeof body?.message === "string"
-        ? body.message
+      typeof body?.detail === "string"
+        ? body.detail
         : (error.response?.statusText ?? error.message);
 
     switch (error.response?.status) {

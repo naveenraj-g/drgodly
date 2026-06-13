@@ -15,7 +15,7 @@ import {
   TOrgResponse,
   TRegisterOrg,
   TPatchOrgDto,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 
 export interface IOrganizationsService {
   /**

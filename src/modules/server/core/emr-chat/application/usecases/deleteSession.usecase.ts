@@ -15,6 +15,6 @@ import { getInjection } from "@/modules/server/di/container";
  * @param id - Session UUID.
  */
 export async function deleteSessionUseCase(id: string): Promise<void> {
-  const service = getInjection("IEmrChatService");
+  const service = getInjection("IEmrChatRepository");
   return service.deleteSession(id);
 }

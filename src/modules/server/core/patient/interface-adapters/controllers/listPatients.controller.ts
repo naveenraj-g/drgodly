@@ -1,25 +1,17 @@
-import {
-  ListPatientsValidationSchema,
-  TPaginatedPatientResponse,
-} from "@/modules/entities/schemas/patient/patient.schema";
+/**
+ * listPatientsController — validates filters and returns a paginated Patient list.
+ * Layer: interface-adapters / controllers
+ */
+import { ListPatientsValidationSchema } from "@/modules/entities/schemas/patient";
+import type { TPaginatedPatientResponse } from "@/modules/entities/schemas/patient";
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import { listPatientsUseCase } from "../../application/usecases/listPatients.usecase";
 
-function presenter(data: TPaginatedPatientResponse) {
-  return data;
-}
-
+function presenter(data: TPaginatedPatientResponse) { return data; }
 export type TListPatientsControllerOutput = ReturnType<typeof presenter>;
 
-export async function listPatientsController(
-  input?: unknown
-): Promise<TListPatientsControllerOutput> {
-  if (input === undefined || input === null) {
-    const data = await listPatientsUseCase();
-    return presenter(data);
-  }
-  const parsed = await ListPatientsValidationSchema.safeParseAsync(input);
+export async function listPatientsController(input: unknown): Promise<TListPatientsControllerOutput> {
+  const parsed = await ListPatientsValidationSchema.safeParseAsync(input ?? {});
   if (!parsed.success) throw new InputParseError(parsed.error);
-  const data = await listPatientsUseCase(parsed.data);
-  return presenter(data);
+  return presenter(await listPatientsUseCase(parsed.data));
 }

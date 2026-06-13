@@ -25,7 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
-import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 import type { CreateOrganizationFormProps } from "./types";
 import { BasicTab } from "./tabs/BasicTab";

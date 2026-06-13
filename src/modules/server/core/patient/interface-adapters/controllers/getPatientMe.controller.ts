@@ -1,13 +1,13 @@
-import { TPatientResponse } from "@/modules/entities/schemas/patient/patient.schema";
+/**
+ * getPatientMeController — returns the caller's own Patient record.
+ * Layer: interface-adapters / controllers
+ */
+import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 import { getPatientMeUseCase } from "../../application/usecases/getPatientMe.usecase";
 
-function presenter(data: TPatientResponse) {
-  return data;
-}
-
+function presenter(data: TPatientResponse) { return data; }
 export type TGetPatientMeControllerOutput = ReturnType<typeof presenter>;
 
 export async function getPatientMeController(): Promise<TGetPatientMeControllerOutput> {
-  const data = await getPatientMeUseCase();
-  return presenter(data);
+  return presenter(await getPatientMeUseCase());
 }

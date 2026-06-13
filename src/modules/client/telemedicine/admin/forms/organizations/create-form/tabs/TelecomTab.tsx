@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldError } from "@/components/ui/field";
-import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 import { TELECOM_SYSTEMS, TELECOM_USES } from "../constants";
 
 /** @see CreateOrganizationForm */

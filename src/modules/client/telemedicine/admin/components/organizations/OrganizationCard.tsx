@@ -19,7 +19,7 @@ import { Building2, Mail, MapPin, Phone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTableRowActions } from "@/modules/client/shared/components/tables";
-import { TOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
+import { TOrgResponse } from "@/modules/entities/schemas/organization";
 import { ORG_ROW_ACTIONS, ORG_TYPE_OPTIONS } from "./OrganizationsTableColumn";
 
 /**

@@ -12,7 +12,7 @@ import {
   PatchOrgDtoSchema,
   PatchOrgValidationSchema,
   TOrgResponse,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import { updateOrganizationUseCase } from "../../application/usecases/updateOrganization.usecase";
 

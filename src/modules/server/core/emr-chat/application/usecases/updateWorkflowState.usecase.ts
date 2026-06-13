@@ -12,7 +12,7 @@ import { getInjection } from "@/modules/server/di/container";
 import type {
   TUpdateWorkflowState,
   TEmrWorkflowState,
-} from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+} from "@/modules/entities/schemas/emr-chat";
 
 /**
  * Updates a workflow state row.
@@ -25,6 +25,6 @@ export async function updateWorkflowStateUseCase(
   id: string,
   dto: TUpdateWorkflowState,
 ): Promise<TEmrWorkflowState> {
-  const service = getInjection("IEmrChatService");
+  const service = getInjection("IEmrChatRepository");
   return service.updateWorkflowState(id, dto);
 }

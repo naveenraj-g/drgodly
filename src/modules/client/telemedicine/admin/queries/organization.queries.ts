@@ -9,8 +9,8 @@
  * organizationKeys.all })` to refresh every list regardless of page/size.
  */
 
-import { TPaginatedOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
-import { listOrganizationsAction } from "@/modules/server/presentation/actions/organization/organization.actions";
+import { TPaginatedOrgResponse } from "@/modules/entities/schemas/organization";
+import { listOrganizationsAction } from "@/modules/server/presentation/actions/organization";
 
 // ── Query key factory ──────────────────────────────────────────────────────────
 

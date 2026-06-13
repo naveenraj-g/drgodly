@@ -24,7 +24,7 @@ import {
   DataTableRowActions,
   type RowAction,
 } from "@/modules/client/shared/components/tables";
-import { TOrgResponse } from "@/modules/entities/schemas/organization/organization.schema";
+import { TOrgResponse } from "@/modules/entities/schemas/organization";
 import { adminStore } from "../../stores/admin.store";
 
 // ── Filter option constants ────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ import { getInjection } from "@/modules/server/di/container";
 import type {
   TAddStepSubmission,
   TEmrWorkflowStepSubmission,
-} from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+} from "@/modules/entities/schemas/emr-chat";
 
 /**
  * Upserts a step submission record (upsert handles re-submissions after errors).
@@ -23,6 +23,6 @@ import type {
 export async function addStepSubmissionUseCase(
   dto: TAddStepSubmission,
 ): Promise<TEmrWorkflowStepSubmission> {
-  const service = getInjection("IEmrChatService");
+  const service = getInjection("IEmrChatRepository");
   return service.addStepSubmission(dto);
 }

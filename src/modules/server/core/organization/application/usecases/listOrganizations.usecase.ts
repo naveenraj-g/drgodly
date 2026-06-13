@@ -10,7 +10,7 @@
 import {
   TListOrgsQuery,
   TPaginatedOrgResponse,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 import { getInjection } from "@/modules/server/di/container";
 
 /**

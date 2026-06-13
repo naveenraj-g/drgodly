@@ -10,7 +10,7 @@ import { getInjection } from "@/modules/server/di/container";
 import type {
   TAddEmrChatMessage,
   TEmrChatMessage,
-} from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+} from "@/modules/entities/schemas/emr-chat";
 
 /**
  * Appends a message to a session.
@@ -21,6 +21,6 @@ import type {
 export async function addMessageUseCase(
   dto: TAddEmrChatMessage,
 ): Promise<TEmrChatMessage> {
-  const service = getInjection("IEmrChatService");
+  const service = getInjection("IEmrChatRepository");
   return service.addMessage(dto);
 }

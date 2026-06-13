@@ -24,7 +24,7 @@ import {
   FormInput,
   FormSwitch,
 } from "@/modules/client/shared/components/CustomFormFields";
-import type { TEditOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TEditOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 // ---------------------------------------------------------------------------
 // Props

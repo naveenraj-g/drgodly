@@ -24,7 +24,7 @@ import {
   type TListOrgsAction,
   type TPatchOrgAction,
   type TRegisterOrgAction,
-} from "@/modules/entities/schemas/organization/organization.schema";
+} from "@/modules/entities/schemas/organization";
 import {
   deleteOrganizationController,
   getOrganizationByIdController,

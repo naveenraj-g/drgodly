@@ -42,7 +42,6 @@ import { UI_SCHEMA_REGISTRY } from "@/modules/client/ai-hub/schemas/ui";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   useChatStore,
@@ -66,7 +65,7 @@ import {
 import type {
   TEmrChatMessage,
   TEmrChatSessionFull,
-} from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+} from "@/modules/entities/schemas/emr-chat";
 import { emrChatStore } from "../stores/emr-chat.store";
 import type {
   WorkflowDefinition,
@@ -150,6 +149,7 @@ export default function EMRChatContainer({
   sessionId: urlSessionId,
   initialSession,
 }: EMRChatContainerProps) {
+  console.log(initialSession);
   // ── Chat message state ────────────────────────────────────────────────────
   const {
     messages,
@@ -223,13 +223,14 @@ export default function EMRChatContainer({
     // Session page — restore messages and workflow state pre-loaded by the server.
     setActiveSessionId(initialSession.id);
 
-    const restoredMessages: ChatMessage[] = initialSession.messages.map(
+    // Base messages from DB (all types rendered as markdown where content exists).
+    const dbMessages: ChatMessage[] = initialSession.messages.map(
       (m: TEmrChatMessage) => ({
         id: m.id,
         role: m.role.toLowerCase() as "user" | "assistant",
         text: m.role === "USER" ? m.content : undefined,
         ui:
-          m.role === "ASSISTANT" && m.type === "TEXT"
+          m.role === "ASSISTANT" && m.content
             ? buildMarkdownNode(m.content)
             : null,
         toolCall:
@@ -239,9 +240,87 @@ export default function EMRChatContainer({
       }),
     );
 
+    // For completed/abandoned workflows, inject step-submission summaries chronologically.
+    // This covers old sessions created before WORKFLOW_STEP messages were persisted to DB.
+    const persistedWorkflowStepTypes = new Set(["WORKFLOW_STEP", "WORKFLOW_COMPLETE", "WORKFLOW_ABANDONED"]);
+    const hasPersistedStepMessages = initialSession.messages.some(
+      (m: TEmrChatMessage) => persistedWorkflowStepTypes.has(m.type ?? ""),
+    );
+
+    // Build a flat list of injected messages from all completed workflow step submissions,
+    // sorted by submittedAt so they interleave correctly with DB messages.
+    type Timed = { at: Date; msg: ChatMessage };
+    const timedInjections: Timed[] = [];
+
+    if (!hasPersistedStepMessages) {
+      for (const wf of initialSession.completedWorkflows ?? []) {
+        for (const sub of wf.stepSubmissions ?? []) {
+          timedInjections.push({
+            at: new Date(sub.submittedAt),
+            msg: {
+              id: `injected-step-${sub.id}`,
+              role: "assistant",
+              ui: buildMarkdownNode(`**${sub.stepName}** — submitted`),
+            },
+          });
+        }
+
+        // Inject a status notice at the end of each non-active workflow.
+        const wfEndAt = new Date(wf.completedAt ?? wf.updatedAt);
+        if (wf.status === "COMPLETED") {
+          const wfDef = wf.workflowDefinition as { completion?: { message?: string } };
+          const completionText = wfDef?.completion?.message ?? `**${wf.workflowName}** completed.`;
+          timedInjections.push({
+            at: wfEndAt,
+            msg: {
+              id: `injected-complete-${wf.id}`,
+              role: "assistant",
+              ui: buildMarkdownNode(completionText),
+            },
+          });
+        } else if (wf.status === "ABANDONED" || wf.status === "ERROR") {
+          // Find the step name at which the workflow was abandoned.
+          const wfDef = wf.workflowDefinition as { workflow_steps?: Array<{ sequence_number: number; name: string }> };
+          const sortedSteps = (wfDef?.workflow_steps ?? []).slice().sort(
+            (a, b) => a.sequence_number - b.sequence_number,
+          );
+          const stepAtAbandon = sortedSteps[wf.currentStepIndex];
+          const noticeText = stepAtAbandon
+            ? `**${wf.workflowName}** was abandoned at step ${wf.currentStepIndex + 1}: ${stepAtAbandon.name}.`
+            : `**${wf.workflowName}** was abandoned.`;
+          timedInjections.push({
+            at: wfEndAt,
+            msg: {
+              id: `injected-abandoned-${wf.id}`,
+              role: "assistant",
+              ui: buildMarkdownNode(noticeText),
+            },
+          });
+        }
+      }
+    }
+
+    // Merge DB messages and timed injections sorted by timestamp.
+    const dbWithTimestamps = dbMessages.map((msg, i) => ({
+      at: new Date(initialSession.messages[i]?.createdAt ?? 0),
+      msg,
+    }));
+
+    const allSorted = [...dbWithTimestamps, ...timedInjections].sort(
+      (a, b) => a.at.getTime() - b.at.getTime(),
+    );
+
+    const restoredMessages: ChatMessage[] = allSorted.map((e) => e.msg);
+
+    const restoredCtx =
+      (initialSession.activeWorkflow?.sessionContext as Record<
+        string,
+        unknown
+      >) ?? {};
+
     loadState({
       messages: restoredMessages,
-      sessionContext: initialSession.activeWorkflow?.sessionContext ?? {},
+      sessionContext: restoredCtx,
       activeWorkflow: initialSession.activeWorkflow
         ? (initialSession.activeWorkflow
             .workflowDefinition as unknown as WorkflowDefinition)
@@ -251,6 +330,13 @@ export default function EMRChatContainer({
 
     if (initialSession.activeWorkflow) {
       setDbWorkflowStateId(initialSession.activeWorkflow.id);
+
+      // Re-fetch the current step so the form re-renders with fresh context-resolver data.
+      // The step form is never persisted to DB — only the intro (WORKFLOW_START) is saved.
+      const wf = initialSession.activeWorkflow
+        .workflowDefinition as unknown as WorkflowDefinition;
+      const stepIdx = initialSession.activeWorkflow.currentStepIndex;
+      loadWorkflowStep(wf, stepIdx, restoredCtx, false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -423,6 +509,7 @@ export default function EMRChatContainer({
       workflow: WorkflowDefinition,
       stepIndex: number,
       ctx: Record<string, unknown>,
+      persist: boolean = true,
     ) => {
       setLoading(true);
       try {
@@ -465,6 +552,10 @@ export default function EMRChatContainer({
                 role: "assistant",
                 ui: buildMarkdownNode(workflow.completion.message),
               });
+              if (persist) {
+                const sid = emrChatStore.getState().activeSessionId;
+                if (sid) await persistMessage(sid, { role: "ASSISTANT", content: workflow.completion.message, type: "WORKFLOW_COMPLETE" });
+              }
             }
             clearSession();
           }
@@ -477,14 +568,12 @@ export default function EMRChatContainer({
           ...(data.sessionContext ?? {}),
         });
 
+        const stepLabel = `**${step.name}**${step.optional ? " (optional)" : ""} — ${step.description}`;
+
         addMessage({
           id: crypto.randomUUID(),
           role: "assistant",
-          ui:
-            parsedUi ??
-            buildMarkdownNode(
-              `**${step.name}**${step.optional ? " (optional)" : ""} — ${step.description}`,
-            ),
+          ui: parsedUi ?? buildMarkdownNode(stepLabel),
           workflowSnapshot: {
             workflowId: workflow.id,
             stepIndex,
@@ -492,6 +581,12 @@ export default function EMRChatContainer({
             contextAtStep: ctx,
           },
         });
+
+        // Persist the step label so it appears in the message history on resume.
+        if (persist) {
+          const sid = emrChatStore.getState().activeSessionId;
+          if (sid) await persistMessage(sid, { role: "ASSISTANT", content: stepLabel, type: "WORKFLOW_STEP" });
+        }
 
         setWorkflow(workflow, stepIndex);
       } catch (err) {
@@ -508,7 +603,7 @@ export default function EMRChatContainer({
     },
     // loadWorkflowStep is used inside itself — stable refs required.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addMessage, setLoading, mergeContext, setWorkflow, clearSession],
+    [addMessage, setLoading, mergeContext, setWorkflow, clearSession, persistMessage],
   );
 
   // ── Skip optional step ────────────────────────────────────────────────────
@@ -520,11 +615,13 @@ export default function EMRChatContainer({
     const nextIndex =
       currentStepIndex + 1 < steps.length ? currentStepIndex + 1 : null;
 
+    const skipText = `**${skippedStep.name}** was skipped.`;
     addMessage({
       id: crypto.randomUUID(),
       role: "assistant",
-      ui: buildMarkdownNode(`**${skippedStep.name}** was skipped.`),
+      ui: buildMarkdownNode(skipText),
     });
+    if (activeSessionId) await persistMessage(activeSessionId, { role: "ASSISTANT", content: skipText, type: "WORKFLOW_STEP" });
 
     if (nextIndex !== null) {
       setWorkflow(activeWorkflow, nextIndex);
@@ -543,6 +640,7 @@ export default function EMRChatContainer({
           role: "assistant",
           ui: buildMarkdownNode(activeWorkflow.completion.message),
         });
+        await persistMessage(activeSessionId!, { role: "ASSISTANT", content: activeWorkflow.completion.message, type: "WORKFLOW_COMPLETE" });
       }
       if (dbWorkflowStateId) {
         await updateWorkflowStateAction({
@@ -562,6 +660,8 @@ export default function EMRChatContainer({
     clearSession,
     dbWorkflowStateId,
     addMessage,
+    activeSessionId,
+    persistMessage,
   ]);
 
   // ── Abandon workflow ──────────────────────────────────────────────────────
@@ -714,6 +814,8 @@ export default function EMRChatContainer({
                 role: "assistant",
                 ui: buildMarkdownNode(currentWorkflow.completion.message),
               });
+              const completeSid = emrChatStore.getState().activeSessionId;
+              if (completeSid) await persistMessage(completeSid, { role: "ASSISTANT", content: currentWorkflow.completion.message, type: "WORKFLOW_COMPLETE" });
             }
             clearSession();
             setDbWorkflowStateId(null);
@@ -821,6 +923,21 @@ export default function EMRChatContainer({
         }
 
         if (data.sessionContext) mergeContext(data.sessionContext);
+
+        // Abandon any previous in-progress workflow before starting a new one.
+        if (dbWorkflowStateId) {
+          await updateWorkflowStateAction({
+            id: dbWorkflowStateId,
+            payload: { status: "ABANDONED" },
+          });
+          // Persist the abandonment so it appears in session history on resume.
+          await persistMessage(sessionId, {
+            role: "ASSISTANT",
+            content: "Workflow was abandoned.",
+            type: "WORKFLOW_ABANDONED",
+          });
+          setDbWorkflowStateId(null);
+        }
 
         // Persist WORKFLOW_START message + workflow state row.
         await persistMessage(sessionId, {
@@ -934,6 +1051,8 @@ export default function EMRChatContainer({
     userId,
     orgId,
     updateSessionTitle,
+    dbWorkflowStateId,
+    setDbWorkflowStateId,
   ]);
 
   // ── Keyboard shortcut ─────────────────────────────────────────────────────
@@ -988,7 +1107,7 @@ export default function EMRChatContainer({
       )}
 
       {/* Messages */}
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="px-4 py-6">
           <div className="max-w-4xl mx-auto">
             {messages.length === 0 ? (
@@ -1073,7 +1192,7 @@ export default function EMRChatContainer({
             )}
           </div>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Skip optional step bar */}
       {currentStepIsOptional && !loading && (

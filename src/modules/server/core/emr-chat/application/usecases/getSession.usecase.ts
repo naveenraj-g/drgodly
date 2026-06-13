@@ -8,7 +8,7 @@
  */
 
 import { getInjection } from "@/modules/server/di/container";
-import type { TEmrChatSessionFull } from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+import type { TEmrChatSessionFull } from "@/modules/entities/schemas/emr-chat";
 
 /**
  * Retrieves a session by ID including messages and active workflow.
@@ -18,6 +18,6 @@ import type { TEmrChatSessionFull } from "@/modules/entities/schemas/emr-chat/em
  * @throws NotFoundError if session does not exist.
  */
 export async function getSessionUseCase(id: string): Promise<TEmrChatSessionFull> {
-  const service = getInjection("IEmrChatService");
+  const service = getInjection("IEmrChatRepository");
   return service.getSession(id);
 }

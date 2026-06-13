@@ -29,7 +29,7 @@ import {
   FormSwitch,
 } from "@/modules/client/shared/components/CustomFormFields";
 import { useConceptsForField } from "@/modules/client/shared/queries/terminology.queries";
-import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 /**
  * Renders the Basic tab content — no props needed, reads form via useFormContext.

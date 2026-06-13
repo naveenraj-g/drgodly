@@ -29,7 +29,7 @@ import {
   GetEmrChatSessionActionSchema,
   ListEmrChatSessionsActionSchema,
   DeleteEmrChatSessionActionSchema,
-} from "@/modules/entities/schemas/emr-chat/emr-chat.schema";
+} from "@/modules/entities/schemas/emr-chat";
 import {
   createSessionController,
   getSessionController,

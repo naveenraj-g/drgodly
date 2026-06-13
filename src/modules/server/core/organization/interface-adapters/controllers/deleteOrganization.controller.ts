@@ -5,7 +5,7 @@
  * Operation: delete (irreversible — 204 No Content from fhir-gql)
  */
 
-import { DeleteOrgValidationSchema } from "@/modules/entities/schemas/organization/organization.schema";
+import { DeleteOrgValidationSchema } from "@/modules/entities/schemas/organization";
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import { deleteOrganizationUseCase } from "../../application/usecases/deleteOrganization.usecase";
 

@@ -1,9 +1,14 @@
-﻿import { TPatientResponse } from "@/modules/entities/schemas/patient/patient.schema";
+/**
+ * getPatientByIdUseCase — fetches a single Patient by ID.
+ * Layer: application / use cases
+ */
 import { getInjection } from "@/modules/server/di/container";
+import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 
-export async function getPatientByIdUseCase(
-  id: number
-): Promise<TPatientResponse> {
-  const patientService = getInjection("IPatientsService");
-  return patientService.getById(id);
+/**
+ * @param id - The Patient primary key.
+ * @returns The Patient record with all sub-resource arrays populated.
+ */
+export async function getPatientByIdUseCase(id: number): Promise<TPatientResponse> {
+  return getInjection("IPatientsService").getById(id);
 }
