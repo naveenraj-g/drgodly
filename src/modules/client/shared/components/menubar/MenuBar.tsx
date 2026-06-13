@@ -116,7 +116,7 @@ export function MenuBar(user: TUser) {
   const pathname = usePathname();
 
   const segments = pathname.split("/").filter(Boolean);
-  const currentSlug = segments[0] ?? "";
+  const currentSlug = segments[1] ?? "";
   const isSettings = currentSlug === "settings";
 
   const currentApp = allApps.find((a) => a.slug === currentSlug);
