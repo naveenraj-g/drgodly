@@ -4,7 +4,7 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /telecom sub-resource
  *
- * All actions use adminProcedure. Mutating actions include transportOptions
+ * All actions use authenticatedProcedure. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +30,10 @@ import {
   type TPatchPractitionerTelecomControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Adds a ContactPoint (phone, email, etc.) to a Practitioner. */
-export const addPractitionerTelecomAction = adminProcedure
+export const addPractitionerTelecomAction = authenticatedProcedure
   .createServerAction()
   .input(AddPractitionerTelecomActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerTelecomAction }) => {
@@ -44,7 +44,7 @@ export const addPractitionerTelecomAction = adminProcedure
   });
 
 /** Lists all telecom records for a Practitioner. */
-export const listPractitionerTelecomAction = adminProcedure
+export const listPractitionerTelecomAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerTelecomActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPractitionerTelecomAction }) => {
@@ -55,7 +55,7 @@ export const listPractitionerTelecomAction = adminProcedure
   });
 
 /** Patches a ContactPoint on a Practitioner. */
-export const patchPractitionerTelecomAction = adminProcedure
+export const patchPractitionerTelecomAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPractitionerTelecomActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerTelecomAction }) => {
@@ -66,7 +66,7 @@ export const patchPractitionerTelecomAction = adminProcedure
   });
 
 /** Removes a telecom record from a Practitioner. */
-export const deletePractitionerTelecomAction = adminProcedure
+export const deletePractitionerTelecomAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePractitionerTelecomActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerTelecomAction }) => {

@@ -4,7 +4,7 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /addresses sub-resource
  *
- * All actions use adminProcedure. Mutating actions include transportOptions
+ * All actions use authenticatedProcedure. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +30,10 @@ import {
   type TPatchPractitionerAddressControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Adds an Address to a Practitioner. */
-export const addPractitionerAddressAction = adminProcedure
+export const addPractitionerAddressAction = authenticatedProcedure
   .createServerAction()
   .input(AddPractitionerAddressActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerAddressAction }) => {
@@ -44,7 +44,7 @@ export const addPractitionerAddressAction = adminProcedure
   });
 
 /** Lists all address records for a Practitioner. */
-export const listPractitionerAddressesAction = adminProcedure
+export const listPractitionerAddressesAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerAddressesActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPractitionerAddressesAction }) => {
@@ -55,7 +55,7 @@ export const listPractitionerAddressesAction = adminProcedure
   });
 
 /** Patches an Address on a Practitioner. */
-export const patchPractitionerAddressAction = adminProcedure
+export const patchPractitionerAddressAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPractitionerAddressActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerAddressAction }) => {
@@ -66,7 +66,7 @@ export const patchPractitionerAddressAction = adminProcedure
   });
 
 /** Removes an address record from a Practitioner. */
-export const deletePractitionerAddressAction = adminProcedure
+export const deletePractitionerAddressAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePractitionerAddressActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerAddressAction }) => {

@@ -4,7 +4,7 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — core operations
  *
- * All actions use adminProcedure — practitioner records are managed by
+ * All actions use authenticatedProcedure — practitioner records are managed by
  * telemedicine-admin users. Mutating actions include transportOptions for
  * cache revalidation; read actions do not.
  */
@@ -43,10 +43,10 @@ import {
   type TUpdatePractitionerControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Atomically creates a Practitioner with sub-resources in a single request. */
-export const createPractitionerFullAction = adminProcedure
+export const createPractitionerFullAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePractitionerFullActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TCreatePractitionerFullAction }) => {
@@ -57,7 +57,7 @@ export const createPractitionerFullAction = adminProcedure
   });
 
 /** Creates a new Practitioner record. Accepts transportOptions for post-create revalidation. */
-export const createPractitionerAction = adminProcedure
+export const createPractitionerAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TCreatePractitionerAction }) => {
@@ -68,7 +68,7 @@ export const createPractitionerAction = adminProcedure
   });
 
 /** Lists Practitioners with optional server-side filters and pagination. */
-export const listPractitionersAction = adminProcedure
+export const listPractitionersAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionersActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPractitionersAction }) => {
@@ -82,7 +82,7 @@ export const listPractitionersAction = adminProcedure
  * Fetches the Practitioner record linked to the given userId.
  * The client passes the authenticated user's ID from their session.
  */
-export const getMyPractitionerAction = adminProcedure
+export const getMyPractitionerAction = authenticatedProcedure
   .createServerAction()
   .input(GetMyPractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TGetMyPractitionerAction }) => {
@@ -93,7 +93,7 @@ export const getMyPractitionerAction = adminProcedure
   });
 
 /** Fetches a single Practitioner by numeric ID. */
-export const getPractitionerByIdAction = adminProcedure
+export const getPractitionerByIdAction = authenticatedProcedure
   .createServerAction()
   .input(GetPractitionerByIdActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TGetPractitionerByIdAction }) => {
@@ -104,7 +104,7 @@ export const getPractitionerByIdAction = adminProcedure
   });
 
 /** Partially updates scalar fields on a Practitioner. Accepts transportOptions for revalidation. */
-export const updatePractitionerAction = adminProcedure
+export const updatePractitionerAction = authenticatedProcedure
   .createServerAction()
   .input(UpdatePractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TUpdatePractitionerAction }) => {
@@ -115,7 +115,7 @@ export const updatePractitionerAction = adminProcedure
   });
 
 /** Permanently removes a Practitioner and all child records. Accepts transportOptions for revalidation. */
-export const deletePractitionerAction = adminProcedure
+export const deletePractitionerAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerAction }) => {

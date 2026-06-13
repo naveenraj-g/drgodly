@@ -4,7 +4,7 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /identifiers sub-resource
  *
- * All actions use adminProcedure. Mutating actions include transportOptions
+ * All actions use authenticatedProcedure. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +30,10 @@ import {
   type TPatchPractitionerIdentifierControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Adds a business identifier (NPI, DEA, etc.) to a Practitioner. */
-export const addPractitionerIdentifierAction = adminProcedure
+export const addPractitionerIdentifierAction = authenticatedProcedure
   .createServerAction()
   .input(AddPractitionerIdentifierActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerIdentifierAction }) => {
@@ -44,7 +44,7 @@ export const addPractitionerIdentifierAction = adminProcedure
   });
 
 /** Lists all identifier records for a Practitioner. */
-export const listPractitionerIdentifiersAction = adminProcedure
+export const listPractitionerIdentifiersAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerIdentifiersActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPractitionerIdentifiersAction }) => {
@@ -55,7 +55,7 @@ export const listPractitionerIdentifiersAction = adminProcedure
   });
 
 /** Patches a business identifier on a Practitioner. */
-export const patchPractitionerIdentifierAction = adminProcedure
+export const patchPractitionerIdentifierAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPractitionerIdentifierActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerIdentifierAction }) => {
@@ -66,7 +66,7 @@ export const patchPractitionerIdentifierAction = adminProcedure
   });
 
 /** Removes an identifier record from a Practitioner. */
-export const deletePractitionerIdentifierAction = adminProcedure
+export const deletePractitionerIdentifierAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePractitionerIdentifierActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerIdentifierAction }) => {

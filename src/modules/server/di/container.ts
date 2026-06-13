@@ -6,6 +6,9 @@ import {
   registerEmrChatModule,
   registerPatientModule,
   registerPractitionerModule,
+  registerPractitionerRoleModule,
+  registerSlotModule,
+  registerAppointmentModule,
 } from "./modules";
 
 const ApplicationContainer = createContainer();
@@ -15,6 +18,9 @@ registerTerminologyModule(ApplicationContainer);
 registerEmrChatModule(ApplicationContainer);
 registerPatientModule(ApplicationContainer);
 registerPractitionerModule(ApplicationContainer);
+registerPractitionerRoleModule(ApplicationContainer);
+registerSlotModule(ApplicationContainer);
+registerAppointmentModule(ApplicationContainer);
 
 export const getInjection = <K extends keyof typeof DI_SYMBOLS>(
   symbol: K,

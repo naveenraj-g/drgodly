@@ -4,8 +4,8 @@
  * Layer: presentation / actions
  * Resource: Organization
  *
- * All mutating actions (register, update, delete) use adminProcedure — the caller
- * must have an active admin role. Read actions (list, getById) use adminProcedure
+ * All mutating actions (register, update, delete) use authenticatedProcedure — the caller
+ * must have an active admin role. Read actions (list, getById) use authenticatedProcedure
  * too since organization data is restricted to admin users.
  * Mutating actions include transportOptions for revalidation / redirect.
  * Read actions have no transportOptions — no side effects.
@@ -38,10 +38,10 @@ import {
   type TUpdateOrganizationControllerOutput,
 } from "@/modules/server/core/organization/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Creates a new organization. Accepts transportOptions for post-create revalidation. */
-export const registerOrganizationAction = adminProcedure
+export const registerOrganizationAction = authenticatedProcedure
   .createServerAction()
   .input(RegisterOrgActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TRegisterOrgAction }) => {
@@ -54,7 +54,7 @@ export const registerOrganizationAction = adminProcedure
   });
 
 /** Lists organizations with optional server-side filters and pagination. */
-export const listOrganizationsAction = adminProcedure
+export const listOrganizationsAction = authenticatedProcedure
   .createServerAction()
   .input(ListOrgsActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListOrgsAction }) => {
@@ -67,7 +67,7 @@ export const listOrganizationsAction = adminProcedure
   });
 
 /** Fetches a single organization by its numeric ID. */
-export const getOrganizationByIdAction = adminProcedure
+export const getOrganizationByIdAction = authenticatedProcedure
   .createServerAction()
   .input(GetOrgByIdActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TGetOrgByIdAction }) => {
@@ -80,7 +80,7 @@ export const getOrganizationByIdAction = adminProcedure
   });
 
 /** Partially updates an organization (name, active, partof_display only). */
-export const updateOrganizationAction = adminProcedure
+export const updateOrganizationAction = authenticatedProcedure
   .createServerAction()
   .input(PatchOrgActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchOrgAction }) => {
@@ -93,7 +93,7 @@ export const updateOrganizationAction = adminProcedure
   });
 
 /** Permanently deletes an organization and its child records. */
-export const deleteOrganizationAction = adminProcedure
+export const deleteOrganizationAction = authenticatedProcedure
   .createServerAction()
   .input(DeleteOrgActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeleteOrgAction }) => {

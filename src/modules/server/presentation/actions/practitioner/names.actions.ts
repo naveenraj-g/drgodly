@@ -4,7 +4,7 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /names sub-resource
  *
- * All actions use adminProcedure. Mutating actions include transportOptions
+ * All actions use authenticatedProcedure. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +30,10 @@ import {
   type TPatchPractitionerNameControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Adds a HumanName to a Practitioner. */
-export const addPractitionerNameAction = adminProcedure
+export const addPractitionerNameAction = authenticatedProcedure
   .createServerAction()
   .input(AddPractitionerNameActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerNameAction }) => {
@@ -44,7 +44,7 @@ export const addPractitionerNameAction = adminProcedure
   });
 
 /** Lists all HumanName entries for a Practitioner. */
-export const listPractitionerNamesAction = adminProcedure
+export const listPractitionerNamesAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerNamesActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPractitionerNamesAction }) => {
@@ -55,7 +55,7 @@ export const listPractitionerNamesAction = adminProcedure
   });
 
 /** Patches a HumanName record on a Practitioner. */
-export const patchPractitionerNameAction = adminProcedure
+export const patchPractitionerNameAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPractitionerNameActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerNameAction }) => {
@@ -66,7 +66,7 @@ export const patchPractitionerNameAction = adminProcedure
   });
 
 /** Removes a HumanName record from a Practitioner. */
-export const deletePractitionerNameAction = adminProcedure
+export const deletePractitionerNameAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePractitionerNameActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerNameAction }) => {

@@ -3,3 +3,6 @@ export * from "./terminology/terminology.module";
 export * from "./emr-chat/emr-chat.module";
 export * from "./patient/patient.module";
 export * from "./practitioner/practitioner.module";
+export * from "./practitioner-role/practitioner-role.module";
+export * from "./slot/slot.module";
+export * from "./appointment/appointment.module";

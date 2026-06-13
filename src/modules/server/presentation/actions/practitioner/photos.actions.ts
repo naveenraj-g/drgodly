@@ -4,7 +4,7 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /photos sub-resource
  *
- * All actions use adminProcedure. Mutating actions include transportOptions
+ * All actions use authenticatedProcedure. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +30,10 @@ import {
   type TPatchPractitionerPhotoControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import { authenticatedProcedure } from "../procedures";
 
 /** Adds a photo Attachment to a Practitioner. */
-export const addPractitionerPhotoAction = adminProcedure
+export const addPractitionerPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(AddPractitionerPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerPhotoAction }) => {
@@ -44,7 +44,7 @@ export const addPractitionerPhotoAction = adminProcedure
   });
 
 /** Lists all photo records for a Practitioner. */
-export const listPractitionerPhotosAction = adminProcedure
+export const listPractitionerPhotosAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerPhotosActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPractitionerPhotosAction }) => {
@@ -55,7 +55,7 @@ export const listPractitionerPhotosAction = adminProcedure
   });
 
 /** Patches a photo Attachment on a Practitioner. */
-export const patchPractitionerPhotoAction = adminProcedure
+export const patchPractitionerPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPractitionerPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerPhotoAction }) => {
@@ -66,7 +66,7 @@ export const patchPractitionerPhotoAction = adminProcedure
   });
 
 /** Removes a photo record from a Practitioner. */
-export const deletePractitionerPhotoAction = adminProcedure
+export const deletePractitionerPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePractitionerPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerPhotoAction }) => {
