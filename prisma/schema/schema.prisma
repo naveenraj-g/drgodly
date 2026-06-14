@@ -14,6 +14,55 @@ model Test {
     name String
 }
 
+// ── Intake ────────────────────────────────────────────────────────────────────
+
+/** Channel through which the intake was conducted. */
+enum IntakeMode {
+  TEXT
+  VOICE
+}
+
+/** Lifecycle status of a patient intake session. */
+enum IntakeStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+/**
+ * Patient pre-appointment intake record.
+ *
+ * Stores the full intake conversation transcript and the AI-generated
+ * clinical assessment report. Lives in the local Postgres database — not
+ * in FHIR-GQL — because intake is proprietary application data.
+ *
+ * fhir_appointment_id is null until the patient books a doctor appointment
+ * after completing intake. Once set, doctors can retrieve the linked intake
+ * report by querying on fhir_appointment_id.
+ */
+model Intake {
+  id                  Int          @id @default(autoincrement())
+  /** Better Auth user ID of the patient who started the intake. */
+  user_id             String
+  org_id              String?
+  /** FHIR Patient.id (integer) — populated so doctors can correlate. */
+  patient_fhir_id     Int?
+  mode                IntakeMode
+  status              IntakeStatus @default(IN_PROGRESS)
+  /** Chat transcript: [{ role: "user"|"assistant", content: string }] */
+  conversation        Json?
+  /** AI-generated clinical assessment (risk_level, differential_diagnosis, etc.) */
+  report              Json?
+  /** Set after the patient books a FHIR appointment following this intake. */
+  fhir_appointment_id Int?
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  @@index([user_id])
+  @@index([fhir_appointment_id])
+  @@map("intakes")
+}
+
 // ── EMR Chat Session ──────────────────────────────────────────────────────────
 
 enum EmrChatSessionStatus {

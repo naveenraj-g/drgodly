@@ -73,6 +73,7 @@ import {
 import { listPractitionerRolesForBookingAction } from "@/modules/server/presentation/actions/practitioner-role";
 import { listSlotsAction } from "@/modules/server/presentation/actions/slot";
 import { bookAppointmentAction } from "@/modules/server/presentation/actions/appointment";
+import { linkIntakeToAppointmentAction } from "@/modules/server/presentation/actions/intake";
 import type { TPractitionerRoleBookingResponse } from "@/modules/entities/schemas/practitioner-role";
 import type { TSlotResponse } from "@/modules/entities/schemas/slot";
 import { Link } from "@/i18n/navigation";
@@ -89,6 +90,12 @@ interface BookAppointmentProps {
   userId: string;
   /** Active organisation ID from session. */
   orgId: string;
+  /**
+   * Local Intake.id — present when the patient navigated here from the
+   * post-intake modal (?intake_id=N). After a successful booking, the
+   * intake record is linked to the booked FHIR appointment.
+   */
+  intakeId?: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -150,6 +157,7 @@ export function BookAppointment({
   patientFhirId,
   userId,
   orgId,
+  intakeId,
 }: BookAppointmentProps) {
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
@@ -314,7 +322,7 @@ export function BookAppointment({
     }
 
     setIsBooking(true);
-    const [, err] = await bookAppointmentAction({
+    const [bookedAppointment, err] = await bookAppointmentAction({
       payload: {
         practitioner_id: practitionerId,
         slot_id: selectedSlot.id,
@@ -334,8 +342,15 @@ export function BookAppointment({
       return;
     }
 
+    // Link the pre-booking intake to this FHIR appointment when present
+    if (intakeId && bookedAppointment?.id) {
+      await linkIntakeToAppointmentAction({
+        payload: { id: intakeId, fhir_appointment_id: bookedAppointment.id },
+      });
+    }
+
     setIsSuccessOpen(true);
-  }, [selectedRole, selectedSlot, patientFhirId, userId, orgId]);
+  }, [selectedRole, selectedSlot, patientFhirId, userId, orgId, intakeId]);
 
   /** Resets all wizard state and closes the success dialog. */
   const resetBooking = useCallback(() => {

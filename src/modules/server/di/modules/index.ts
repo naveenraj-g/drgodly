@@ -6,3 +6,4 @@ export * from "./practitioner/practitioner.module";
 export * from "./practitioner-role/practitioner-role.module";
 export * from "./slot/slot.module";
 export * from "./appointment/appointment.module";
+export * from "./intake/intake.module";
