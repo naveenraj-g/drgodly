@@ -4,15 +4,15 @@
  * Layer: client / telemedicine / patient / appointments / book
  *
  * Renders the practitioner's display name, specialty, qualification, location,
- * and availability status derived from the fhir-gql PractitionerRoleBooking response.
- * The booking endpoint enriches location and healthcare_service with resolved names,
- * addresses, and contact details so no second fetch is needed.
+ * languages, healthcare service, and availability status derived from the
+ * fhir-gql enriched booking response. The /booking endpoint resolves Location,
+ * HealthcareService, and Practitioner detail server-side so no second fetch needed.
  * Clicking the card selects it; a checkmark appears when selected.
  */
 
 "use client";
 
-import { CheckCircle2, MapPin } from "lucide-react";
+import { CheckCircle2, MapPin, Stethoscope } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -102,6 +102,36 @@ export function getPractitionerLocation(
 }
 
 /**
+ * Derives up to `max` language display labels from the enriched practitioner_detail.
+ * Returns an object with `labels` (shown) and `overflow` (count of hidden extras).
+ *
+ * @param role - The PractitionerRoleBooking response object.
+ * @param max - Maximum number of language labels to show before "+N more".
+ */
+function getPractitionerLanguages(
+  role: TPractitionerRoleBookingResponse,
+  max = 2,
+): { labels: string[]; overflow: number } {
+  const langs = role.practitioner_detail?.languages ?? [];
+  const labels = langs
+    .map((l) => l.display ?? l.code)
+    .filter((v): v is string => Boolean(v));
+  return { labels: labels.slice(0, max), overflow: Math.max(0, labels.length - max) };
+}
+
+/**
+ * Returns the primary healthcare service name from the enriched booking response.
+ *
+ * @param role - The PractitionerRoleBooking response object.
+ * @returns Service name string or null.
+ */
+function getHealthcareServiceName(
+  role: TPractitionerRoleBookingResponse,
+): string | null {
+  return role.healthcare_service?.[0]?.name ?? null;
+}
+
+/**
  * Selectable doctor card for Step 1 of the booking wizard.
  *
  * @param role - FHIR PractitionerRole (booking-enriched).
@@ -119,6 +149,9 @@ export function PractitionerCard({
   const qualification =
     role.practitioner_detail?.qualifications?.[0]?.code_display ?? null;
   const location = getPractitionerLocation(role);
+  const { labels: langLabels, overflow: langOverflow } =
+    getPractitionerLanguages(role);
+  const serviceName = getHealthcareServiceName(role);
   const isActive = role.active !== false;
 
   return (
@@ -131,9 +164,9 @@ export function PractitionerCard({
           : "hover:border-primary/50 border-border",
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         {/* Avatar */}
-        <Avatar className="size-10 shrink-0">
+        <Avatar className="size-10 shrink-0 mt-0.5">
           {photoUrl && <AvatarImage src={photoUrl} alt={name} />}
           <AvatarFallback className="text-sm font-semibold">
             {getInitials(name)}
@@ -148,26 +181,56 @@ export function PractitionerCard({
               <CheckCircle2 className="size-3.5 text-primary shrink-0" />
             )}
           </div>
+
           {specialty && (
-            <p className="text-xs text-muted-foreground truncate">
-              {specialty}
-            </p>
+            <p className="text-xs text-muted-foreground truncate">{specialty}</p>
           )}
           {qualification && (
             <p className="text-xs text-muted-foreground/70 truncate">
               {qualification}
             </p>
           )}
+
+          {/* Location pill */}
           {location && (
-            <p className="text-xs text-muted-foreground/60 truncate flex items-center gap-1 mt-0.5">
+            <p className="text-xs text-muted-foreground/60 truncate flex items-center gap-1 mt-1">
               <MapPin className="size-2.5 shrink-0" />
               {location}
             </p>
           )}
+
+          {/* Healthcare service */}
+          {serviceName && (
+            <p className="text-xs text-muted-foreground/60 truncate flex items-center gap-1 mt-0.5">
+              <Stethoscope className="size-2.5 shrink-0" />
+              {serviceName}
+            </p>
+          )}
+
+          {/* Language badges */}
+          {langLabels.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap mt-1.5">
+              {langLabels.map((lang) => (
+                <Badge
+                  key={lang}
+                  variant="outline"
+                  className="text-[10px] px-1.5 h-4 font-normal"
+                >
+                  {lang}
+                </Badge>
+              ))}
+              {langOverflow > 0 && (
+                <span className="text-[10px] text-muted-foreground/60">
+                  +{langOverflow} more
+                </span>
+              )}
+            </div>
+          )}
+
           {!isActive && (
             <Badge
               variant="secondary"
-              className="mt-0.5 text-[10px] px-1.5 h-4"
+              className="mt-1 text-[10px] px-1.5 h-4"
             >
               Unavailable
             </Badge>
