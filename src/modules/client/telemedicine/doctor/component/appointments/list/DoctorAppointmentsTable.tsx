@@ -8,31 +8,19 @@
  * filters.
  *
  * Mutation flow:
- *  - Confirm: updateAppointmentAction({ id, status: "booked" })  — pending → booked
- *  - Cancel:  updateAppointmentAction({ id, status: "cancelled" })
- *  - Delete:  deleteAppointmentAction({ id })
- * All mutations require confirmation via AlertDialog and invalidate the cache on
- * success.
+ *  - Confirm / Cancel / Delete: row action callbacks open the matching modal
+ *    via the doctor Zustand store. The modals (ConfirmAppointmentModal,
+ *    CancelAppointmentModal, DeleteAppointmentModal) handle the server action
+ *    and cache invalidation.
  *
  * Pattern source: OrganizationsTable.tsx (useServerDataTable + useQuery + two-state seeding).
  */
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useQuery } from "@tanstack/react-query";
 import {
   DataTable,
   DataTableToolbar,
@@ -43,14 +31,11 @@ import {
   type TPaginatedAppointmentResponse,
 } from "@/modules/entities/schemas/appointment";
 import {
-  updateAppointmentAction,
-  deleteAppointmentAction,
-} from "@/modules/server/presentation/actions/appointment";
-import {
   doctorAppointmentKeys,
   fetchDoctorAppointments,
 } from "./appointmentQueries";
 import { createDoctorAppointmentColumns } from "./DoctorAppointmentColumns";
+import { doctorStore } from "@/modules/client/telemedicine/doctor/stores/doctor.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -78,25 +63,19 @@ interface DoctorAppointmentsTableProps {
   viewHref: string;
 }
 
-// ── Dialog state ──────────────────────────────────────────────────────────────
-
-/** Tracks which row triggered which confirmation dialog. */
-type DialogState =
-  | { type: "confirm"; row: TAppointmentResponse }
-  | { type: "cancel"; row: TAppointmentResponse }
-  | { type: "delete"; row: TAppointmentResponse }
-  | null;
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
  * Client-side doctor appointments table.
  *
  * Accepts an SSR-seeded initial page and re-fetches on pagination changes.
- * Confirm, cancel, and delete actions each show a confirmation AlertDialog.
+ * Row actions (View, Confirm, Cancel, Delete) delegate to router.push or the
+ * doctor Zustand store — no local dialog state or mutation logic lives here.
  *
  * @param initialData - First-page data fetched on the server.
  * @param orgId - Active organisation ID for scoping the list query.
+ * @param practitionerId - FHIR Practitioner.id to scope appointments to this doctor.
+ * @param viewHref - Base href for the appointment detail page.
  */
 export function DoctorAppointmentsTable({
   initialData,
@@ -104,7 +83,6 @@ export function DoctorAppointmentsTable({
   practitionerId,
   viewHref,
 }: DoctorAppointmentsTableProps) {
-  const queryClient = useQueryClient();
   const router = useRouter();
 
   // ── Row + page count state (seeded from SSR, synced from client query) ──────
@@ -113,17 +91,26 @@ export function DoctorAppointmentsTable({
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
 
-  // ── Dialog state ─────────────────────────────────────────────────────────────
-  const [dialog, setDialog] = useState<DialogState>(null);
-
   // ── Column definitions (memo-stable) ────────────────────────────────────────
   const columns = useMemo(
     () =>
       createDoctorAppointmentColumns({
         onView: (row) => router.push(`${viewHref}/${row.id}`),
-        onConfirm: (row) => setDialog({ type: "confirm", row }),
-        onCancel: (row) => setDialog({ type: "cancel", row }),
-        onDelete: (row) => setDialog({ type: "delete", row }),
+        onConfirm: (row) =>
+          doctorStore.getState().onOpen({
+            type: "confirmAppointment",
+            data: { appointment: row },
+          }),
+        onCancel: (row) =>
+          doctorStore.getState().onOpen({
+            type: "cancelAppointment",
+            data: { appointment: row },
+          }),
+        onDelete: (row) =>
+          doctorStore.getState().onOpen({
+            type: "deleteAppointment",
+            data: { appointment: row },
+          }),
       }),
     [router, viewHref],
   );
@@ -187,158 +174,10 @@ export function DoctorAppointmentsTable({
     }
   }, [data, state.pagination.pageSize]);
 
-  // ── Invalidate helper ────────────────────────────────────────────────────────
-  /** Invalidates every doctor appointment query entry after a mutation. */
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: doctorAppointmentKeys.all });
-  }, [queryClient]);
-
-  // ── Confirm mutation (pending → booked) ──────────────────────────────────────
-  const { mutate: confirmAppointment, isPending: isConfirming } = useMutation({
-    mutationFn: async (id: number) => {
-      const [, err] = await updateAppointmentAction({
-        payload: { id, status: "booked" },
-      });
-      if (err) throw new Error(err.message ?? "Failed to confirm appointment");
-    },
-    onSuccess: () => {
-      toast.success("Appointment confirmed");
-      invalidate();
-    },
-    onError: (err: Error) => toast.error(err.message),
-    onSettled: () => setDialog(null),
-  });
-
-  // ── Cancel mutation ──────────────────────────────────────────────────────────
-  const { mutate: cancelAppointment, isPending: isCancelling } = useMutation({
-    mutationFn: async (id: number) => {
-      const [, err] = await updateAppointmentAction({
-        payload: { id, status: "cancelled" },
-      });
-      if (err) throw new Error(err.message ?? "Failed to cancel appointment");
-    },
-    onSuccess: () => {
-      toast.success("Appointment cancelled");
-      invalidate();
-    },
-    onError: (err: Error) => toast.error(err.message),
-    onSettled: () => setDialog(null),
-  });
-
-  // ── Delete mutation ──────────────────────────────────────────────────────────
-  const { mutate: deleteAppointment, isPending: isDeleting } = useMutation({
-    mutationFn: async (id: number) => {
-      const [, err] = await deleteAppointmentAction({ payload: { id } });
-      if (err) throw new Error(err.message ?? "Failed to delete appointment");
-    },
-    onSuccess: () => {
-      toast.success("Appointment deleted");
-      invalidate();
-    },
-    onError: (err: Error) => toast.error(err.message),
-    onSettled: () => setDialog(null),
-  });
-
-  const isMutating = isConfirming || isCancelling || isDeleting;
-
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <>
-      {/* Table + toolbar */}
-      <DataTable table={table} loading={isFetching}>
-        <DataTableToolbar table={table} />
-      </DataTable>
-
-      {/* Confirm appointment dialog */}
-      <AlertDialog
-        open={dialog?.type === "confirm"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm appointment?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will move the appointment from{" "}
-              <strong>Pending</strong> to <strong>Booked</strong>. The patient
-              will be notified.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isMutating}>
-              Not yet
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                dialog?.type === "confirm" &&
-                confirmAppointment(dialog.row.id)
-              }
-              disabled={isMutating}
-            >
-              {isConfirming ? "Confirming…" : "Confirm"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Cancel confirmation dialog */}
-      <AlertDialog
-        open={dialog?.type === "cancel"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel appointment?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will mark the appointment as cancelled. This action cannot be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isMutating}>
-              Keep Appointment
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                dialog?.type === "cancel" &&
-                cancelAppointment(dialog.row.id)
-              }
-              disabled={isMutating}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isCancelling ? "Cancelling…" : "Yes, Cancel"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog
-        open={dialog?.type === "delete"}
-        onOpenChange={(open) => !open && setDialog(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete appointment?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the appointment record. This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() =>
-                dialog?.type === "delete" &&
-                deleteAppointment(dialog.row.id)
-              }
-              disabled={isMutating}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting…" : "Yes, Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <DataTable table={table} loading={isFetching}>
+      <DataTableToolbar table={table} />
+    </DataTable>
   );
 }

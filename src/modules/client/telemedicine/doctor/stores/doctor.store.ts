@@ -1,13 +1,11 @@
 /**
- * patient.store — Zustand store for telemedicine patient modal state.
+ * doctor.store — Zustand store for telemedicine doctor modal state.
  *
- * Layer: client / telemedicine / patient / stores
+ * Layer: client / telemedicine / doctor / stores
  *
  * Central store that tracks which modal is currently open and the data it
- * needs. Any component can open a modal by calling onOpen({ type, data }) —
- * no prop drilling or local useState required.
- *
- * Pattern mirrors admin.store.ts.
+ * needs. Any component can call onOpen({ type, data }) — no prop drilling.
+ * Pattern mirrors patient.store.ts and admin.store.ts.
  */
 
 import { create } from "zustand";
@@ -15,9 +13,9 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 
 // ── Modal type union ───────────────────────────────────────────────────────────
 
-/** All modal identifiers for the telemedicine patient section. */
-export type PatientModalType =
-  | "bookAppointment"
+/** All modal identifiers for the telemedicine doctor section. */
+export type DoctorModalType =
+  | "confirmAppointment"
   | "cancelAppointment"
   | "deleteAppointment";
 
@@ -27,30 +25,26 @@ export type PatientModalType =
  * Flat data bag passed to the store when a modal is opened.
  * Each modal reads only the fields it needs.
  */
-export interface PatientModalData {
-  /** Localised href for the manual booking wizard. */
-  bookHref?: string;
-  /** Localised href for the intake chooser. */
-  intakeHref?: string;
-  /** Target appointment row — used by cancel and delete modals. */
+export interface DoctorModalData {
+  /** Target appointment row — used by confirm, cancel, and delete modals. */
   appointment?: TAppointmentResponse;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────
 
-interface IPatientStore {
-  type: PatientModalType | null;
+interface IDoctorStore {
+  type: DoctorModalType | null;
   isOpen: boolean;
-  data: PatientModalData | null;
+  data: DoctorModalData | null;
   /** Opens a modal. Pass the type and any data the modal needs to render. */
-  onOpen: (props: { type: PatientModalType; data?: PatientModalData }) => void;
+  onOpen: (props: { type: DoctorModalType; data?: DoctorModalData }) => void;
   /** Closes the current modal and clears all data. */
   onClose: () => void;
 }
 
 // ── Store instance ─────────────────────────────────────────────────────────────
 
-const _usePatientStore = create<IPatientStore>((set) => ({
+const _useDoctorStore = create<IDoctorStore>((set) => ({
   type: null,
   isOpen: false,
   data: null,
@@ -64,12 +58,12 @@ const _usePatientStore = create<IPatientStore>((set) => ({
 
 /**
  * Hook — use inside React components.
- * @example const openModal = usePatientStore((s) => s.onOpen);
+ * @example const openModal = useDoctorStore((s) => s.onOpen);
  */
-export const usePatientStore = _usePatientStore;
+export const useDoctorStore = _useDoctorStore;
 
 /**
- * Direct store accessor — use outside React (e.g. in column definitions).
- * @example const openModal = patientStore.getState().onOpen;
+ * Direct store accessor — use outside React (e.g. in column action callbacks).
+ * @example doctorStore.getState().onOpen({ type: "confirmAppointment", data: { appointment: row } });
  */
-export const patientStore = _usePatientStore;
+export const doctorStore = _useDoctorStore;

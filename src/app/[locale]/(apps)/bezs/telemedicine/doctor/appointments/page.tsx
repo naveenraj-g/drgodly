@@ -20,6 +20,7 @@ import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { DoctorAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentsTable";
+import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 
 /** Page-level page size — must match INITIAL_PAGE_SIZE in the table component. */
 const INITIAL_PAGE_SIZE = 10;
@@ -81,6 +82,9 @@ export default async function DoctorAppointmentsPage() {
         practitionerId={practitionerId}
         viewHref={`${base}/appointments`}
       />
+
+      {/* Modal singletons — controlled by doctor Zustand store */}
+      <DoctorModalProvider />
     </div>
   );
 }
