@@ -9,7 +9,7 @@
  *   and practitioner_id are locked in.
  *
  * Step 2 — Choose Date & Slot
- *   Fetches all free Slots for the selected PractitionerRole from FHIR.
+ *   Fetches free Slots for the selected PractitionerRole from today onward (start_from = today).
  *   Derives available dates from slot.start datetimes.
  *   DateScroller shows the next 30 days; only dates with free slots are enabled.
  *   User picks a date → time buttons appear → user picks a slot → slot_id locked.
@@ -199,6 +199,8 @@ export function BookAppointment({
         practitioner_role_id: selectedRole?.id ?? 0,
         status: "free",
         limit: 200,
+        // Only fetch slots from today onward — avoids loading historical slots.
+        start_from: new Date().toISOString().slice(0, 10),
       },
     },
     queryKey: ["slots-free", selectedRole?.id],

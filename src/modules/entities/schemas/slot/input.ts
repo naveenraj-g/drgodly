@@ -134,6 +134,12 @@ export const ListSlotsValidationSchema = z.object({
   schedule_id: z.number().int().optional(),
   /** Filter by linked PractitionerRole integer ID (slots on that practitioner's schedules). */
   practitioner_role_id: z.number().int().optional(),
+  /** Exact date filter (YYYY-MM-DD) — returns slots whose start falls on this date. */
+  date: z.string().optional(),
+  /** Returns slots with start >= this value (ISO datetime or YYYY-MM-DD). */
+  start_from: z.string().optional(),
+  /** Returns slots with start <= this value (ISO datetime or YYYY-MM-DD). */
+  start_to: z.string().optional(),
   user_id: z.string().optional(),
   org_id: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),

@@ -245,17 +245,40 @@ export type TPaginatedPractitionerRoleResponse = z.infer<typeof PaginatedPractit
 
 /**
  * Embedded Practitioner detail included in booking responses.
- * Contains only the fields needed for booking UIs (name, photo, gender, qualifications).
+ * Contains name, photo, gender, qualifications, telecom, and languages for booking UIs.
+ * Fields: birth_date, telecom, languages added when fhir-gql enriched the /booking endpoint.
  */
 export const PractitionerDetailResponseSchema = z.object({
   id: z.number().nullish(),
   gender: z.string().nullish(),
+  birth_date: z.string().nullish(),
   name: z
     .object({
       family: z.string().nullish(),
       given: z.array(z.string()).nullish(),
       prefix: z.array(z.string()).nullish(),
     })
+    .nullish(),
+  /** ContactPoint array from the Practitioner resource (phone, email, etc.). */
+  telecom: z
+    .array(
+      z.object({
+        system: z.string().nullish(),
+        value: z.string().nullish(),
+        use: z.string().nullish(),
+        rank: z.number().nullish(),
+      }),
+    )
+    .nullish(),
+  /** BCP-47 language entries from the Practitioner's communication list. */
+  languages: z
+    .array(
+      z.object({
+        code: z.string().nullish(),
+        display: z.string().nullish(),
+        preferred: z.boolean().nullish(),
+      }),
+    )
     .nullish(),
   qualifications: z
     .array(
@@ -273,11 +296,44 @@ export const PractitionerDetailResponseSchema = z.object({
 export type TPractitionerDetailResponse = z.infer<typeof PractitionerDetailResponseSchema>;
 
 /**
+ * Location reference enriched with resolved Location data for booking UIs.
+ * The fhir-server joins name, address, and phone from the Location resource.
+ */
+export const PractitionerRoleBookingLocationResponseSchema = PractitionerRoleLocationResponseSchema.extend({
+  name: z.string().nullish(),
+  address_text: z.string().nullish(),
+  address_city: z.string().nullish(),
+  address_state: z.string().nullish(),
+  address_postal_code: z.string().nullish(),
+  address_country: z.string().nullish(),
+  phone: z.string().nullish(),
+});
+export type TPractitionerRoleBookingLocationResponse = z.infer<typeof PractitionerRoleBookingLocationResponseSchema>;
+
+/**
+ * HealthcareService reference enriched with resolved HealthcareService data for booking UIs.
+ * The fhir-server joins name, category, and availability info from the HealthcareService resource.
+ */
+export const PractitionerRoleBookingHealthcareServiceResponseSchema = PractitionerRoleHealthcareServiceResponseSchema.extend({
+  name: z.string().nullish(),
+  comment: z.string().nullish(),
+  appointment_required: z.boolean().nullish(),
+  category: z.string().nullish(),
+  availability_exceptions: z.string().nullish(),
+});
+export type TPractitionerRoleBookingHealthcareServiceResponse = z.infer<typeof PractitionerRoleBookingHealthcareServiceResponseSchema>;
+
+/**
  * Booking-enriched PractitionerRole response (GET /practitioner-roles/booking).
- * Extends the base response with embedded practitioner detail for booking UIs.
+ * Extends the base response with embedded practitioner detail and enriched
+ * Location / HealthcareService data (name, address, phone resolved server-side).
  */
 export const PractitionerRoleBookingResponseSchema = PractitionerRoleResponseSchema.extend({
   practitioner_detail: PractitionerDetailResponseSchema.nullish(),
+  /** Enriched with name, address, and phone from the joined Location resource. */
+  location: z.array(PractitionerRoleBookingLocationResponseSchema).nullish(),
+  /** Enriched with name, category, and availability from the joined HealthcareService resource. */
+  healthcare_service: z.array(PractitionerRoleBookingHealthcareServiceResponseSchema).nullish(),
 });
 export type TPractitionerRoleBookingResponse = z.infer<typeof PractitionerRoleBookingResponseSchema>;
 

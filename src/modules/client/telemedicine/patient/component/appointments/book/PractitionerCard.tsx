@@ -3,14 +3,16 @@
  *
  * Layer: client / telemedicine / patient / appointments / book
  *
- * Renders the practitioner's display name, specialty, qualification, and
- * availability status derived from the fhir-gql PractitionerRoleBooking response.
+ * Renders the practitioner's display name, specialty, qualification, location,
+ * and availability status derived from the fhir-gql PractitionerRoleBooking response.
+ * The booking endpoint enriches location and healthcare_service with resolved names,
+ * addresses, and contact details so no second fetch is needed.
  * Clicking the card selects it; a checkmark appears when selected.
  */
 
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -81,6 +83,25 @@ function getInitials(name: string): string {
 }
 
 /**
+ * Derives a location label from the enriched booking location array.
+ * Shows clinic name and city when available.
+ *
+ * @param role - The PractitionerRoleBooking response object.
+ * @returns Location string or null if not available.
+ */
+export function getPractitionerLocation(
+  role: TPractitionerRoleBookingResponse,
+): string | null {
+  const loc = role.location?.[0];
+  if (!loc) return null;
+  // name is the enriched Location.name; fall back to reference_display, then city only
+  const label = loc.name ?? loc.reference_display;
+  const city = loc.address_city;
+  if (label && city) return `${label}, ${city}`;
+  return label ?? city ?? null;
+}
+
+/**
  * Selectable doctor card for Step 1 of the booking wizard.
  *
  * @param role - FHIR PractitionerRole (booking-enriched).
@@ -97,6 +118,7 @@ export function PractitionerCard({
   const photoUrl = role.practitioner_detail?.photo_url;
   const qualification =
     role.practitioner_detail?.qualifications?.[0]?.code_display ?? null;
+  const location = getPractitionerLocation(role);
   const isActive = role.active !== false;
 
   return (
@@ -134,6 +156,12 @@ export function PractitionerCard({
           {qualification && (
             <p className="text-xs text-muted-foreground/70 truncate">
               {qualification}
+            </p>
+          )}
+          {location && (
+            <p className="text-xs text-muted-foreground/60 truncate flex items-center gap-1 mt-0.5">
+              <MapPin className="size-2.5 shrink-0" />
+              {location}
             </p>
           )}
           {!isActive && (
