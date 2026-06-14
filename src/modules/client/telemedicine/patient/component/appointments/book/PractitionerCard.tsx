@@ -158,12 +158,19 @@ export function PractitionerCard({
     <Card
       onClick={onSelect}
       className={cn(
-        "relative p-4 cursor-pointer transition-all hover:shadow-md",
+        "relative p-4 cursor-pointer transition-all duration-150",
         selected
-          ? "border-primary shadow-md bg-primary/5"
-          : "hover:border-primary/50 border-border",
+          ? "border-2 border-primary bg-primary/10 shadow-md shadow-primary/20"
+          : "border hover:border-primary/40 hover:shadow-sm",
       )}
     >
+      {/* Selected checkmark badge — top-right corner */}
+      {selected && (
+        <div className="absolute top-2.5 right-2.5 bg-primary text-primary-foreground rounded-full p-0.5">
+          <CheckCircle2 className="size-3.5" />
+        </div>
+      )}
+
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <Avatar className="size-10 shrink-0 mt-0.5">
@@ -174,12 +181,9 @@ export function PractitionerCard({
         </Avatar>
 
         {/* Core info */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 pr-5">
           <div className="flex items-center gap-1.5">
             <p className="text-sm font-semibold truncate">{name}</p>
-            {selected && (
-              <CheckCircle2 className="size-3.5 text-primary shrink-0" />
-            )}
           </div>
 
           {specialty && (
