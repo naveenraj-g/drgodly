@@ -1,226 +1,463 @@
 /**
- * IntakeReportSection — renders the AI-generated pre-intake report.
+ * IntakeReportSection — AI pre-intake report with conversation transcript.
  *
  * Layer: client / telemedicine / shared / components / appointment
  *
- * Displays the clinical assessment report stored in Intake.report after the
- * patient completes a text or voice intake session. Used on both the patient
- * and doctor appointment detail pages.
+ * Renders the full intake record in two tabs:
+ *   Summary     — structured AI clinical report (risk level, clinical overview,
+ *                 differential diagnosis, diagnostic plan, treatment plan,
+ *                 procedures, red flags)
+ *   Conversation — patient–AI dialogue transcript
  *
- * The report shape is flexible (stored as JSON with .passthrough()) so each
- * section is guarded before rendering. Unknown top-level keys are ignored.
+ * Modelled on the MVP's IntakeInsights component (IntakeInsights.tsx) but
+ * adapted for the TIntakeResponse schema and used as a standalone page section
+ * rather than a dashboard card.
  *
- * Report fields (all optional):
- *   clinical_overview   - narrative summary of the patient's condition
- *   risk_level          - "low" | "medium" | "high" | free text
- *   differential_diagnosis - array of possible diagnoses
- *   diagnostic_plan     - recommended tests / investigations
- *   treatment_plan      - recommended treatment approach
- *   red_flags           - urgent warning signs to watch for
+ * The safeParseReport helper tolerates raw JSON strings and { status, data }
+ * envelopes from the assessment-plan-agent API response, matching the MVP
+ * approach to report parsing.
  */
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+"use client";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  Brain,
-  AlertTriangle,
-  Stethoscope,
-  FlaskConical,
+  FileText,
+  MessageSquare,
+  FileSearch,
+  AlertCircle,
   ClipboardList,
-  ShieldAlert,
+  Stethoscope,
+  ListChecks,
+  TriangleAlert,
+  Brain,
 } from "lucide-react";
-import { type TIntakeReport } from "@/modules/entities/schemas/intake";
+import { cn } from "@/lib/utils";
+import { type TIntakeResponse } from "@/modules/entities/schemas/intake";
+
+// ── Local typed interfaces (mirror MVP IntakeInsights shapes) ─────────────────
+
+/**
+ * A single differential diagnosis entry from the AI assessment agent.
+ * Agent returns an array of these objects under `differential_diagnosis`.
+ */
+interface DifferentialItem {
+  condition?: string;
+  rationale?: string;
+  likelihood?: string;
+}
+
+/**
+ * A single diagnostic test or study from the AI assessment agent.
+ * Used in `diagnostic_plan.laboratory_tests`, `.imaging`, and `.other`.
+ */
+interface DiagnosticItem {
+  test?: string;
+  study?: string;
+  purpose?: string;
+}
+
+/**
+ * A single treatment recommendation from the AI assessment agent.
+ * Agent returns an array of these under `treatment_plan`.
+ */
+interface TreatmentItem {
+  condition?: string;
+  recommendation?: string;
+  rationale?: string;
+  route?: string;
+  duration?: string;
+}
+
+/**
+ * Typed representation of the AI clinical report JSON.
+ * All fields optional — the agent may omit any section.
+ */
+interface IntakeReport {
+  clinical_overview?: string;
+  risk_level?: string;
+  differential_diagnosis?: DifferentialItem[];
+  diagnostic_plan?: {
+    laboratory_tests?: DiagnosticItem[];
+    imaging?: DiagnosticItem[];
+    other?: DiagnosticItem[];
+  };
+  treatment_plan?: TreatmentItem[];
+  procedures?: string;
+  red_flags?: string[];
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Converts an unknown array item to a displayable string.
- * The AI agent sometimes returns objects (e.g. {condition, rationale, likelihood})
- * instead of plain strings for differential_diagnosis and red_flags.
+ * Safely parses the intake report field, which may arrive as a JSON string,
+ * a plain object, or wrapped in a `{ status, data: { ... } }` envelope from
+ * the assessment-plan-agent API response.
  *
- * @param item - Array item from the agent response.
- * @returns Human-readable string representation.
+ * @param raw - Raw report value from the Intake record.
+ * @returns Typed IntakeReport or null if the value cannot be parsed.
  */
-function itemToString(item: unknown): string {
-  if (typeof item === "string") return item;
-  if (item && typeof item === "object") {
-    const obj = item as Record<string, unknown>;
-    // Differential diagnosis shape: { condition, rationale, likelihood }
-    if (typeof obj.condition === "string") {
-      const parts = [obj.condition];
-      if (typeof obj.rationale === "string") parts.push(obj.rationale);
-      if (typeof obj.likelihood === "string") parts.push(`(${obj.likelihood})`);
-      return parts.join(" — ");
+function safeParseReport(raw: unknown): IntakeReport | null {
+  if (raw == null) return null;
+  try {
+    const obj: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (typeof obj !== "object" || Array.isArray(obj) || obj === null)
+      return null;
+    const envelope = obj as Record<string, unknown>;
+    // Unwrap { status, data: { ... } } envelope from the agent API
+    if (
+      envelope.data &&
+      typeof envelope.data === "object" &&
+      !Array.isArray(envelope.data)
+    ) {
+      return envelope.data as IntakeReport;
     }
-    // Generic: join all string values
-    const vals = Object.values(obj).filter((v) => typeof v === "string");
-    if (vals.length) return (vals as string[]).join(" — ");
+    return obj as IntakeReport;
+  } catch {
+    return null;
   }
-  return String(item);
 }
 
 /**
- * Maps a risk level string to a Tailwind colour class for the badge.
+ * Maps a risk level string to Tailwind colour classes for the Badge.
  *
- * @param risk - Risk level string from the agent (case-insensitive).
- * @returns Tailwind class string for the badge.
+ * @param level - Risk level string from the agent (case-insensitive).
+ * @returns Combined Tailwind class string for the Badge variant.
  */
-function riskClass(risk: string | undefined): string {
-  switch (risk?.toLowerCase()) {
-    case "high":
-      return "bg-red-100 text-red-800 border-red-200";
-    case "medium":
-      return "bg-amber-100 text-amber-800 border-amber-200";
-    case "low":
-      return "bg-green-100 text-green-800 border-green-200";
+function riskBadgeClass(level?: string): string {
+  switch (level?.toUpperCase()) {
+    case "HIGH":
+      return "bg-red-100 text-red-800 border-red-200 hover:bg-red-100";
+    case "MODERATE":
+    case "MEDIUM":
+      return "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100";
+    case "LOW":
+      return "bg-green-100 text-green-800 border-green-200 hover:bg-green-100";
     default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
+      return "";
   }
+}
+
+// ── ReportView ────────────────────────────────────────────────────────────────
+
+/**
+ * Renders the structured AI clinical report in the Summary tab.
+ * Mirrors the MVP's ReportView sub-component from IntakeInsights.tsx.
+ *
+ * @param report - Typed IntakeReport parsed from the raw agent output.
+ */
+function ReportView({ report }: { report: IntakeReport }) {
+  // Flatten the three diagnostic sub-arrays into one ordered list
+  const diagItems: DiagnosticItem[] = [
+    ...(report.diagnostic_plan?.laboratory_tests ?? []),
+    ...(report.diagnostic_plan?.imaging ?? []),
+    ...(report.diagnostic_plan?.other ?? []),
+  ];
+
+  // Filter out sentinel values the agent sometimes emits
+  const redFlags = (report.red_flags ?? []).filter(
+    (f) => f && f !== "Not reported",
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Risk level badge */}
+      {report.risk_level && (
+        <div className="flex items-center gap-2">
+          <p className="text-xs text-muted-foreground">Risk Level</p>
+          <Badge
+            className={cn("text-xs font-semibold", riskBadgeClass(report.risk_level))}
+          >
+            {report.risk_level}
+          </Badge>
+        </div>
+      )}
+
+      {/* Clinical overview */}
+      {report.clinical_overview && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-1">
+            Clinical Overview
+          </p>
+          <p className="text-sm text-foreground leading-relaxed">
+            {report.clinical_overview}
+          </p>
+        </div>
+      )}
+
+      {/* Differential diagnosis — one card per entry */}
+      {report.differential_diagnosis &&
+        report.differential_diagnosis.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="size-3.5 text-primary" />
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Differential Diagnosis
+                </p>
+              </div>
+              <div className="space-y-2">
+                {report.differential_diagnosis.map((d, i) => (
+                  <div
+                    key={i}
+                    className="rounded-md border bg-muted/30 px-3 py-2 space-y-0.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-foreground">
+                        {d.condition}
+                      </p>
+                      {d.likelihood && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal shrink-0"
+                        >
+                          {d.likelihood}
+                        </Badge>
+                      )}
+                    </div>
+                    {d.rationale && (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {d.rationale}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+      {/* Diagnostic plan — flattened list from laboratory_tests + imaging + other */}
+      {diagItems.length > 0 && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <ClipboardList className="size-3.5 text-primary" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Diagnostic Plan
+              </p>
+            </div>
+            <ul className="space-y-1.5">
+              {diagItems.map((item, i) => (
+                <li key={i} className="text-sm text-foreground space-y-0.5">
+                  <p className="font-medium">{item.test ?? item.study}</p>
+                  {item.purpose && (
+                    <p className="text-xs text-muted-foreground">{item.purpose}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {/* Treatment plan — one card per treatment item */}
+      {report.treatment_plan && report.treatment_plan.length > 0 && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <ListChecks className="size-3.5 text-primary" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Treatment Plan
+              </p>
+            </div>
+            <div className="space-y-2">
+              {report.treatment_plan.map((t, i) => (
+                <div
+                  key={i}
+                  className="rounded-md border bg-muted/30 px-3 py-2 space-y-1"
+                >
+                  {t.condition && (
+                    <p className="text-xs text-muted-foreground">{t.condition}</p>
+                  )}
+                  {t.recommendation && (
+                    <p className="text-sm text-foreground">{t.recommendation}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {t.route && <span>Route: {t.route}</span>}
+                    {t.duration && <span>· {t.duration}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Procedures */}
+      {report.procedures && report.procedures !== "Not reported" && (
+        <>
+          <Separator />
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Stethoscope className="size-3.5 text-primary" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Procedures
+              </p>
+            </div>
+            <p className="text-sm text-foreground">{report.procedures}</p>
+          </div>
+        </>
+      )}
+
+      {/* Red flags — alert box with bullet list */}
+      {redFlags.length > 0 && (
+        <>
+          <Separator />
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 space-y-1.5 dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-1.5">
+              <TriangleAlert className="size-3.5 text-red-600 dark:text-red-400" />
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-red-400">
+                Red Flags
+              </p>
+            </div>
+            <ul className="space-y-1">
+              {redFlags.map((f, i) => (
+                <li
+                  key={i}
+                  className="text-xs text-red-700 dark:text-red-400 flex gap-2"
+                >
+                  <span className="mt-0.5">•</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 /** Props for IntakeReportSection. */
 interface IntakeReportSectionProps {
-  /** The intake AI report object. Null renders nothing. */
-  report: TIntakeReport | null | undefined;
+  /**
+   * Full intake record. The component reads both `report` (AI assessment)
+   * and `conversation` (patient–AI transcript). Pass null or undefined to
+   * render the "no intake data" empty state.
+   */
+  intake: TIntakeResponse | null | undefined;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * Renders the AI pre-intake report in a structured card layout.
+ * Renders the AI pre-intake report and conversation transcript in a tabbed card.
  *
- * Each section is independently guarded — missing fields from older agent
- * versions are simply skipped without breaking the layout.
+ * Summary tab:  structured clinical report sections (overview, differential,
+ *               diagnostic plan, treatment plan, procedures, red flags).
+ * Conversation: the patient's full dialogue with the intake AI agent.
  *
- * @param report - AI report object from the Intake record.
+ * Either tab gracefully handles missing data with a short empty state message.
+ *
+ * @param intake - Full TIntakeResponse record (report + conversation).
  */
-export function IntakeReportSection({ report }: IntakeReportSectionProps) {
-  if (!report) return null;
+export function IntakeReportSection({ intake }: IntakeReportSectionProps) {
+  const report = safeParseReport(intake?.report);
+  const messages = intake?.conversation ?? [];
+  const hasIntakeData = report !== null || messages.length > 0;
 
-  const hasContent =
-    report.clinical_overview ||
-    report.risk_level ||
-    (report.differential_diagnosis?.length ?? 0) > 0 ||
-    report.diagnostic_plan ||
-    report.treatment_plan ||
-    (report.red_flags?.length ?? 0) > 0;
-
-  if (!hasContent) return null;
+  // Empty state — no intake linked to this appointment
+  if (!hasIntakeData) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
+          <FileSearch className="size-10 opacity-40" />
+          <p className="text-sm">No intake data is available for this appointment.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Section heading */}
-      <div className="flex items-center gap-2">
-        <Brain className="size-4 text-primary" />
-        <h2 className="font-semibold text-sm">AI Pre-Intake Assessment</h2>
-        {report.risk_level && (
-          <Badge variant="outline" className={riskClass(report.risk_level)}>
-            {report.risk_level} risk
-          </Badge>
-        )}
-      </div>
+    <Card>
+      <CardContent className="pt-4">
+        {/* Section heading with risk badge */}
+        <div className="flex items-center gap-2 mb-4">
+          <Brain className="size-4 text-primary" />
+          <h2 className="font-semibold text-sm">AI Pre-Intake Assessment</h2>
+          {report?.risk_level && (
+            <Badge
+              className={cn(
+                "text-xs font-semibold ml-1",
+                riskBadgeClass(report.risk_level),
+              )}
+            >
+              {report.risk_level}
+            </Badge>
+          )}
+        </div>
 
-      {/* Clinical Overview */}
-      {report.clinical_overview && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Stethoscope className="size-4 text-primary" />
-              Clinical Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <p className="text-sm leading-relaxed">{report.clinical_overview}</p>
-          </CardContent>
-        </Card>
-      )}
+        <Tabs defaultValue="summary" className="flex flex-col">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="summary" className="flex items-center gap-1.5">
+              <FileText className="size-3" />
+              Summary
+            </TabsTrigger>
+            <TabsTrigger
+              value="conversation"
+              className="flex items-center gap-1.5"
+            >
+              <MessageSquare className="size-3" />
+              Conversation
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Differential Diagnosis */}
-      {report.differential_diagnosis && report.differential_diagnosis.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <FlaskConical className="size-4 text-muted-foreground" />
-              Differential Diagnosis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <div className="flex flex-wrap gap-1.5">
-              {report.differential_diagnosis.map((dx, i) => (
-                <Badge key={i} variant="secondary" className="text-xs font-normal">
-                  {itemToString(dx)}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          {/* Summary tab — structured AI report */}
+          <TabsContent value="summary" className="mt-4">
+            {report ? (
+              <ReportView report={report} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No report available.
+              </p>
+            )}
+          </TabsContent>
 
-      {/* Diagnostic Plan */}
-      {report.diagnostic_plan && (
-        <Card>
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <FlaskConical className="size-4 text-muted-foreground" />
-              Diagnostic Plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {report.diagnostic_plan}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Treatment Plan */}
-      {report.treatment_plan && (
-        <Card>
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <ClipboardList className="size-4 text-muted-foreground" />
-              Treatment Plan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {report.treatment_plan}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Red Flags */}
-      {report.red_flags && report.red_flags.length > 0 && (
-        <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30">
-          <CardHeader className="pb-2 pt-4">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-red-700 dark:text-red-400">
-              <ShieldAlert className="size-4" />
-              Red Flags
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-4">
-            <ul className="space-y-1.5">
-              {report.red_flags.map((flag, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
-                  <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                  <span>{itemToString(flag)}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
-      <Separator />
-    </div>
+          {/* Conversation tab — patient / AI message transcript */}
+          <TabsContent value="conversation" className="mt-4">
+            {messages.length > 0 ? (
+              <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-1">
+                {messages.map((msg, i) => {
+                  const isUser = msg.role === "user";
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        "flex",
+                        isUser ? "justify-end" : "justify-start",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                          isUser
+                            ? "bg-primary text-primary-foreground rounded-tr-sm"
+                            : "bg-muted text-foreground rounded-tl-sm",
+                        )}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No conversation transcript available.
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

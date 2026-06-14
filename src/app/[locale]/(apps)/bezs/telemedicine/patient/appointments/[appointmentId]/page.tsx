@@ -84,16 +84,8 @@ export default async function PatientAppointmentViewPage({
         perspective="patient"
       />
 
-      {/* AI intake report (only shown if an intake was completed and linked) */}
-      {intake?.report ? (
-        <IntakeReportSection report={intake.report} />
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No intake report is available for this appointment.
-          </CardContent>
-        </Card>
-      )}
+      {/* AI intake report — component handles its own empty state */}
+      <IntakeReportSection intake={intake} />
     </div>
   );
 }

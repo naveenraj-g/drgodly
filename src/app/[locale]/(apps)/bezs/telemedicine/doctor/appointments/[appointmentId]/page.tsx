@@ -84,16 +84,8 @@ export default async function DoctorAppointmentViewPage({
         perspective="doctor"
       />
 
-      {/* AI pre-intake report (clinical overview, differential, red flags, etc.) */}
-      {intake?.report ? (
-        <IntakeReportSection report={intake.report} />
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No intake report is available for this appointment.
-          </CardContent>
-        </Card>
-      )}
+      {/* AI pre-intake report — component handles its own empty state */}
+      <IntakeReportSection intake={intake} />
     </div>
   );
 }

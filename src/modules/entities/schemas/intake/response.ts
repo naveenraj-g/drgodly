@@ -41,8 +41,10 @@ export const IntakeReportSchema = z.object({
   risk_level: z.string().optional(),
   /** Agent may return strings or objects ({condition, rationale, likelihood}). */
   differential_diagnosis: z.array(z.unknown()).optional(),
-  diagnostic_plan: z.string().optional(),
-  treatment_plan: z.string().optional(),
+  /** Agent may return a string or an object ({imaging, laboratory_tests, other}). */
+  diagnostic_plan: z.unknown().optional(),
+  /** Agent may return a string or a structured object. */
+  treatment_plan: z.unknown().optional(),
   /** Agent may return strings or structured objects. */
   red_flags: z.array(z.unknown()).optional(),
 }).passthrough();
