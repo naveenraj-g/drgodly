@@ -43,18 +43,9 @@ export const UpdateIntakeValidationSchema = z.object({
   conversation: z.array(
     z.object({ role: z.enum(["user", "assistant"]), content: z.string() }),
   ),
-  /** AI assessment report from /api/assessment-plan-agent. Nullable for voice. */
-  report: z
-    .object({
-      clinical_overview: z.string().optional(),
-      risk_level: z.string().optional(),
-      differential_diagnosis: z.array(z.string()).optional(),
-      diagnostic_plan: z.string().optional(),
-      treatment_plan: z.string().optional(),
-      red_flags: z.array(z.string()).optional(),
-    })
-    .passthrough()
-    .optional(),
+  /** AI assessment report from /api/assessment-plan-agent. Stored as-is — shape
+   *  varies by agent version so we accept any object without structural validation. */
+  report: z.record(z.string(), z.unknown()).optional(),
 });
 export type TUpdateIntake = z.infer<typeof UpdateIntakeValidationSchema>;
 

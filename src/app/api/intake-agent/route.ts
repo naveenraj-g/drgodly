@@ -3,92 +3,79 @@
  *
  * Route: POST /api/intake-agent
  *
- * Server-side proxy that forwards a single chat turn from the patient's text
- * intake UI to the external INTAKE_AGENT_URL service and streams the response
- * back to the browser.
- *
- * Why proxy: the intake agent URL and auth token are server-only secrets.
- * This route keeps them out of the client bundle.
- *
- * Request body: { message: string; session_id: string }
- * Response: streamed text/plain from the agent service.
+ * Forwards the request body directly to INTAKE_AGENT_URL, attaching a
+ * short-lived JWT obtained via getAuthToken(). Streams the response back.
+ * session_id is optional — omit on the first turn and the agent creates one,
+ * returning it via X-Session-Id which is forwarded to the client.
  */
 
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/modules/server/auth/get-session";
-
-/** Environment key for the external intake chat agent. */
-const INTAKE_AGENT_URL = process.env.INTAKE_AGENT_URL ?? "";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/modules/server/auth/jwt-token";
 
 /**
- * Proxies a single chat message to the intake agent service and streams
- * the agent's response back to the client.
+ * Proxies a chat message to the external intake agent and streams the response.
  *
- * @param request - Incoming POST with { message, session_id }.
+ * @param req - Incoming POST with { message: string; session_id?: string }.
  * @returns Streamed response from the intake agent.
  */
-export async function POST(request: Request) {
-  // Auth guard — only authenticated users may call the intake agent
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!INTAKE_AGENT_URL) {
-    return NextResponse.json(
-      { error: "Intake agent not configured" },
-      { status: 503 },
-    );
-  }
-
-  let body: { message: string; session_id: string };
+export async function POST(req: NextRequest) {
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
+    const token = await getAuthToken();
+    const body = await req.json();
+    const agentUrl = process.env.INTAKE_AGENT_URL;
 
-  if (!body.message || !body.session_id) {
-    return NextResponse.json(
-      { error: "message and session_id are required" },
-      { status: 400 },
-    );
-  }
-
-  try {
-    const agentResponse = await fetch(INTAKE_AGENT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.INTAKE_AGENT_TOKEN
-          ? { Authorization: `Bearer ${process.env.INTAKE_AGENT_TOKEN}` }
-          : {}),
-      },
-      body: JSON.stringify({
-        message: body.message,
-        session_id: body.session_id,
-      }),
-    });
-
-    if (!agentResponse.ok) {
+    if (!agentUrl) {
       return NextResponse.json(
-        { error: "Intake agent error" },
-        { status: agentResponse.status },
+        { error: "INTAKE_AGENT_URL is not configured" },
+        { status: 500 },
       );
     }
 
-    // Stream the agent response through to the client
-    return new Response(agentResponse.body, {
+    const upstream = await fetch(agentUrl, {
+      method: "POST",
       headers: {
-        "Content-Type": agentResponse.headers.get("Content-Type") ?? "text/plain",
-        "X-Session-Id": body.session_id,
-        "Transfer-Encoding": "chunked",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
+      body: JSON.stringify(body),
     });
-  } catch {
+
+    if (!upstream.ok) {
+      return NextResponse.json(
+        { error: "Agent request failed" },
+        { status: upstream.status },
+      );
+    }
+
+    if (!upstream.body) {
+      return NextResponse.json({ error: "No response body" }, { status: 500 });
+    }
+
+    const responseHeaders: HeadersInit = {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    };
+
+    // Forward the session id so the client can reuse it on subsequent turns
+    const sessionId = upstream.headers.get("X-Session-Id");
+    if (sessionId) {
+      (responseHeaders as Record<string, string>)["X-Session-Id"] = sessionId;
+    }
+
+    return new NextResponse(upstream.body, { headers: responseHeaders });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    if (
+      message.includes("Failed to fetch agent token") ||
+      message.includes("JWT token not found")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[intake-agent] proxy error:", err);
     return NextResponse.json(
-      { error: "Failed to reach intake agent" },
-      { status: 502 },
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

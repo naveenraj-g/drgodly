@@ -21,7 +21,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import Link from "next/link";
 import { CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,9 +44,8 @@ import {
   patientAppointmentKeys,
   fetchMyAppointments,
 } from "./appointmentQueries";
-import {
-  createPatientAppointmentColumns,
-} from "./PatientAppointmentColumns";
+import { createPatientAppointmentColumns } from "./PatientAppointmentColumns";
+import { patientStore } from "@/modules/client/telemedicine/patient/stores/patient.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -63,8 +61,10 @@ interface PatientAppointmentsTableProps {
    * loading flash on navigation. Subsequent pages are fetched client-side.
    */
   initialData: TPaginatedAppointmentResponse;
-  /** Book appointment route prefix, built server-side from the active locale. */
+  /** Localised href for the manual booking wizard (e.g. /en/…/appointments/book). */
   bookHref: string;
+  /** Localised href for the intake chooser (e.g. /en/…/intake). */
+  intakeHref: string;
 }
 
 // ── Dialog state ──────────────────────────────────────────────────────────────
@@ -89,6 +89,7 @@ type DialogState =
 export function PatientAppointmentsTable({
   initialData,
   bookHref,
+  intakeHref,
 }: PatientAppointmentsTableProps) {
   const queryClient = useQueryClient();
 
@@ -98,7 +99,7 @@ export function PatientAppointmentsTable({
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
 
-  // ── Dialog state ─────────────────────────────────────────────────────────────
+  // ── Mutation dialog state ────────────────────────────────────────────────────
   const [dialog, setDialog] = useState<DialogState>(null);
 
   // ── Column definitions (memo-stable) ────────────────────────────────────────
@@ -112,30 +113,51 @@ export function PatientAppointmentsTable({
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
-  const { table, state } = useServerDataTable({
+  const { table, state, resetPage } = useServerDataTable({
     columns,
     data: rows,
     pageCount,
     initialPageSize: INITIAL_PAGE_SIZE,
   });
 
+  // Extract server-side filter params from the column filter state.
+  // multiSelect returns string[] — we take the first value since the API
+  // accepts a single status code. undefined means "no filter" (all statuses).
+  const statusFilter = state.columnFilters.find((f) => f.id === "status")
+    ?.value as string[] | undefined;
+  const activeStatus = statusFilter?.[0];
+
+  // Reset to page 0 whenever the status filter changes so stale page indices
+  // don't produce empty results after filtering.
+  useEffect(() => {
+    resetPage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStatus]);
+
   // ── Server query ─────────────────────────────────────────────────────────────
   const { data, isFetching } = useQuery({
     queryKey: patientAppointmentKeys.list({
       pageIndex: state.pagination.pageIndex,
       pageSize: state.pagination.pageSize,
+      status: activeStatus,
     }),
     queryFn: () =>
       fetchMyAppointments({
         pageIndex: state.pagination.pageIndex,
         pageSize: state.pagination.pageSize,
+        status: activeStatus,
       }),
-    initialData,
+    // Only seed the SSR data for the exact initial query (no filter, page 0).
+    // Any other key (filtered, paginated) must always fetch — if we pass
+    // initialData for every key, TanStack marks filtered keys "fresh" with the
+    // wrong unfiltered data and skips the fetch entirely for staleTime duration.
+    initialData:
+      !activeStatus && state.pagination.pageIndex === 0 ? initialData : undefined,
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
 
-  // Sync table rows whenever a new page arrives
+  // Sync table rows whenever a new page or filter result arrives
   useEffect(() => {
     if (data) {
       setRows(data.data ?? []);
@@ -189,12 +211,19 @@ export function PatientAppointmentsTable({
       {/* Table + toolbar */}
       <DataTable table={table} loading={isFetching}>
         <DataTableToolbar table={table}>
-          {/* Book appointment shortcut */}
-          <Button asChild size="sm" className="ml-auto">
-            <Link href={bookHref}>
-              <CalendarPlus className="size-4 mr-1.5" />
-              Book Appointment
-            </Link>
+          {/* Opens the booking method chooser dialog via the patient store */}
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() =>
+              patientStore.getState().onOpen({
+                type: "bookAppointment",
+                data: { bookHref, intakeHref },
+              })
+            }
+          >
+            <CalendarPlus className="size-4 mr-1.5" />
+            Book Appointment
           </Button>
         </DataTableToolbar>
       </DataTable>

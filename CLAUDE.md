@@ -25,3 +25,6 @@ When the user types `/client-module`, invoke the Skill tool with `skill: "client
 
 - **data-table** (`.claude/skills/data-table/SKILL.md`) - scaffold a fully-featured data table for a new screen using the shared TanStack Table v8 system. Trigger: `/data-table`
 When the user types `/data-table`, invoke the Skill tool with `skill: "data-table"` before doing anything else.
+
+- **modal-system** (`.claude/skills/modal-system/SKILL.md`) - scaffold or extend the Zustand store + modals folder + modal provider for a section. Use when a section needs store-driven modals without a full /client-module scaffold. Trigger: `/modal-system`
+When the user types `/modal-system`, invoke the Skill tool with `skill: "modal-system"` before doing anything else.

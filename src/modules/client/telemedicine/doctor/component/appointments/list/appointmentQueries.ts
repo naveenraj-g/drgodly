@@ -33,7 +33,7 @@ export const doctorAppointmentKeys = {
    *
    * @param params - Pagination + tenant filter used in this fetch.
    */
-  list: (params: { pageIndex: number; pageSize: number; orgId: string | null }) =>
+  list: (params: { pageIndex: number; pageSize: number; orgId: string | null; practitionerId: number | null; status?: string }) =>
     [...doctorAppointmentKeys.lists(), params] as const,
 };
 
@@ -51,12 +51,18 @@ export async function fetchDoctorAppointments(params: {
   pageIndex: number;
   pageSize: number;
   orgId: string | null;
+  practitionerId: number | null;
+  /** FHIR status code to filter by — undefined means "all statuses". */
+  status?: string;
 }): Promise<TPaginatedAppointmentResponse> {
   const [data, err] = await listAppointmentsAction({
     payload: {
       limit: params.pageSize,
       offset: params.pageIndex * params.pageSize,
       org_id: params.orgId ?? undefined,
+      practitioner_id: params.practitionerId ?? undefined,
+      // Only include status when a filter is active
+      ...(params.status ? { status: params.status as never } : {}),
     },
   });
 

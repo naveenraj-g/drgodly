@@ -365,6 +365,8 @@ export type TUpdateAppointment = z.infer<typeof UpdateAppointmentValidationSchem
 export const ListAppointmentsValidationSchema = z.object({
   status: AppointmentStatusSchema.optional(),
   patient_id: z.number().int().optional(),
+  /** Filter appointments where this practitioner is a participant (integer FHIR Practitioner.id). */
+  practitioner_id: z.number().int().optional(),
   /** Filter by appointment start ≥ this datetime (ISO 8601). */
   start_from: z.string().optional(),
   /** Filter by appointment start ≤ this datetime (ISO 8601). */

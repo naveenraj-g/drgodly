@@ -124,8 +124,12 @@ const STATUS_CLASS: Record<string, string> = {
  * @param status - FHIR appointment status string (may be null).
  * @returns Rendered Badge element.
  */
-function AppointmentStatusBadge({ status }: { status: string | null | undefined }) {
-  const label = STATUS_LABEL[status ?? ""] ?? (status ?? "Unknown");
+function AppointmentStatusBadge({
+  status,
+}: {
+  status: string | null | undefined;
+}) {
+  const label = STATUS_LABEL[status ?? ""] ?? status ?? "Unknown";
   const className = STATUS_CLASS[status ?? ""] ?? "";
   return (
     <Badge variant="outline" className={className}>
@@ -207,7 +211,9 @@ export function createPatientAppointmentColumns(
         <DataTableColumnHeader column={column} label="Date" />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums text-sm">{formatDate(row.original.start)}</span>
+        <span className="tabular-nums text-sm">
+          {formatDate(row.original.start)}
+        </span>
       ),
       meta: { label: "Date" },
     },
@@ -220,7 +226,9 @@ export function createPatientAppointmentColumns(
         <DataTableColumnHeader column={column} label="Time" />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums text-sm">{formatTime(row.original.start)}</span>
+        <span className="tabular-nums text-sm">
+          {formatTime(row.original.start)}
+        </span>
       ),
       meta: { label: "Time" },
     },
@@ -275,7 +283,7 @@ export function createPatientAppointmentColumns(
           ...(canCancel
             ? [
                 {
-                  label: "Cancel Appointment",
+                  label: "Cancel",
                   icon: XCircle,
                   onClick: () => callbacks.onCancel(row.original),
                 },

@@ -3,21 +3,21 @@
  *
  * Route: /[locale]/(apps)/bezs/telemedicine/doctor/appointments
  *
- * Server component. Fetches the first page of appointments for the active
- * organisation at render time to seed the client table without a loading flash.
- * Subsequent pagination changes are handled client-side via server actions.
- *
- * Guards:
- *  1. Redirects to /login if no session is found.
+ * Server component. Guards:
+ *  1. Redirects to /login if no session.
+ *  2. Redirects to the doctor profile setup page if no FHIR Practitioner record
+ *     exists (via requirePractitionerProfile).
  *
  * Data flow:
- *  SSR → listAppointmentsAction(org_id, page 0) → DoctorAppointmentsTable (initialData prop)
+ *  SSR → listAppointmentsAction(org_id, practitioner_id, page 0)
+ *      → DoctorAppointmentsTable (initialData, practitionerId props)
  *  Client → useQuery → fetchDoctorAppointments → re-renders on page change
  */
 
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
+import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { DoctorAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentsTable";
 
@@ -27,9 +27,8 @@ const INITIAL_PAGE_SIZE = 10;
 /**
  * Doctor appointments list page.
  *
- * Pre-fetches the first page of org-scoped appointments so the table
- * renders with data on first paint. Falls back to an empty dataset if the
- * server action fails.
+ * Scopes the list to the specific practitioner via practitioner_id, so the
+ * doctor only sees their own appointments (not the whole org).
  */
 export default async function DoctorAppointmentsPage() {
   const session = await getServerSession();
@@ -40,14 +39,19 @@ export default async function DoctorAppointmentsPage() {
     return null;
   }
 
-  const orgId = session.session.activeOrganizationId ?? null;
+  // Redirects to /doctor/settings/profile if no FHIR Practitioner record exists
+  const practitioner = await requirePractitionerProfile();
 
-  // Pre-fetch page 0 scoped to the active organisation.
+  const orgId = session.session.activeOrganizationId ?? null;
+  const practitionerId = practitioner.id;
+
+  // Pre-fetch page 0 scoped to this practitioner
   const [data] = await listAppointmentsAction({
     payload: {
       limit: INITIAL_PAGE_SIZE,
       offset: 0,
       org_id: orgId ?? undefined,
+      practitioner_id: practitionerId,
     },
   });
 
@@ -73,6 +77,7 @@ export default async function DoctorAppointmentsPage() {
       <DoctorAppointmentsTable
         initialData={initialData}
         orgId={orgId}
+        practitionerId={practitionerId}
       />
     </div>
   );

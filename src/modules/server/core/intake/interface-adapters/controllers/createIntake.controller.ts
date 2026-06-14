@@ -4,7 +4,10 @@
  * Layer: server / core / intake / interface-adapters / controllers
  */
 
-import { CreateIntakeValidationSchema, type TIntakeResponse } from "@/modules/entities/schemas/intake";
+import {
+  CreateIntakeValidationSchema,
+  type TIntakeResponse,
+} from "@/modules/entities/schemas/intake";
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import { createIntakeUseCase } from "../../application/usecases/createIntake.usecase";
 

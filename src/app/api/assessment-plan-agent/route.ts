@@ -3,84 +3,69 @@
  *
  * Route: POST /api/assessment-plan-agent
  *
- * Forwards the completed intake conversation transcript to the external
- * ASSESSMENT_PLAN_AGENT_URL service and returns the AI-generated clinical
- * assessment report as JSON.
+ * Forwards the completed intake conversation to ASSESSMENT_PLAN_AGENT_URL,
+ * attaching a short-lived JWT via getAuthToken(). Returns the AI-generated
+ * clinical report as JSON.
  *
- * Called once at the end of a text intake session to produce the report
- * before saving to the local database.
+ * Called once at the end of a text intake session before saving to the DB.
  *
- * Request body: { conversation: { role: string; content: string }[] }
- * Response: JSON report with clinical_overview, risk_level,
- *   differential_diagnosis, diagnostic_plan, treatment_plan, red_flags.
+ * Request body: { conversation: string[] }
+ * Response: JSON clinical report.
  */
 
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/modules/server/auth/get-session";
-
-/** Environment key for the external assessment plan agent. */
-const ASSESSMENT_PLAN_AGENT_URL = process.env.ASSESSMENT_PLAN_AGENT_URL ?? "";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthToken } from "@/modules/server/auth/jwt-token";
 
 /**
- * Sends the full conversation transcript to the assessment agent and returns
+ * Proxies the conversation transcript to the assessment agent and returns
  * the clinical report JSON.
  *
- * @param request - Incoming POST with { conversation }.
+ * @param req - Incoming POST with { conversation }.
  * @returns JSON report from the assessment agent.
  */
-export async function POST(request: Request) {
-  const session = await getServerSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!ASSESSMENT_PLAN_AGENT_URL) {
-    return NextResponse.json(
-      { error: "Assessment plan agent not configured" },
-      { status: 503 },
-    );
-  }
-
-  let body: { conversation: { role: string; content: string }[] };
+export async function POST(req: NextRequest) {
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
-  }
+    const token = await getAuthToken();
+    const body = await req.json();
+    const agentUrl = process.env.ASSESSMENT_PLAN_AGENT_URL;
 
-  if (!Array.isArray(body.conversation) || body.conversation.length === 0) {
-    return NextResponse.json(
-      { error: "conversation array is required and must not be empty" },
-      { status: 400 },
-    );
-  }
-
-  try {
-    const agentResponse = await fetch(ASSESSMENT_PLAN_AGENT_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.ASSESSMENT_PLAN_AGENT_TOKEN
-          ? { Authorization: `Bearer ${process.env.ASSESSMENT_PLAN_AGENT_TOKEN}` }
-          : {}),
-      },
-      body: JSON.stringify({ conversation: body.conversation }),
-    });
-
-    if (!agentResponse.ok) {
+    if (!agentUrl) {
       return NextResponse.json(
-        { error: "Assessment agent error" },
-        { status: agentResponse.status },
+        { error: "ASSESSMENT_PLAN_AGENT_URL is not configured" },
+        { status: 500 },
       );
     }
 
-    // Parse and forward the report JSON
-    const report = await agentResponse.json();
+    const upstream = await fetch(agentUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!upstream.ok) {
+      return NextResponse.json(
+        { error: "Agent request failed" },
+        { status: upstream.status },
+      );
+    }
+
+    const report = await upstream.json();
     return NextResponse.json(report);
-  } catch {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "";
+    if (
+      message.includes("Failed to fetch agent token") ||
+      message.includes("JWT token not found")
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[assessment-plan-agent] proxy error:", err);
     return NextResponse.json(
-      { error: "Failed to reach assessment agent" },
-      { status: 502 },
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

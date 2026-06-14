@@ -10,9 +10,14 @@
  * JSON fields (conversation, report) require a cast through `pj()` because
  * Prisma v7's custom generator does not accept plain objects for Json columns
  * without an explicit type assertion.
+ *
+ * Every method is instrumented with logOperation (start / success / error)
+ * and a randomUUID operationId for distributed tracing.
  */
 
+import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
+import { logOperation } from "@/modules/server/config/logger/log-operation";
 import { NotFoundError } from "@/modules/server/shared/errors/commonErrors";
 import type { IIntakeRepository } from "../../domain/interfaces/intake.repository.interface";
 import type {
@@ -82,16 +87,45 @@ export class IntakePrismaRepository implements IIntakeRepository {
    * @returns The created Intake record.
    */
   async createIntake(dto: TCreateIntake): Promise<TIntakeResponse> {
-    const row = await prisma.intake.create({
-      data: {
-        user_id: dto.userId,
-        org_id: dto.org_id ?? null,
-        patient_fhir_id: dto.patient_fhir_id ?? null,
-        mode: dto.mode,
-        status: "IN_PROGRESS",
-      },
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.createIntake",
+      startTimeMs,
+      context: { operationId, userId: dto.userId, mode: dto.mode },
     });
-    return toDto(row);
+
+    try {
+      const row = await prisma.intake.create({
+        data: {
+          user_id: dto.userId,
+          org_id: dto.org_id ?? null,
+          patient_fhir_id: dto.patient_fhir_id ?? null,
+          mode: dto.mode,
+          status: "IN_PROGRESS",
+        },
+      });
+
+      const result = toDto(row);
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.createIntake",
+        startTimeMs,
+        data: { id: result.id },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.createIntake",
+        startTimeMs,
+        err,
+        context: { operationId },
+      });
+      throw err;
+    }
   }
 
   /**
@@ -102,6 +136,15 @@ export class IntakePrismaRepository implements IIntakeRepository {
    * @throws NotFoundError if the intake does not exist.
    */
   async updateIntake(dto: TUpdateIntake): Promise<TIntakeResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.updateIntake",
+      startTimeMs,
+      context: { operationId, intakeId: dto.id },
+    });
+
     try {
       const row = await prisma.intake.update({
         where: { id: dto.id },
@@ -111,8 +154,24 @@ export class IntakePrismaRepository implements IIntakeRepository {
           status: "COMPLETED",
         },
       });
-      return toDto(row);
-    } catch {
+
+      const result = toDto(row);
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.updateIntake",
+        startTimeMs,
+        data: { id: result.id, status: result.status },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.updateIntake",
+        startTimeMs,
+        err,
+        context: { operationId, intakeId: dto.id },
+      });
       throw new NotFoundError(`Intake ${dto.id} not found`);
     }
   }
@@ -125,13 +184,45 @@ export class IntakePrismaRepository implements IIntakeRepository {
    * @throws NotFoundError if the intake does not exist.
    */
   async linkToAppointment(dto: TLinkIntake): Promise<TIntakeResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.linkToAppointment",
+      startTimeMs,
+      context: {
+        operationId,
+        intakeId: dto.id,
+        fhirAppointmentId: dto.fhir_appointment_id,
+      },
+    });
+
     try {
       const row = await prisma.intake.update({
         where: { id: dto.id },
         data: { fhir_appointment_id: dto.fhir_appointment_id },
       });
-      return toDto(row);
-    } catch {
+
+      const result = toDto(row);
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.linkToAppointment",
+        startTimeMs,
+        data: {
+          id: result.id,
+          fhir_appointment_id: result.fhir_appointment_id,
+        },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.linkToAppointment",
+        startTimeMs,
+        err,
+        context: { operationId, intakeId: dto.id },
+      });
       throw new NotFoundError(`Intake ${dto.id} not found`);
     }
   }
@@ -144,13 +235,38 @@ export class IntakePrismaRepository implements IIntakeRepository {
    * @throws NotFoundError if the intake does not exist.
    */
   async abandonIntake(dto: TAbandonIntake): Promise<TIntakeResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.abandonIntake",
+      startTimeMs,
+      context: { operationId, intakeId: dto.id },
+    });
+
     try {
       const row = await prisma.intake.update({
         where: { id: dto.id },
         data: { status: "ABANDONED" },
       });
-      return toDto(row);
-    } catch {
+
+      const result = toDto(row);
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.abandonIntake",
+        startTimeMs,
+        data: { id: result.id, status: result.status },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.abandonIntake",
+        startTimeMs,
+        err,
+        context: { operationId, intakeId: dto.id },
+      });
       throw new NotFoundError(`Intake ${dto.id} not found`);
     }
   }
@@ -163,9 +279,41 @@ export class IntakePrismaRepository implements IIntakeRepository {
    * @throws NotFoundError if not found.
    */
   async getById(id: number): Promise<TIntakeResponse> {
-    const row = await prisma.intake.findUnique({ where: { id } });
-    if (!row) throw new NotFoundError(`Intake ${id} not found`);
-    return toDto(row);
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.getById",
+      startTimeMs,
+      context: { operationId, id },
+    });
+
+    try {
+      const row = await prisma.intake.findUnique({ where: { id } });
+
+      if (!row) {
+        throw new NotFoundError(`Intake ${id} not found`);
+      }
+
+      const result = toDto(row);
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.getById",
+        startTimeMs,
+        data: { id: result.id },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.getById",
+        startTimeMs,
+        err,
+        context: { operationId, id },
+      });
+      throw err;
+    }
   }
 
   /**
@@ -175,10 +323,41 @@ export class IntakePrismaRepository implements IIntakeRepository {
    * @param fhirAppointmentId - FHIR Appointment.id.
    * @returns Linked Intake record or null.
    */
-  async getByFhirAppointmentId(fhirAppointmentId: number): Promise<TIntakeResponse | null> {
-    const row = await prisma.intake.findFirst({
-      where: { fhir_appointment_id: fhirAppointmentId },
+  async getByFhirAppointmentId(
+    fhirAppointmentId: number,
+  ): Promise<TIntakeResponse | null> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.getByFhirAppointmentId",
+      startTimeMs,
+      context: { operationId, fhirAppointmentId },
     });
-    return row ? toDto(row) : null;
+
+    try {
+      const row = await prisma.intake.findFirst({
+        where: { fhir_appointment_id: fhirAppointmentId },
+      });
+
+      const result = row ? toDto(row) : null;
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.getByFhirAppointmentId",
+        startTimeMs,
+        data: { found: result !== null, id: result?.id },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.getByFhirAppointmentId",
+        startTimeMs,
+        err,
+        context: { operationId, fhirAppointmentId },
+      });
+      throw err;
+    }
   }
 }

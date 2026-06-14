@@ -3,22 +3,19 @@
  *
  * Route: /[locale]/(apps)/bezs/telemedicine/patient/intake/voice
  *
- * Server component. Guards session and patient record, then renders the
- * VoiceIntake client component.
+ * Server component. Guards:
+ *  1. Redirects to /login if no session.
+ *  2. Redirects to the patient profile page if no FHIR Patient record exists.
+ *
+ * Renders VoiceIntake directly (no extra wrapper) so the component's own
+ * full-height layout fills the viewport.
  */
 
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
-import { getPatientMeAction } from "@/modules/server/presentation/actions/patient";
+import { requirePatientProfile } from "@/modules/server/auth/require-profile";
 import { VoiceIntake } from "@/modules/client/telemedicine/patient/component/intake/VoiceIntake";
-
-/** Silently returns null if the patient record doesn't exist yet. */
-async function fetchPatientOrNull() {
-  const [data, err] = await getPatientMeAction();
-  if (err?.code === "NOT_FOUND") return null;
-  return data ?? null;
-}
 
 /**
  * Voice-based intake session page (Vapi AI).
@@ -32,23 +29,16 @@ export default async function VoiceIntakePage() {
     return null;
   }
 
-  const patient = await fetchPatientOrNull();
-  if (!patient) {
-    redirect({ href: "/bezs/telemedicine/patient/profile", locale });
-    return null;
-  }
+  // Redirects to /patient/profile if no FHIR Patient record exists
+  const patient = await requirePatientProfile();
 
   const basePath = `/${locale}/bezs/telemedicine/patient`;
 
   return (
-    <div className="space-y-4 w-full max-w-lg mx-auto">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">Voice Intake</h1>
-        <p className="text-sm text-muted-foreground">
-          Speak naturally with the AI intake assistant.
-        </p>
-      </div>
-      <VoiceIntake patientFhirId={patient.id} basePath={basePath} />
-    </div>
+    <VoiceIntake
+      patientFhirId={patient.id}
+      basePath={basePath}
+      userName={session.user.name ?? "Patient"}
+    />
   );
 }

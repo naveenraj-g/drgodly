@@ -67,6 +67,12 @@ interface DoctorAppointmentsTableProps {
   initialData: TPaginatedAppointmentResponse;
   /** Active organisation ID from the server session, used to scope the list query. */
   orgId: string | null;
+  /**
+   * FHIR Practitioner.id (integer) of the logged-in doctor.
+   * When present, the list is scoped to only appointments where this
+   * practitioner is a participant. Null falls back to org-wide listing.
+   */
+  practitionerId: number | null;
 }
 
 // ── Dialog state ──────────────────────────────────────────────────────────────
@@ -92,6 +98,7 @@ type DialogState =
 export function DoctorAppointmentsTable({
   initialData,
   orgId,
+  practitionerId,
 }: DoctorAppointmentsTableProps) {
   const queryClient = useQueryClient();
 
@@ -116,12 +123,26 @@ export function DoctorAppointmentsTable({
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
-  const { table, state } = useServerDataTable({
+  const { table, state, resetPage } = useServerDataTable({
     columns,
     data: rows,
     pageCount,
     initialPageSize: INITIAL_PAGE_SIZE,
   });
+
+  // Extract server-side filter params from the column filter state.
+  // multiSelect returns string[] — we take the first value since the API
+  // accepts a single status code. undefined means "no filter" (all statuses).
+  const statusFilter = state.columnFilters.find((f) => f.id === "status")
+    ?.value as string[] | undefined;
+  const activeStatus = statusFilter?.[0];
+
+  // Reset to page 0 whenever the status filter changes so stale page indices
+  // don't produce empty results after filtering.
+  useEffect(() => {
+    resetPage();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStatus]);
 
   // ── Server query ─────────────────────────────────────────────────────────────
   const { data, isFetching } = useQuery({
@@ -129,19 +150,28 @@ export function DoctorAppointmentsTable({
       pageIndex: state.pagination.pageIndex,
       pageSize: state.pagination.pageSize,
       orgId,
+      practitionerId,
+      status: activeStatus,
     }),
     queryFn: () =>
       fetchDoctorAppointments({
         pageIndex: state.pagination.pageIndex,
         pageSize: state.pagination.pageSize,
         orgId,
+        practitionerId,
+        status: activeStatus,
       }),
-    initialData,
+    // Only seed the SSR data for the exact initial query (no filter, page 0).
+    // Any other key (filtered, paginated) must always fetch — if we pass
+    // initialData for every key, TanStack marks filtered keys "fresh" with the
+    // wrong unfiltered data and skips the fetch entirely for staleTime duration.
+    initialData:
+      !activeStatus && state.pagination.pageIndex === 0 ? initialData : undefined,
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
 
-  // Sync table rows whenever a new page arrives
+  // Sync table rows whenever a new page or filter result arrives
   useEffect(() => {
     if (data) {
       setRows(data.data ?? []);

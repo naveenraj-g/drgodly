@@ -3,13 +3,14 @@
  *
  * Layer: client / telemedicine / patient / intake
  *
- * Presents two options:
- *   1. "Book Appointment" → navigates to the booking wizard with ?intake_id={id}
- *      so the wizard can link the intake to the booked FHIR appointment.
- *   2. "Skip for now" → goes to the patient appointments list.
+ * UI mirrors drgodly-mvp IntakeCompleteModal exactly:
+ *   - Large CheckCircle2 success icon in a green circle
+ *   - "Intake Session Completed" title
+ *   - "Book Appointment" full-width link button (h-12)
+ *   - "Maybe Later" ghost button
  *
- * Built as a simple Dialog (no Zustand store needed — the parent component
- * controls open state via an `open` prop).
+ * "Book Appointment" navigates to the booking wizard with ?intake_id={id}
+ * so the wizard can link the booked FHIR appointment back to this intake.
  */
 
 "use client";
@@ -23,8 +24,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { CalendarPlus, CheckCircle2 } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { CalendarCheck, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 /** Props for IntakeCompleteModal. */
 interface IntakeCompleteModalProps {
@@ -32,7 +35,7 @@ interface IntakeCompleteModalProps {
   open: boolean;
   /** Local Intake.id returned from createIntakeAction / updateIntakeAction. */
   intakeId: number;
-  /** Localised base path for the booking route, e.g. "/en/bezs/telemedicine/patient". */
+  /** Localised base path for building the booking link, e.g. "/en/bezs/telemedicine/patient". */
   basePath: string;
 }
 
@@ -41,58 +44,57 @@ interface IntakeCompleteModalProps {
  *
  * @param open - Whether the dialog is visible.
  * @param intakeId - The completed intake's local ID.
- * @param basePath - Locale-prefixed base path for building links.
+ * @param basePath - Locale-prefixed base path for navigation.
  */
-export function IntakeCompleteModal({
-  open,
-  intakeId,
-  basePath,
-}: IntakeCompleteModalProps) {
+export function IntakeCompleteModal({ open, intakeId, basePath }: IntakeCompleteModalProps) {
   const router = useRouter();
 
-  /**
-   * Navigates to the booking wizard, injecting the intake ID as a query
-   * param so the wizard can link the booked appointment back to this intake.
-   */
-  function handleBookAppointment() {
-    router.push(`${basePath}/appointments/book?intake_id=${intakeId}`);
-  }
-
-  /** Navigates to the patient appointments list without booking. */
-  function handleSkip() {
+  function handleClose() {
     router.push(`${basePath}/appointments`);
   }
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
       <DialogContent
-        /** Prevent closing by clicking outside — force an explicit choice. */
+        /** Prevent accidental dismissal — force an explicit choice. */
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        className="max-w-sm"
+        className="sm:max-w-md border-0 shadow-dialog animate-scale-in"
       >
-        <DialogHeader className="items-center text-center">
-          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600">
-            <CheckCircle2 className="size-6" />
+        <DialogHeader className="text-center sm:text-center space-y-4">
+          {/* Success icon */}
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 animate-fade-in">
+            <CheckCircle2 className="h-8 w-8 text-green-600" />
           </div>
-          <DialogTitle className="text-center">Intake Complete</DialogTitle>
-          <DialogDescription className="text-center">
-            Your intake has been saved. Would you like to book an appointment
-            with a doctor now?
+
+          <DialogTitle className="text-xl font-semibold text-foreground">
+            Intake Session Completed
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground text-base">
+            Great job! Your intake session is now complete. Would you like to
+            book an appointment with the doctor?
           </DialogDescription>
         </DialogHeader>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Button onClick={handleBookAppointment} className="w-full">
-            <CalendarPlus className="mr-2 size-4" />
-            Book an Appointment
-          </Button>
+        <DialogFooter className="flex flex-col gap-3 sm:flex-col mt-6">
+          {/* Book appointment — Link so the browser handles the navigation */}
+          <Link
+            href={`${basePath}/appointments/book?intake_id=${intakeId}`}
+            className={cn(
+              buttonVariants(),
+              "w-full gap-2 h-12 text-base font-medium",
+            )}
+          >
+            <CalendarCheck className="h-5 w-5" />
+            Book Appointment
+          </Link>
+
           <Button
             variant="ghost"
-            onClick={handleSkip}
-            className="w-full"
+            onClick={handleClose}
+            className="w-full h-11 text-muted-foreground hover:text-foreground"
           >
-            Skip for now
+            Maybe Later
           </Button>
         </DialogFooter>
       </DialogContent>

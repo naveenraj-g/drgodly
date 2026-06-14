@@ -5,13 +5,15 @@
  *
  * Flow:
  *  1. On mount: createIntakeAction → receives intake id.
- *  2. Patient clicks "Start" → Vapi.start(agentId) begins the call.
- *  3. Transcript events build the conversation array in real time.
- *  4. Patient clicks "End Call" (or call ends naturally):
- *     a. updateIntakeAction(id, conversation) — no report for voice.
- *     b. Opens IntakeCompleteModal with the intake id.
+ *  2. Patient clicks "Start Call" → Vapi.start(agentId).
+ *  3. Transcript events (partial + final) build the conversation in real time.
+ *  4. Patient clicks "End Call":
+ *     a. updateIntakeAction(id, conversation) → status=COMPLETED.
+ *     b. Opens IntakeCompleteModal.
  *
- * Vapi handles all STT, TTS, and LLM — no external agent proxy needed.
+ * UI mirrors drgodly-mvp AiIntake exactly: two avatar cards (AI + patient),
+ * ConversationChat thread, and a centered Start/End Call button.
+ *
  * Env vars: NEXT_PUBLIC_VAPI_PUBLIC_KEY, NEXT_PUBLIC_VAPI_AGENT_ID.
  */
 
@@ -19,22 +21,17 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import { Mic, MicOff, Loader2, PhoneOff } from "lucide-react";
+import { nanoid } from "nanoid";
+import { Brain, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
 import { createIntakeAction, updateIntakeAction } from "@/modules/server/presentation/actions/intake";
+import { ConversationChat, type ChatMessage } from "./ConversationChat";
 import { IntakeCompleteModal } from "./IntakeCompleteModal";
-import type { TIntakeMessage } from "@/modules/entities/schemas/intake";
 
 /** Vapi environment keys (public — safe to expose to the browser). */
 const VAPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? "";
 const VAPI_AGENT_ID = process.env.NEXT_PUBLIC_VAPI_AGENT_ID ?? "";
-
-/** Vapi call status labels shown in the UI. */
-type CallStatus = "idle" | "connecting" | "active" | "ending";
 
 /** Props for VoiceIntake. */
 interface VoiceIntakeProps {
@@ -42,49 +39,110 @@ interface VoiceIntakeProps {
   patientFhirId?: number;
   /** Locale-prefixed base path for post-intake navigation. */
   basePath: string;
+  /** Patient's display name — shown in the user avatar card. */
+  userName: string;
 }
 
 /**
  * Voice-based patient intake using Vapi AI.
  *
- * Imports Vapi dynamically to avoid SSR issues (the Vapi SDK uses browser APIs).
+ * Imports Vapi dynamically to avoid SSR crash (the SDK uses browser APIs).
  *
  * @param patientFhirId - Optional FHIR Patient.id.
  * @param basePath - Locale-prefixed base path.
+ * @param userName - Patient display name.
  */
-export function VoiceIntake({ patientFhirId, basePath }: VoiceIntakeProps) {
+export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakeProps) {
   const [intakeId, setIntakeId] = useState<number | null>(null);
-  const [callStatus, setCallStatus] = useState<CallStatus>("idle");
-  const [messages, setMessages] = useState<TIntakeMessage[]>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [callStarted, setCallStarted] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [currentRole, setCurrentRole] = useState<"user" | "assistant" | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showModal, setShowModal] = useState(false);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vapiRef = useRef<any>(null);
+  const handlersRef = useRef({
+    onCallStart: (() => {}) as () => void,
+    onCallEnd: (() => {}) as () => void,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onMessage: (() => {}) as (message: any) => void,
+    onSpeechStart: (() => {}) as () => void,
+    onSpeechEnd: (() => {}) as () => void,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onError: (() => {}) as (err: any) => void,
+  });
 
   // ── Create intake session on mount ────────────────────────────────────────
   useEffect(() => {
     async function init() {
       const [data, err] = await createIntakeAction({
-        payload: {
-          userId: "", // injected server-side
-          mode: "VOICE",
-          patient_fhir_id: patientFhirId,
-        },
+        payload: { userId: "", mode: "VOICE", patient_fhir_id: patientFhirId },
       });
-      if (err) {
-        toast.error("Failed to start intake session");
-        return;
-      }
+      if (err) { toast.error("Failed to start intake session"); return; }
       setIntakeId(data!.id);
     }
     init();
 
-    // Cleanup: end the call if the component unmounts mid-session
+    // Cleanup: stop the call if the page unmounts mid-session
     return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      vapiRef.current?.stop();
+      try { vapiRef.current?.stop(); } catch { /* ignore */ }
     };
   }, [patientFhirId]);
+
+  const addMessage = useCallback((m: ChatMessage) => {
+    setMessages((prev) => [...prev, m]);
+  }, []);
+
+  // ── End call: save intake → show modal ───────────────────────────────────
+  const endCall = useCallback(
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    async (currentMessages?: ChatMessage[]) => {
+      if (!intakeId) return;
+      setIsPending(true);
+
+      try {
+        // Remove listeners and stop Vapi
+        const vapi = vapiRef.current;
+        if (vapi) {
+          const h = handlersRef.current;
+          vapi.off("call-start", h.onCallStart);
+          vapi.off("call-end", h.onCallEnd);
+          vapi.off("message", h.onMessage);
+          vapi.off("speech-start", h.onSpeechStart);
+          vapi.off("speech-end", h.onSpeechEnd);
+          vapi.off("error", h.onError);
+          vapi.stop();
+        }
+        setCallStarted(false);
+        setLiveTranscript("");
+        setCurrentRole(null);
+        vapiRef.current = null;
+
+        toast.success("Call ended");
+
+        const finalMessages = currentMessages ?? messages;
+        await updateIntakeAction({
+          payload: {
+            id: intakeId,
+            conversation: finalMessages.map((m) => ({
+              role: m.from === "user" ? "user" : "assistant",
+              content: m.content,
+            })),
+          },
+        });
+
+        setShowModal(true);
+      } catch {
+        toast.error("Error ending call");
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [intakeId, messages],
+  );
 
   // ── Start Vapi call ───────────────────────────────────────────────────────
   const startCall = useCallback(async () => {
@@ -93,192 +151,139 @@ export function VoiceIntake({ patientFhirId, basePath }: VoiceIntakeProps) {
       return;
     }
 
-    setCallStatus("connecting");
+    setMessages([]);
+    setLiveTranscript("");
+    setCurrentRole(null);
+    setIsConnecting(true);
 
-    // Dynamic import to avoid SSR crash (Vapi uses browser APIs)
-    const { default: Vapi } = await import("@vapi-ai/web").catch(() => {
-      toast.error("Failed to load voice library");
-      setCallStatus("idle");
-      return { default: null };
-    });
-    if (!Vapi) return;
+    try {
+      const { default: Vapi } = await import("@vapi-ai/web").catch(() => {
+        toast.error("Failed to load voice library");
+        setIsConnecting(false);
+        return { default: null };
+      });
+      if (!Vapi) return;
 
-    const vapi = new Vapi(VAPI_PUBLIC_KEY);
-    vapiRef.current = vapi;
+      const vapi = new Vapi(VAPI_PUBLIC_KEY);
+      vapiRef.current = vapi;
+      vapi.start(VAPI_AGENT_ID);
 
-    vapi.on("call-start", () => setCallStatus("active"));
-    vapi.on("call-end", () => endCall());
-    vapi.on("speech-start", () => setIsSpeaking(true));
-    vapi.on("speech-end", () => setIsSpeaking(false));
-    vapi.on("error", (err: unknown) => {
-      console.error("[Vapi error]", err);
-      toast.error("Voice call error — please try again");
-      setCallStatus("idle");
-    });
+      const onCallStart = () => { setCallStarted(true); setIsConnecting(false); };
+      const onCallEnd = () => { setCallStarted(false); setIsConnecting(false); setLiveTranscript(""); setCurrentRole(null); };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const onMessage = (message: any) => {
+        try {
+          if (message.type === "transcript") {
+            const { role, transcriptType, transcript } = message;
+            const from: "user" | "assistant" = role === "assistant" ? "assistant" : "user";
+            if (transcriptType === "partial") {
+              setLiveTranscript(transcript);
+              setCurrentRole(from);
+            } else if (transcriptType === "final") {
+              addMessage({ key: nanoid(), from, content: transcript });
+              setLiveTranscript("");
+              setCurrentRole(null);
+            }
+          }
+        } catch { /* ignore */ }
+      };
+      const onSpeechStart = () => setCurrentRole("assistant");
+      const onSpeechEnd = () => setCurrentRole("user");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const onError = (error: any) => {
+        console.error("Vapi error", error);
+        toast.error("Voice assistant error", { description: "Failed to connect with assistant." });
+      };
 
-    // Collect transcript turns as they finalise
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vapi.on("message", (msg: any) => {
-      if (msg.type === "transcript" && msg.transcriptType === "final") {
-        const role = msg.role === "user" ? "user" : "assistant";
-        setMessages((prev) => [...prev, { role, content: msg.transcript }]);
-      }
-    });
+      handlersRef.current = { onCallStart, onCallEnd, onMessage, onSpeechStart, onSpeechEnd, onError };
 
-    vapi.start(VAPI_AGENT_ID);
-  }, [intakeId]);
-
-  // ── End call: save intake → show modal ───────────────────────────────────
-  const endCall = useCallback(async () => {
-    if (callStatus === "ending" || !intakeId) return;
-    setCallStatus("ending");
-    vapiRef.current?.stop();
-
-    const [, err] = await updateIntakeAction({
-      payload: {
-        id: intakeId,
-        // Use latest messages state; no report for voice (Vapi handles it)
-        conversation: messages,
-      },
-    });
-
-    if (err) {
-      toast.error("Failed to save intake");
-      setCallStatus("idle");
-      return;
+      vapi.on("call-start", onCallStart);
+      vapi.on("call-end", onCallEnd);
+      vapi.on("message", onMessage);
+      vapi.on("speech-start", onSpeechStart);
+      vapi.on("speech-end", onSpeechEnd);
+      vapi.on("error", onError);
+    } catch {
+      toast.error("Could not start call");
+      setIsConnecting(false);
     }
-
-    setShowModal(true);
-  }, [callStatus, intakeId, messages]);
+  }, [intakeId, addMessage]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const statusLabel: Record<CallStatus, string> = {
-    idle: "Ready",
-    connecting: "Connecting…",
-    active: "In Call",
-    ending: "Ending…",
-  };
-
   return (
     <>
-      <div className="flex flex-col items-center gap-8 py-8">
-        {/* Status badge */}
-        <Badge
-          variant={callStatus === "active" ? "default" : "secondary"}
-          className="text-xs"
-        >
-          {statusLabel[callStatus]}
-        </Badge>
+      <div className="flex flex-col gap-4 w-full overflow-hidden h-[calc(100dvh-144px)]">
 
-        {/* Avatar + pulse animation */}
-        <div className="relative">
-          <div
-            className={cn(
-              "size-28 rounded-full flex items-center justify-center bg-primary/10 transition-all duration-300",
-              isSpeaking && "ring-4 ring-primary/40 ring-offset-2 scale-105",
-            )}
-          >
-            <Avatar className="size-20">
-              <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
-                AI
-              </AvatarFallback>
-            </Avatar>
+        {/* ── Title ── */}
+        <h1 className="text-xl font-bold text-center">
+          Talk to Your AI Intake Assistant
+        </h1>
+
+        {/* ── Avatar cards ── */}
+        <div className="flex gap-4 justify-around items-center">
+          {/* AI avatar */}
+          <div className="flex flex-col items-center">
+            <div className={`bg-secondary w-fit rounded-full p-4 mb-1 ${callStarted ? "animate-pulse" : ""}`}>
+              <Brain className="size-10" />
+            </div>
+            <p className="font-bold">Bezs AI</p>
+            <p className="text-xs text-muted-foreground">Intake Assistant</p>
+            <Badge className="mt-4" variant="secondary">
+              {callStarted ? "Connected" : isConnecting ? "Connecting..." : "Waiting..."}
+            </Badge>
           </div>
-          {isSpeaking && (
-            <span className="absolute inset-0 rounded-full animate-ping bg-primary/20" />
-          )}
+
+          {/* User avatar */}
+          <div className="flex flex-col items-center">
+            <div className="bg-secondary text-center w-fit rounded-full p-4 mb-1">
+              <p className="text-4xl size-10 flex items-center justify-center font-bold">
+                {userName?.[0] ?? "Y"}
+              </p>
+            </div>
+            <p className="font-bold">You</p>
+            <p className="text-xs text-muted-foreground">{userName}</p>
+            <Badge className="mt-4" variant="secondary">Ready</Badge>
+          </div>
         </div>
 
-        {/* Call controls */}
-        {callStatus === "idle" && (
-          <Button
-            size="lg"
-            onClick={startCall}
-            disabled={!intakeId}
-            className="rounded-full px-8"
-          >
-            <Mic className="size-5 mr-2" />
-            Start Voice Intake
-          </Button>
-        )}
+        {/* ── Conversation thread ── */}
+        <ConversationChat
+          messages={messages}
+          liveTranscript={liveTranscript}
+          liveRole={currentRole}
+          userName={userName}
+        />
 
-        {callStatus === "connecting" && (
-          <Button size="lg" disabled className="rounded-full px-8">
-            <Loader2 className="size-5 mr-2 animate-spin" />
-            Connecting…
+        {/* ── Call controls ── */}
+        {isPending ? (
+          <Button className="w-fit self-center px-6 h-7 rounded-2xl" size="sm" disabled>
+            <Loader2 className="animate-spin mr-1" />
+            Loading...
           </Button>
-        )}
-
-        {callStatus === "active" && (
+        ) : callStarted ? (
           <Button
-            size="lg"
+            className="w-fit self-center px-6 h-7 rounded-2xl"
+            size="sm"
             variant="destructive"
-            onClick={endCall}
-            className="rounded-full px-8"
+            onClick={() => endCall()}
           >
-            <PhoneOff className="size-5 mr-2" />
             End Call
           </Button>
-        )}
-
-        {callStatus === "ending" && (
-          <Button size="lg" disabled className="rounded-full px-8">
-            <Loader2 className="size-5 mr-2 animate-spin" />
-            Saving…
+        ) : (
+          <Button
+            className="w-fit self-center px-6 h-7 rounded-2xl"
+            size="sm"
+            onClick={startCall}
+            disabled={isConnecting || !intakeId}
+          >
+            {isConnecting ? <><Loader2 className="animate-spin mr-1 size-3" />Connecting...</> : "Start Call"}
           </Button>
-        )}
-
-        {/* Live transcript */}
-        {messages.length > 0 && (
-          <div className="w-full max-w-lg">
-            <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">
-              Transcript
-            </p>
-            <ScrollArea className="h-52 border rounded-lg px-4 py-3 bg-muted/30">
-              <div className="space-y-3">
-                {messages.map((msg, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <span
-                      className={cn(
-                        "text-[10px] font-semibold shrink-0 mt-0.5 uppercase",
-                        msg.role === "user" ? "text-primary" : "text-muted-foreground",
-                      )}
-                    >
-                      {msg.role === "user" ? "You" : "AI"}
-                    </span>
-                    <p className="text-sm text-foreground leading-relaxed">
-                      {msg.content}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-
-        {callStatus === "idle" && (
-          <p className="text-sm text-muted-foreground text-center max-w-xs">
-            The AI will guide you through a clinical intake. Speak naturally —
-            describe your symptoms, medical history, and concerns.
-          </p>
-        )}
-
-        {/* Microphone permission hint */}
-        {callStatus !== "idle" && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MicOff className="size-3" />
-            <span>Ensure your microphone is enabled</span>
-          </div>
         )}
       </div>
 
       {/* Post-intake modal */}
       {showModal && intakeId && (
-        <IntakeCompleteModal
-          open={showModal}
-          intakeId={intakeId}
-          basePath={basePath}
-        />
+        <IntakeCompleteModal open={showModal} intakeId={intakeId} basePath={basePath} />
       )}
     </>
   );

@@ -3,12 +3,10 @@
  *
  * Route: /[locale]/(apps)/bezs/telemedicine/patient/appointments
  *
- * Server component. Fetches the first page of the authenticated patient's
- * appointments at render time to seed the client table without a loading flash.
- * Subsequent pagination changes are handled client-side via server actions.
- *
- * Guards:
+ * Server component. Guards:
  *  1. Redirects to /login if no session is found.
+ *  2. Redirects to the patient profile page if no FHIR Patient record exists
+ *     (via requirePatientProfile).
  *
  * Data flow:
  *  SSR → getMyAppointmentsAction (page 0) → PatientAppointmentsTable (initialData prop)
@@ -18,8 +16,10 @@
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
+import { requirePatientProfile } from "@/modules/server/auth/require-profile";
 import { getMyAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { PatientAppointmentsTable } from "@/modules/client/telemedicine/patient/component/appointments/list/PatientAppointmentsTable";
+import { PatientModalProvider } from "@/modules/client/telemedicine/patient/provider/PatientModalProvider";
 
 /** Page-level page size — must match INITIAL_PAGE_SIZE in the table component. */
 const INITIAL_PAGE_SIZE = 10;
@@ -40,7 +40,10 @@ export default async function PatientAppointmentsPage() {
     return null;
   }
 
-  // Pre-fetch page 0 — userId is injected from the session inside the action.
+  // Redirects to /patient/profile if no FHIR Patient record exists
+  await requirePatientProfile();
+
+  // Pre-fetch page 0 — userId is injected from the session inside the action
   const [data] = await getMyAppointmentsAction({
     payload: {
       limit: INITIAL_PAGE_SIZE,
@@ -56,8 +59,7 @@ export default async function PatientAppointmentsPage() {
     data: [],
   };
 
-  /** Localised href for the "Book Appointment" button in the table toolbar. */
-  const bookHref = `/${locale}/bezs/telemedicine/patient/appointments/book`;
+  const base = `/${locale}/bezs/telemedicine/patient`;
 
   return (
     <div className="space-y-6 w-full">
@@ -72,8 +74,12 @@ export default async function PatientAppointmentsPage() {
       {/* ── Appointments table ── */}
       <PatientAppointmentsTable
         initialData={initialData}
-        bookHref={bookHref}
+        bookHref={`${base}/appointments/book`}
+        intakeHref={`${base}/intake`}
       />
+
+      {/* ── Modal singletons (controlled by patient Zustand store) ── */}
+      <PatientModalProvider />
     </div>
   );
 }
