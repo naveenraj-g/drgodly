@@ -76,6 +76,7 @@ export default async function PatientAppointmentsPage() {
         initialData={initialData}
         bookHref={`${base}/appointments/book`}
         intakeHref={`${base}/intake`}
+        viewHref={`${base}/appointments`}
       />
 
       {/* ── Modal singletons (controlled by patient Zustand store) ── */}

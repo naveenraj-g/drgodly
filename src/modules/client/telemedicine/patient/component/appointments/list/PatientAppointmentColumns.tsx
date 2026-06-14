@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { XCircle, Trash2, User } from "lucide-react";
+import { Eye, XCircle, Trash2, User } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -142,6 +142,8 @@ function AppointmentStatusBadge({
 
 /** Callbacks injected into the column actions cell by the parent table component. */
 export interface PatientAppointmentColumnCallbacks {
+  /** Called when the patient clicks "View" — navigates to the appointment detail page. */
+  onView: (row: TAppointmentResponse) => void;
   /** Called when the patient requests to cancel a booked or pending appointment. */
   onCancel: (row: TAppointmentResponse) => void;
   /** Called when the patient requests to permanently delete a closed appointment. */
@@ -280,6 +282,12 @@ export function createPatientAppointmentColumns(
         const canDelete = status === "cancelled" || status === "fulfilled";
 
         const actions: RowAction<TAppointmentResponse>[] = [
+          // View is always available — navigates to the appointment detail page
+          {
+            label: "View Details",
+            icon: Eye,
+            onClick: () => callbacks.onView(row.original),
+          },
           ...(canCancel
             ? [
                 {

@@ -44,6 +44,7 @@ export default async function DoctorAppointmentsPage() {
 
   const orgId = session.session.activeOrganizationId ?? null;
   const practitionerId = practitioner.id;
+  const base = `/${locale}/bezs/telemedicine/doctor`;
 
   // Pre-fetch page 0 scoped to this practitioner
   const [data] = await listAppointmentsAction({
@@ -78,6 +79,7 @@ export default async function DoctorAppointmentsPage() {
         initialData={initialData}
         orgId={orgId}
         practitionerId={practitionerId}
+        viewHref={`${base}/appointments`}
       />
     </div>
   );

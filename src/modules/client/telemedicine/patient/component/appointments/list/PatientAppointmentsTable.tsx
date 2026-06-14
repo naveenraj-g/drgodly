@@ -19,6 +19,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarPlus } from "lucide-react";
@@ -65,6 +66,8 @@ interface PatientAppointmentsTableProps {
   bookHref: string;
   /** Localised href for the intake chooser (e.g. /en/…/intake). */
   intakeHref: string;
+  /** Localised base href for appointment detail pages (e.g. /en/…/appointments). */
+  viewHref: string;
 }
 
 // ── Dialog state ──────────────────────────────────────────────────────────────
@@ -90,8 +93,10 @@ export function PatientAppointmentsTable({
   initialData,
   bookHref,
   intakeHref,
+  viewHref,
 }: PatientAppointmentsTableProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // ── Row + page count state (seeded from SSR, synced from client query) ──────
   const [rows, setRows] = useState<TAppointmentResponse[]>(initialData.data ?? []);
@@ -106,10 +111,11 @@ export function PatientAppointmentsTable({
   const columns = useMemo(
     () =>
       createPatientAppointmentColumns({
+        onView: (row) => router.push(`${viewHref}/${row.id}`),
         onCancel: (row) => setDialog({ type: "cancel", row }),
         onDelete: (row) => setDialog({ type: "delete", row }),
       }),
-    [],
+    [router, viewHref],
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────

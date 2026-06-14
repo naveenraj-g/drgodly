@@ -20,6 +20,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -73,6 +74,8 @@ interface DoctorAppointmentsTableProps {
    * practitioner is a participant. Null falls back to org-wide listing.
    */
   practitionerId: number | null;
+  /** Localised base href for appointment detail pages (e.g. /en/…/appointments). */
+  viewHref: string;
 }
 
 // ── Dialog state ──────────────────────────────────────────────────────────────
@@ -99,8 +102,10 @@ export function DoctorAppointmentsTable({
   initialData,
   orgId,
   practitionerId,
+  viewHref,
 }: DoctorAppointmentsTableProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // ── Row + page count state (seeded from SSR, synced from client query) ──────
   const [rows, setRows] = useState<TAppointmentResponse[]>(initialData.data ?? []);
@@ -115,11 +120,12 @@ export function DoctorAppointmentsTable({
   const columns = useMemo(
     () =>
       createDoctorAppointmentColumns({
+        onView: (row) => router.push(`${viewHref}/${row.id}`),
         onConfirm: (row) => setDialog({ type: "confirm", row }),
         onCancel: (row) => setDialog({ type: "cancel", row }),
         onDelete: (row) => setDialog({ type: "delete", row }),
       }),
-    [],
+    [router, viewHref],
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
