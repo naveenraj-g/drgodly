@@ -7,6 +7,7 @@ import { IPractitionerRolesService } from "../core/practitioner-role/domain/inte
 import { ISlotService } from "../core/slot/domain/interfaces/slot.service.interface";
 import { IAppointmentService } from "../core/appointment/domain/interfaces/appointment.service.interface";
 import { IIntakeRepository } from "../core/intake/domain/interfaces/intake.repository.interface";
+import { IConsultationRepository } from "../core/consultation/domain/interfaces/consultation.repository.interface";
 
 export const DI_SYMBOLS = {
   IPatientsService: Symbol.for("IPatientsService"),
@@ -18,6 +19,7 @@ export const DI_SYMBOLS = {
   ISlotService: Symbol.for("ISlotService"),
   IAppointmentService: Symbol.for("IAppointmentService"),
   IIntakeRepository: Symbol.for("IIntakeRepository"),
+  IConsultationRepository: Symbol.for("IConsultationRepository"),
 };
 
 export interface DI_RETURN_TYPES {
@@ -30,4 +32,5 @@ export interface DI_RETURN_TYPES {
   ISlotService: ISlotService;
   IAppointmentService: IAppointmentService;
   IIntakeRepository: IIntakeRepository;
+  IConsultationRepository: IConsultationRepository;
 }

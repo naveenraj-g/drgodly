@@ -74,6 +74,7 @@ import { listPractitionerRolesForBookingAction } from "@/modules/server/presenta
 import { listSlotsAction } from "@/modules/server/presentation/actions/slot";
 import { bookAppointmentAction } from "@/modules/server/presentation/actions/appointment";
 import { linkIntakeToAppointmentAction } from "@/modules/server/presentation/actions/intake";
+import { createConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import type { TPractitionerRoleBookingResponse } from "@/modules/entities/schemas/practitioner-role";
 import type { TSlotResponse } from "@/modules/entities/schemas/slot";
 import { Link } from "@/i18n/navigation";
@@ -347,6 +348,18 @@ export function BookAppointment({
       await linkIntakeToAppointmentAction({
         payload: { id: intakeId, fhir_appointment_id: bookedAppointment.id },
       });
+    }
+
+    // Provision virtual consultation room — user_id is injected server-side
+    if (bookedAppointment?.id) {
+      const [, roomErr] = await createConsultationAction({
+        payload: { fhir_appointment_id: bookedAppointment.id, org_id: orgId },
+      });
+      if (roomErr) {
+        toast.error(
+          "Appointment booked but consultation room creation failed. Contact support.",
+        );
+      }
     }
 
     setIsSuccessOpen(true);
