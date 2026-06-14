@@ -40,6 +40,32 @@ import { type TIntakeReport } from "@/modules/entities/schemas/intake";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
+ * Converts an unknown array item to a displayable string.
+ * The AI agent sometimes returns objects (e.g. {condition, rationale, likelihood})
+ * instead of plain strings for differential_diagnosis and red_flags.
+ *
+ * @param item - Array item from the agent response.
+ * @returns Human-readable string representation.
+ */
+function itemToString(item: unknown): string {
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object") {
+    const obj = item as Record<string, unknown>;
+    // Differential diagnosis shape: { condition, rationale, likelihood }
+    if (typeof obj.condition === "string") {
+      const parts = [obj.condition];
+      if (typeof obj.rationale === "string") parts.push(obj.rationale);
+      if (typeof obj.likelihood === "string") parts.push(`(${obj.likelihood})`);
+      return parts.join(" — ");
+    }
+    // Generic: join all string values
+    const vals = Object.values(obj).filter((v) => typeof v === "string");
+    if (vals.length) return (vals as string[]).join(" — ");
+  }
+  return String(item);
+}
+
+/**
  * Maps a risk level string to a Tailwind colour class for the badge.
  *
  * @param risk - Risk level string from the agent (case-insensitive).
@@ -130,7 +156,7 @@ export function IntakeReportSection({ report }: IntakeReportSectionProps) {
             <div className="flex flex-wrap gap-1.5">
               {report.differential_diagnosis.map((dx, i) => (
                 <Badge key={i} variant="secondary" className="text-xs font-normal">
-                  {dx}
+                  {itemToString(dx)}
                 </Badge>
               ))}
             </div>
@@ -186,7 +212,7 @@ export function IntakeReportSection({ report }: IntakeReportSectionProps) {
               {report.red_flags.map((flag, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
                   <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                  <span>{flag}</span>
+                  <span>{itemToString(flag)}</span>
                 </li>
               ))}
             </ul>
