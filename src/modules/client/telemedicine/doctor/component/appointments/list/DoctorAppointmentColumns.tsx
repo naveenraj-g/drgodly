@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import { CheckCircle2, Eye, XCircle, Trash2, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -257,12 +258,6 @@ export function createDoctorAppointmentColumns(
         const canDelete = status === "cancelled" || status === "fulfilled";
 
         const actions: RowAction<TAppointmentResponse>[] = [
-          // View is always available — navigates to the appointment detail page
-          {
-            label: "View Details",
-            icon: Eye,
-            onClick: () => callbacks.onView(row.original),
-          },
           ...(canConfirm
             ? [
                 {
@@ -292,12 +287,28 @@ export function createDoctorAppointmentColumns(
             : []),
         ];
 
-        if (!actions.length) return null;
-        return <DataTableRowActions row={row} actions={actions} />;
+        return (
+          <div className="flex items-center gap-1">
+            {/* Inline view button — always visible, navigates to detail page */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => callbacks.onView(row.original)}
+            >
+              <Eye className="size-3 mr-1" />
+              View
+            </Button>
+            {/* Three-dot menu — only when status-dependent actions exist */}
+            {actions.length > 0 && (
+              <DataTableRowActions row={row} actions={actions} />
+            )}
+          </div>
+        );
       },
       enableSorting: false,
       enableHiding: false,
-      size: 48,
+      size: 110,
     },
   ];
 }
