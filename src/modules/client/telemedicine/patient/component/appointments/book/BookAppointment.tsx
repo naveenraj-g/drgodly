@@ -189,6 +189,17 @@ export function BookAppointment({
   }
 
   // ── Fetch free slots for selected practitioner role (TanStack Query) ─────────
+  // Date range for the slot query — matches the 30-day DateScroller window exactly.
+  const slotDateRange = useMemo(() => {
+    const from = new Date();
+    const to = new Date();
+    to.setDate(to.getDate() + 30);
+    return {
+      start_from: from.toISOString().slice(0, 10),
+      start_to: to.toISOString().slice(0, 10),
+    };
+  }, []);
+
   const {
     data: slotsData,
     isLoading: isLoadingSlots,
@@ -198,9 +209,10 @@ export function BookAppointment({
       payload: {
         practitioner_role_id: selectedRole?.id ?? 0,
         status: "free",
-        limit: 200,
-        // Only fetch slots from today onward — avoids loading historical slots.
-        start_from: new Date().toISOString().slice(0, 10),
+        // Bound to the 30-day window shown by DateScroller — server filters precisely.
+        start_from: slotDateRange.start_from,
+        start_to: slotDateRange.start_to,
+        limit: 150,
       },
     },
     queryKey: ["slots-free", selectedRole?.id],
