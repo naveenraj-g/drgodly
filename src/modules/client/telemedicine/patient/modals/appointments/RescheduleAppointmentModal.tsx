@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import { useServerAction } from "zsa-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerActionQuery } from "@/lib/zsa-query";
-import { updateAppointmentAction } from "@/modules/server/presentation/actions/appointment";
+import { rescheduleAppointmentAction } from "@/modules/server/presentation/actions/appointment";
 import { listPractitionerRolesAction } from "@/modules/server/presentation/actions/practitioner-role";
 import { listSlotsAction } from "@/modules/server/presentation/actions/slot";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
@@ -209,7 +209,7 @@ export function RescheduleAppointmentModal() {
   }, [freeSlots, selectedDate]);
 
   // ── Submit ────────────────────────────────────────────────────────────────────
-  const { execute, isPending } = useServerAction(updateAppointmentAction, {
+  const { execute, isPending } = useServerAction(rescheduleAppointmentAction, {
     onSuccess: () => {
       toast.success("Appointment rescheduled successfully");
       /** Invalidate all patient appointment queries so the table refreshes. */
@@ -222,15 +222,15 @@ export function RescheduleAppointmentModal() {
   });
 
   /**
-   * Fires the update action with the selected slot's start/end ISO strings.
+   * Fires the reschedule action with the selected slot ID.
+   * Backend atomically frees old slot, updates appointment timing, marks new slot busy.
    */
   async function handleReschedule() {
-    if (!appointment?.id || !selectedSlot?.start || !selectedSlot?.end) return;
+    if (!appointment?.id || !selectedSlot?.id) return;
     await execute({
       payload: {
         id: appointment.id,
-        start: selectedSlot.start,
-        end: selectedSlot.end,
+        new_slot_id: selectedSlot.id,
       },
     });
   }

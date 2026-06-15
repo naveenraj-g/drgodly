@@ -90,4 +90,9 @@ export class AppointmentRestApiService implements IAppointmentService {
   delete(id: number): Promise<void> {
     return this.core.delete(id);
   }
+
+  /** @inheritdoc */
+  reschedule(id: number, newSlotId: number): Promise<TAppointmentResponse> {
+    return this.core.reschedule(id, newSlotId);
+  }
 }

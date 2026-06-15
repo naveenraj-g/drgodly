@@ -7,14 +7,15 @@
  * satisfy. The application use cases depend only on this interface — never on
  * a concrete implementation — which keeps the domain layer transport-agnostic.
  *
- * 7 operations map to the 7 fhir-gql appointment routes:
- *   POST /appointments/book      → book
- *   POST /appointments/          → create
- *   GET  /appointments/ (user_id filter) → getMe
- *   GET  /appointments/          → list
- *   GET  /appointments/{id}      → getById
- *   PATCH /appointments/{id}     → update
- *   DELETE /appointments/{id}    → delete
+ * 8 operations map to the 8 fhir-gql appointment routes:
+ *   POST /appointments/book               → book
+ *   POST /appointments/                   → create
+ *   GET  /appointments/ (user_id filter)  → getMe
+ *   GET  /appointments/                   → list
+ *   GET  /appointments/{id}               → getById
+ *   PATCH /appointments/{id}              → update
+ *   DELETE /appointments/{id}             → delete
+ *   POST /appointments/{id}/reschedule    → reschedule
  */
 
 import {
@@ -100,4 +101,15 @@ export interface IAppointmentService {
    * @throws NotFoundError if the ID does not exist.
    */
   delete(id: number): Promise<void>;
+
+  /**
+   * Atomically reschedules an appointment to a new slot.
+   * Frees the old slot, updates appointment start/end, and marks the new slot busy.
+   *
+   * @param id - The appointment's fhir-gql database ID.
+   * @param newSlotId - Integer ID of the new free Slot.
+   * @returns The updated Appointment.
+   * @throws ConflictError if the new slot is no longer free (409 from fhir-gql).
+   */
+  reschedule(id: number, newSlotId: number): Promise<TAppointmentResponse>;
 }

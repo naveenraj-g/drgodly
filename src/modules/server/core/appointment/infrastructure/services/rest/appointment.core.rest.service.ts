@@ -265,6 +265,47 @@ export class AppointmentCoreRestService {
   }
 
   /**
+   * POST /appointments/{id}/reschedule — atomically swaps to a new slot.
+   * Backend frees old slot, updates appointment start/end, marks new slot busy.
+   *
+   * @param id - Appointment DB id.
+   * @param newSlotId - Integer ID of the new free Slot.
+   * @returns The updated Appointment resource.
+   * @throws ConflictError if the new slot is not free (409).
+   */
+  async reschedule(id: number, newSlotId: number): Promise<TAppointmentResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+    logOperation("start", {
+      name: "AppointmentCoreRestService.reschedule",
+      startTimeMs,
+      context: { operationId, id, newSlotId },
+    });
+    try {
+      const res = await this.client.post<unknown>(`/${id}/reschedule`, {
+        new_slot_id: newSlotId,
+      });
+      const data = await AppointmentResponseSchema.parseAsync(res.data);
+      logOperation("success", {
+        name: "AppointmentCoreRestService.reschedule",
+        startTimeMs,
+        data,
+        context: { operationId },
+      });
+      return data;
+    } catch (err) {
+      logOperation("error", {
+        name: "AppointmentCoreRestService.reschedule",
+        startTimeMs,
+        err,
+        context: { operationId },
+      });
+      if (axios.isAxiosError(err)) handleAppointmentApiError(err);
+      throw err;
+    }
+  }
+
+  /**
    * DELETE /appointments/{id} — removes an Appointment and all child records.
    *
    * @param id - Appointment DB id.

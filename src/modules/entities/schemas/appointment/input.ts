@@ -405,3 +405,16 @@ export const DeleteAppointmentValidationSchema = z.object({
   id: z.number().int().positive(),
 });
 export type TDeleteAppointment = z.infer<typeof DeleteAppointmentValidationSchema>;
+
+/**
+ * Schema for POST /appointments/{id}/reschedule.
+ * The backend atomically frees the old slot, updates appointment timing,
+ * and marks the new slot as busy — the client only needs to supply the new slot ID.
+ */
+export const RescheduleAppointmentValidationSchema = z.object({
+  /** ID of the appointment to reschedule. */
+  id: z.number().int().positive(),
+  /** Integer ID of the new free Slot to move the appointment to. */
+  new_slot_id: z.number().int().positive(),
+});
+export type TRescheduleAppointment = z.infer<typeof RescheduleAppointmentValidationSchema>;

@@ -61,4 +61,11 @@ export class AppointmentGraphqlService implements IAppointmentService {
   delete(_id: number): Promise<void> {
     throw new Error("AppointmentGraphqlService.delete: not implemented");
   }
+
+  /** @throws Error — not implemented. */
+  reschedule(_id: number, _newSlotId: number): Promise<TAppointmentResponse> {
+    throw new Error(
+      "AppointmentGraphqlService.reschedule: not yet implemented. Set FHIR_TRANSPORT=rest.",
+    );
+  }
 }

@@ -21,6 +21,7 @@ import {
   GetMyAppointmentsValidationSchema,
   GetByIdAppointmentValidationSchema,
   DeleteAppointmentValidationSchema,
+  RescheduleAppointmentValidationSchema,
 } from "./input";
 
 /** Action schema for the simplified booking endpoint (POST /appointments/book). */
@@ -68,3 +69,13 @@ export const DeleteAppointmentActionSchema = z.object({
   transportOptions: TransportOptionsSchema.optional(),
 });
 export type TDeleteAppointmentAction = z.infer<typeof DeleteAppointmentActionSchema>;
+
+/**
+ * Action schema for POST /appointments/{id}/reschedule.
+ * Atomically swaps the appointment's slot — frees old, books new, updates start/end.
+ */
+export const RescheduleAppointmentActionSchema = z.object({
+  payload: RescheduleAppointmentValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TRescheduleAppointmentAction = z.infer<typeof RescheduleAppointmentActionSchema>;

@@ -26,6 +26,7 @@ import {
   GetAppointmentByIdActionSchema,
   UpdateAppointmentActionSchema,
   DeleteAppointmentActionSchema,
+  RescheduleAppointmentActionSchema,
   type TBookAppointmentAction,
   type TCreateAppointmentAction,
   type TGetMyAppointmentsAction,
@@ -33,6 +34,7 @@ import {
   type TGetAppointmentByIdAction,
   type TUpdateAppointmentAction,
   type TDeleteAppointmentAction,
+  type TRescheduleAppointmentAction,
 } from "@/modules/entities/schemas/appointment";
 import {
   bookAppointmentController,
@@ -42,12 +44,14 @@ import {
   getAppointmentByIdController,
   updateAppointmentController,
   deleteAppointmentController,
+  rescheduleAppointmentController,
   type TBookAppointmentControllerOutput,
   type TCreateAppointmentControllerOutput,
   type TGetMyAppointmentsControllerOutput,
   type TListAppointmentsControllerOutput,
   type TGetAppointmentByIdControllerOutput,
   type TUpdateAppointmentControllerOutput,
+  type TRescheduleAppointmentControllerOutput,
 } from "@/modules/server/core/appointment/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
@@ -140,5 +144,19 @@ export const deleteAppointmentAction = authenticatedProcedure
     return await runWithTransport<void>(async () => {
       await deleteAppointmentController(input.payload);
       return { result: undefined, transport: input.transportOptions };
+    });
+  });
+
+/**
+ * Atomically reschedules an Appointment to a new free Slot.
+ * Backend frees old slot, updates appointment start/end, marks new slot busy.
+ */
+export const rescheduleAppointmentAction = authenticatedProcedure
+  .createServerAction()
+  .input(RescheduleAppointmentActionSchema, { skipInputParsing: true })
+  .handler(async ({ input }: { input: TRescheduleAppointmentAction }) => {
+    return await runWithTransport<TRescheduleAppointmentControllerOutput>(async () => {
+      const data = await rescheduleAppointmentController(input.payload);
+      return { result: data, transport: input.transportOptions };
     });
   });
