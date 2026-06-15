@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 import { BookAppointmentModal } from "../modals/appointments/BookAppointmentModal";
 import { CancelAppointmentModal } from "../modals/appointments/CancelAppointmentModal";
+import { RescheduleAppointmentModal } from "../modals/appointments/RescheduleAppointmentModal";
 
 /**
  * Renders all patient modals as client-only singletons.
@@ -40,6 +41,7 @@ export function PatientModalProvider() {
     <>
       <BookAppointmentModal />
       <CancelAppointmentModal />
+      <RescheduleAppointmentModal />
     </>
   );
 }

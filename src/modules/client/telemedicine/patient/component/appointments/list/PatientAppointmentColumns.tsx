@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { Eye, XCircle, User } from "lucide-react";
+import { Eye, XCircle, CalendarClock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -147,6 +147,8 @@ export interface PatientAppointmentColumnCallbacks {
   onView: (row: TAppointmentResponse) => void;
   /** Called when the patient requests to cancel a booked or pending appointment. */
   onCancel: (row: TAppointmentResponse) => void;
+  /** Called when the patient requests to reschedule a pending or booked appointment. */
+  onReschedule: (row: TAppointmentResponse) => void;
 }
 
 /**
@@ -278,8 +280,18 @@ export function createPatientAppointmentColumns(
       cell: ({ row }) => {
         const status = row.original.status;
         const canCancel = status === "booked" || status === "pending";
+        const canReschedule = status === "pending" || status === "booked";
 
         const actions: RowAction<TAppointmentResponse>[] = [
+          ...(canReschedule
+            ? [
+                {
+                  label: "Reschedule",
+                  icon: CalendarClock,
+                  onClick: () => callbacks.onReschedule(row.original),
+                },
+              ]
+            : []),
           ...(canCancel
             ? [
                 {

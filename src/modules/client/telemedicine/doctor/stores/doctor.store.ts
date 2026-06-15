@@ -16,7 +16,8 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 /** All modal identifiers for the telemedicine doctor section. */
 export type DoctorModalType =
   | "confirmAppointment"
-  | "cancelAppointment";
+  | "cancelAppointment"
+  | "rescheduleAppointment";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 

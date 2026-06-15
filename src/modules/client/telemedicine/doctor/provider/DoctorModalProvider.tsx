@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 import { ConfirmAppointmentModal } from "../modals/appointments/ConfirmAppointmentModal";
 import { CancelAppointmentModal } from "../modals/appointments/CancelAppointmentModal";
+import { RescheduleAppointmentModal } from "../modals/appointments/RescheduleAppointmentModal";
 
 /**
  * Renders all doctor modals as client-only singletons.
@@ -40,6 +41,7 @@ export function DoctorModalProvider() {
     <>
       <ConfirmAppointmentModal />
       <CancelAppointmentModal />
+      <RescheduleAppointmentModal />
     </>
   );
 }

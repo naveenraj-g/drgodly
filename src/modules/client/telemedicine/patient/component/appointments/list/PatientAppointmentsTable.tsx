@@ -98,6 +98,11 @@ export function PatientAppointmentsTable({
             type: "cancelAppointment",
             data: { appointment: row },
           }),
+        onReschedule: (row) =>
+          patientStore.getState().onOpen({
+            type: "rescheduleAppointment",
+            data: { appointment: row },
+          }),
       }),
     [router, viewHref],
   );
