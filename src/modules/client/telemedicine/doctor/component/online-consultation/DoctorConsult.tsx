@@ -8,7 +8,8 @@
  *      → receives { soap_report, assessment_plan, generated_at }
  *   2. Calls completeConsultationAction to write transcript + reports to the DB
  *      and flip consultation status to COMPLETED
- *   3. Redirects to the doctor's appointment detail page
+ *   3. Creates a FHIR Encounter (fire-and-forget) linking the appointment
+ *   4. Redirects to the post-consultation review page (/{appointmentId}/review)
  *
  * Props come from the server page which resolves the Consultation by
  * fhir_appointment_id and fetches the doctor/patient display names.
@@ -30,6 +31,7 @@ import {
 import { ConsultationNotes } from "./ConsultationNotes";
 import { Suggestion } from "./Suggestion";
 import { completeConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
+import { createEncounterAction } from "@/modules/server/presentation/actions/encounter/core.actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,10 @@ interface DoctorConsultProps {
   participantName: string;
   /** Doctor and patient names shown in the header bar. */
   details: ConsultationDetails;
+  /** FHIR patient integer ID — used as subject on the created Encounter. */
+  patientId?: number;
+  /** FHIR practitioner integer ID — used as participant on the created Encounter. */
+  practitionerId?: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -80,6 +86,8 @@ export function DoctorConsult({
   fhirAppointmentId,
   participantName,
   details,
+  patientId,
+  practitionerId,
 }: DoctorConsultProps) {
   const router = useRouter();
   const [token, setToken] = useState("");
@@ -224,9 +232,27 @@ export function DoctorConsult({
       toast.success("Consultation completed");
     }
 
+    /* Create the FHIR Encounter linking this consultation to clinical resources.
+       Awaited so the encounter exists in FHIR before the review page renders. */
+    try {
+      await createEncounterAction({
+        payload: {
+          status: "completed",
+          ...(patientId ? { subject: `Patient/${patientId}` } : {}),
+          actual_period_end: new Date().toISOString(),
+          appointment: [{ reference: `Appointment/${fhirAppointmentId}` }],
+          ...(practitionerId
+            ? { participant: [{ reference: `Practitioner/${practitionerId}` }] }
+            : {}),
+        },
+      });
+    } catch {
+      /* Non-fatal — review page will handle missing encounter gracefully. */
+    }
+
     setIsCompleting(false);
     router.push(
-      `/bezs/telemedicine/doctor/appointments/${fhirAppointmentId}`,
+      `/bezs/telemedicine/doctor/appointments/${fhirAppointmentId}/review`,
     );
   };
 

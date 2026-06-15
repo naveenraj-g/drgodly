@@ -27,13 +27,23 @@ import { DoctorConsult } from "@/modules/client/telemedicine/doctor/component/on
 import { Card, CardContent } from "@/components/ui/card";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 
-/** Derives the first participant with the given FHIR reference_type. */
+/** Derives the display name of the first participant matching the given FHIR reference_type. */
 function getParticipantName(
   appointment: TAppointmentResponse,
   type: "Practitioner" | "Patient",
 ): string | undefined {
   return appointment.participant?.find((p) => p.reference_type === type)
     ?.reference_display ?? undefined;
+}
+
+/** Derives the integer FHIR resource ID of the first matching participant. */
+function getParticipantId(
+  appointment: TAppointmentResponse,
+  type: "Practitioner" | "Patient",
+): number | undefined {
+  const id = appointment.participant?.find((p) => p.reference_type === type)
+    ?.reference_id;
+  return id ?? undefined;
 }
 
 /** Derives specialty from the first specialty coding. */
@@ -90,6 +100,8 @@ export default async function DoctorOnlineConsultationPage({ searchParams }: Pag
   const doctorName = getParticipantName(appointment, "Practitioner");
   const patientName = getParticipantName(appointment, "Patient");
   const specialty = getSpecialty(appointment);
+  const patientId = getParticipantId(appointment, "Patient");
+  const practitionerId = getParticipantId(appointment, "Practitioner");
 
   return (
     <div className="h-full">
@@ -101,6 +113,8 @@ export default async function DoctorOnlineConsultationPage({ searchParams }: Pag
           doctor: { name: doctorName ?? session.user.name, speciality: specialty },
           patient: { name: patientName },
         }}
+        patientId={patientId}
+        practitionerId={practitionerId}
       />
     </div>
   );
