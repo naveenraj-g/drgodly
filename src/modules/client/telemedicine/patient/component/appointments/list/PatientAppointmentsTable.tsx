@@ -103,6 +103,10 @@ export function PatientAppointmentsTable({
             type: "rescheduleAppointment",
             data: { appointment: row },
           }),
+        // Navigates to the virtual consultation room for this appointment.
+        // The page reads ?appointmentId to fetch the LiveKit room_id.
+        onConsult: (row) =>
+          router.push(`${viewHref}/online-consultation?appointmentId=${row.id}`),
       }),
     [router, viewHref],
   );

@@ -212,8 +212,12 @@ export function RescheduleAppointmentModal() {
   const { execute, isPending } = useServerAction(rescheduleAppointmentAction, {
     onSuccess: () => {
       toast.success("Appointment rescheduled successfully");
-      /** Invalidate all patient appointment queries so the table refreshes. */
+      // Refresh the appointment table so the updated time is visible.
       void queryClient.invalidateQueries({ queryKey: patientAppointmentKeys.all });
+      // Bust slot cache — the old slot is now free and the new one is busy;
+      // stale "free" data would show the booked slot again on next open.
+      void queryClient.invalidateQueries({ queryKey: ["reschedule-slots"] });
+      void queryClient.invalidateQueries({ queryKey: ["reschedule-role"] });
       onClose();
     },
     onError: ({ err }) => {
@@ -259,16 +263,28 @@ export function RescheduleAppointmentModal() {
           <span className="text-foreground text-sm font-semibold">{doctorName}</span>
         </div>
 
-        {/* Loading skeleton while fetching role + slots */}
+        {/* Loading skeleton — mirrors the DateScroller + slot grid layout */}
         {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-20 w-full rounded-xl" />
-            <div className="grid grid-cols-3 gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-9 w-full rounded-md" />
-              ))}
+          <Card className="space-y-6 p-4">
+            {/* Date scroller skeleton */}
+            <div>
+              <Skeleton className="h-4 w-32 mb-4 rounded" />
+              <div className="flex gap-2 overflow-hidden">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-14 w-12 rounded-lg shrink-0" />
+                ))}
+              </div>
             </div>
-          </div>
+            {/* Time slot grid skeleton */}
+            <div>
+              <Skeleton className="h-4 w-28 mb-4 rounded" />
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-md" />
+                ))}
+              </div>
+            </div>
+          </Card>
         ) : (
           <Card className="space-y-6 p-4">
             {/* Date Scroller */}

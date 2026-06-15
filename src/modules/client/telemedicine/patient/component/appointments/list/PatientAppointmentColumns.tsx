@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { Eye, XCircle, CalendarClock, User } from "lucide-react";
+import { Eye, XCircle, CalendarClock, User, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -149,6 +149,8 @@ export interface PatientAppointmentColumnCallbacks {
   onCancel: (row: TAppointmentResponse) => void;
   /** Called when the patient requests to reschedule a pending or booked appointment. */
   onReschedule: (row: TAppointmentResponse) => void;
+  /** Called when the patient joins the virtual consultation room for a booked appointment. */
+  onConsult: (row: TAppointmentResponse) => void;
 }
 
 /**
@@ -280,6 +282,7 @@ export function createPatientAppointmentColumns(
       cell: ({ row }) => {
         const status = row.original.status;
         const canCancel = status === "booked" || status === "pending";
+        const isBooked = status === "booked";
         // Only slot-booked appointments have a slot reference; AI intake appointments do not
         // and the backend will reject the reschedule with 422 if no slot array exists.
         const canReschedule =
@@ -319,6 +322,18 @@ export function createPatientAppointmentColumns(
               <Eye className="size-3 mr-1" />
               View
             </Button>
+            {/* Consult Online — only for booked appointments with a virtual consultation room */}
+            {isBooked && (
+              <Button
+                size="sm"
+                variant="default"
+                className="h-7 px-2 text-xs"
+                onClick={() => callbacks.onConsult(row.original)}
+              >
+                <Video className="size-3 mr-1" />
+                Consult Online
+              </Button>
+            )}
             {/* Three-dot menu — only when status-dependent actions exist */}
             {actions.length > 0 && (
               <DataTableRowActions row={row} actions={actions} />

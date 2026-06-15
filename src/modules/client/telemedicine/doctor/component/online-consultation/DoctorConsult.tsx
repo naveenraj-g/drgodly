@@ -27,6 +27,8 @@ import {
   TranscriptionPanel,
   type TranscriptLine,
 } from "@/modules/client/telemedicine/shared/components/online-consultation/TranscriptionPanel";
+import { ConsultationNotes } from "./ConsultationNotes";
+import { Suggestion } from "./Suggestion";
 import { completeConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -86,9 +88,13 @@ export function DoctorConsult({
   const [showTranscript, setShowTranscript] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [notes, setNotes] = useState("");
 
-  // Refs so the onLeave handler always reads latest values without stale closures
+  // Refs so the end-call handler always reads latest values without stale closures
   const transcriptsRef = useRef<TranscriptLine[]>([]);
+  // Synced on every render — no useEffect needed for a simple value ref
+  const notesRef = useRef("");
+  notesRef.current = notes;
 
   // Fetch LiveKit JWT for this participant
   useEffect(() => {
@@ -161,6 +167,7 @@ export function DoctorConsult({
     setIsCompleting(true);
 
     const currentTranscripts = transcriptsRef.current;
+    const currentNotes = notesRef.current;
 
     // Build a text conversation array for the AI agent
     const conversation = currentTranscripts
@@ -169,6 +176,10 @@ export function DoctorConsult({
         const role = t.name.toLowerCase().includes("doctor") ? "DOCTOR" : "PATIENT";
         return `${role}: ${t.text.trim()}`;
       });
+    // Append doctor notes so the report agent has full context
+    if (currentNotes.trim()) {
+      conversation.push(`DOCTOR NOTES: ${currentNotes.trim()}`);
+    }
 
     // Map transcript lines to the consultation storage shape
     const virtualConversation = currentTranscripts.map((t) => ({
@@ -318,12 +329,16 @@ export function DoctorConsult({
 
         {/* ── Body ── */}
         <div className="flex flex-1 gap-2 min-h-0">
-          <div className="flex-1 min-h-0 h-full">
+          {/* Left: video room + doctor notes */}
+          <div className="flex flex-col flex-1 min-h-0 gap-2 overflow-hidden">
             <RoomControlUI />
+            <ConsultationNotes notes={notes} onNotesChange={setNotes} />
           </div>
 
-          {showTranscript && (
-            <aside className="w-[400px] flex flex-col gap-2 min-h-0 overflow-hidden">
+          {/* Right sidebar: AI suggestions (always visible) + optional transcript */}
+          <aside className="w-[400px] flex flex-col gap-2 min-h-0 overflow-hidden">
+            <Suggestion transcripts={transcripts} notes={notes} />
+            {showTranscript && (
               <div className="flex-1 min-h-0 overflow-auto">
                 <TranscriptionPanel
                   roomId={roomId}
@@ -331,8 +346,8 @@ export function DoctorConsult({
                   onTranscript={handleTranscript}
                 />
               </div>
-            </aside>
-          )}
+            )}
+          </aside>
         </div>
       </div>
     </LiveKitRoom>

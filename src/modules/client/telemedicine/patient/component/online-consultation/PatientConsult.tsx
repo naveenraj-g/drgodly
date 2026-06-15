@@ -54,7 +54,9 @@ interface PatientConsultProps {
  */
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
+  const m = Math.floor((seconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
   return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
 }
@@ -110,7 +112,9 @@ export function PatientConsult({
         const data = await res.json();
         setLivekitUrl(data.livekitUrl);
       } catch {
-        toast.error("Failed to connect", { description: "Please try again later." });
+        toast.error("Failed to connect", {
+          description: "Please try again later.",
+        });
       }
     })();
   }, []);
@@ -124,8 +128,7 @@ export function PatientConsult({
 
   // Stable callback ref so TranscriptionPanel doesn't re-subscribe on re-renders
   const onTranscriptRef = useRef<(line: TranscriptLine) => void>(() => {});
-  onTranscriptRef.current = (line) =>
-    setTranscripts((prev) => [...prev, line]);
+  onTranscriptRef.current = (line) => setTranscripts((prev) => [...prev, line]);
   const handleTranscript = useRef((line: TranscriptLine) =>
     onTranscriptRef.current(line),
   ).current;
