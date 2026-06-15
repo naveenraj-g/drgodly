@@ -280,7 +280,11 @@ export function createPatientAppointmentColumns(
       cell: ({ row }) => {
         const status = row.original.status;
         const canCancel = status === "booked" || status === "pending";
-        const canReschedule = status === "pending" || status === "booked";
+        // Only slot-booked appointments have a slot reference; AI intake appointments do not
+        // and the backend will reject the reschedule with 422 if no slot array exists.
+        const canReschedule =
+          (status === "pending" || status === "booked") &&
+          !!row.original.slot?.length;
 
         const actions: RowAction<TAppointmentResponse>[] = [
           ...(canReschedule
