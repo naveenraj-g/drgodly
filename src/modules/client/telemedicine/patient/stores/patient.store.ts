@@ -18,8 +18,7 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 /** All modal identifiers for the telemedicine patient section. */
 export type PatientModalType =
   | "bookAppointment"
-  | "cancelAppointment"
-  | "deleteAppointment";
+  | "cancelAppointment";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -32,7 +31,7 @@ export interface PatientModalData {
   bookHref?: string;
   /** Localised href for the intake chooser. */
   intakeHref?: string;
-  /** Target appointment row — used by cancel and delete modals. */
+  /** Target appointment row — used by the cancel modal. */
   appointment?: TAppointmentResponse;
 }
 

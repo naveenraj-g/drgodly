@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { CheckCircle2, Eye, XCircle, Trash2, User } from "lucide-react";
+import { CheckCircle2, Eye, XCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -108,8 +108,12 @@ const STATUS_CLASS: Record<string, string> = {
  * @param status - FHIR appointment status string (may be null).
  * @returns Rendered Badge element.
  */
-function AppointmentStatusBadge({ status }: { status: string | null | undefined }) {
-  const label = STATUS_LABEL[status ?? ""] ?? (status ?? "Unknown");
+function AppointmentStatusBadge({
+  status,
+}: {
+  status: string | null | undefined;
+}) {
+  const label = STATUS_LABEL[status ?? ""] ?? status ?? "Unknown";
   const className = STATUS_CLASS[status ?? ""] ?? "";
   return (
     <Badge variant="outline" className={className}>
@@ -128,8 +132,6 @@ export interface DoctorAppointmentColumnCallbacks {
   onConfirm: (row: TAppointmentResponse) => void;
   /** Called when the practitioner cancels a booked or pending appointment. */
   onCancel: (row: TAppointmentResponse) => void;
-  /** Called when the practitioner deletes a closed appointment record. */
-  onDelete: (row: TAppointmentResponse) => void;
 }
 
 /**
@@ -152,7 +154,7 @@ export function createDoctorAppointmentColumns(
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <User className="size-3.5 text-muted-foreground shrink-0" />
-          <span className="font-medium truncate max-w-[160px]">
+          <span className="font-medium truncate max-w-40">
             {row.original.subject_display ?? "—"}
           </span>
         </div>
@@ -192,7 +194,9 @@ export function createDoctorAppointmentColumns(
         <DataTableColumnHeader column={column} label="Date" />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums text-sm">{formatDate(row.original.start)}</span>
+        <span className="tabular-nums text-sm">
+          {formatDate(row.original.start)}
+        </span>
       ),
       meta: { label: "Date" },
     },
@@ -205,7 +209,9 @@ export function createDoctorAppointmentColumns(
         <DataTableColumnHeader column={column} label="Time" />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums text-sm">{formatTime(row.original.start)}</span>
+        <span className="tabular-nums text-sm">
+          {formatTime(row.original.start)}
+        </span>
       ),
       meta: { label: "Time" },
     },
@@ -255,13 +261,12 @@ export function createDoctorAppointmentColumns(
         const status = row.original.status;
         const canConfirm = status === "pending";
         const canCancel = status === "booked" || status === "pending";
-        const canDelete = status === "cancelled" || status === "fulfilled";
 
         const actions: RowAction<TAppointmentResponse>[] = [
           ...(canConfirm
             ? [
                 {
-                  label: "Confirm Appointment",
+                  label: "Confirm",
                   icon: CheckCircle2,
                   onClick: () => callbacks.onConfirm(row.original),
                 },
@@ -270,18 +275,9 @@ export function createDoctorAppointmentColumns(
           ...(canCancel
             ? [
                 {
-                  label: "Cancel Appointment",
+                  label: "Cancel",
                   icon: XCircle,
                   onClick: () => callbacks.onCancel(row.original),
-                },
-              ]
-            : []),
-          ...(canDelete
-            ? [
-                {
-                  label: "Delete",
-                  icon: Trash2,
-                  onClick: () => callbacks.onDelete(row.original),
                 },
               ]
             : []),

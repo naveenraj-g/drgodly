@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { Eye, XCircle, Trash2, User } from "lucide-react";
+import { Eye, XCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -147,8 +147,6 @@ export interface PatientAppointmentColumnCallbacks {
   onView: (row: TAppointmentResponse) => void;
   /** Called when the patient requests to cancel a booked or pending appointment. */
   onCancel: (row: TAppointmentResponse) => void;
-  /** Called when the patient requests to permanently delete a closed appointment. */
-  onDelete: (row: TAppointmentResponse) => void;
 }
 
 /**
@@ -174,7 +172,7 @@ export function createPatientAppointmentColumns(
       cell: ({ row }) => (
         <div className="flex items-center gap-1.5">
           <User className="size-3.5 text-muted-foreground shrink-0" />
-          <span className="font-medium truncate max-w-[160px]">
+          <span className="font-medium truncate max-w-40">
             {getDoctorName(row.original.participant)}
           </span>
         </div>
@@ -280,7 +278,6 @@ export function createPatientAppointmentColumns(
       cell: ({ row }) => {
         const status = row.original.status;
         const canCancel = status === "booked" || status === "pending";
-        const canDelete = status === "cancelled" || status === "fulfilled";
 
         const actions: RowAction<TAppointmentResponse>[] = [
           ...(canCancel
@@ -289,15 +286,6 @@ export function createPatientAppointmentColumns(
                   label: "Cancel",
                   icon: XCircle,
                   onClick: () => callbacks.onCancel(row.original),
-                },
-              ]
-            : []),
-          ...(canDelete
-            ? [
-                {
-                  label: "Delete",
-                  icon: Trash2,
-                  onClick: () => callbacks.onDelete(row.original),
                 },
               ]
             : []),

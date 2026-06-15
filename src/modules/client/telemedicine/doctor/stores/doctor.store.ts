@@ -16,8 +16,7 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 /** All modal identifiers for the telemedicine doctor section. */
 export type DoctorModalType =
   | "confirmAppointment"
-  | "cancelAppointment"
-  | "deleteAppointment";
+  | "cancelAppointment";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -26,7 +25,7 @@ export type DoctorModalType =
  * Each modal reads only the fields it needs.
  */
 export interface DoctorModalData {
-  /** Target appointment row — used by confirm, cancel, and delete modals. */
+  /** Target appointment row — used by confirm and cancel modals. */
   appointment?: TAppointmentResponse;
 }
 

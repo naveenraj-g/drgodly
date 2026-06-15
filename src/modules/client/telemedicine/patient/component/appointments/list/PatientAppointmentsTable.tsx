@@ -98,11 +98,6 @@ export function PatientAppointmentsTable({
             type: "cancelAppointment",
             data: { appointment: row },
           }),
-        onDelete: (row) =>
-          patientStore.getState().onOpen({
-            type: "deleteAppointment",
-            data: { appointment: row },
-          }),
       }),
     [router, viewHref],
   );
