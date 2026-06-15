@@ -1,14 +1,12 @@
 /**
- * getMyPractitionerController — validates userId input and invokes the getMe use case.
+ * getMyPractitionerController — invokes the getMe use case for the authenticated caller.
  *
  * Layer: server / core / practitioner / interface-adapters / controllers
+ *
+ * No input parsing — userId is resolved from the JWT by fhir-gql GET /practitioners/me.
  */
 
-import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
-import {
-  GetMyPractitionerValidationSchema,
-  type TPractitionerResponse,
-} from "@/modules/entities/schemas/practitioner";
+import { type TPractitionerResponse } from "@/modules/entities/schemas/practitioner";
 import { getMyPractitionerUseCase } from "../../application/usecases/getMyPractitioner.usecase";
 
 function presenter(data: TPractitionerResponse) {
@@ -18,17 +16,11 @@ function presenter(data: TPractitionerResponse) {
 export type TGetMyPractitionerControllerOutput = ReturnType<typeof presenter>;
 
 /**
- * Parses { userId } from the input and resolves the Practitioner for that user.
+ * Delegates to getMyPractitionerUseCase — no input validation needed.
  *
- * @param input - Raw unknown value containing { userId: string }.
- * @returns The Practitioner resource linked to the given user.
- * @throws InputParseError on schema validation failure.
+ * @returns The Practitioner resource for the authenticated user.
  */
-export async function getMyPractitionerController(
-  input: unknown,
-): Promise<TGetMyPractitionerControllerOutput> {
-  const parsed = await GetMyPractitionerValidationSchema.safeParseAsync(input);
-  if (!parsed.success) throw new InputParseError(parsed.error);
-  const data = await getMyPractitionerUseCase(parsed.data.userId);
+export async function getMyPractitionerController(): Promise<TGetMyPractitionerControllerOutput> {
+  const data = await getMyPractitionerUseCase();
   return presenter(data);
 }

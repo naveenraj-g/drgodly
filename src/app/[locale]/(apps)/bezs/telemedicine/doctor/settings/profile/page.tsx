@@ -21,15 +21,10 @@ import type { TPractitionerResponse } from "@/modules/entities/schemas/practitio
  * Calls getMyPractitionerAction and returns the practitioner or null on 404.
  * Re-throws any unexpected errors so the error boundary handles them.
  *
- * @param userId - Auth user ID used to look up the linked Practitioner.
  * @returns The practitioner record or null (no record exists yet).
  */
-async function fetchPractitionerOrNull(
-  userId: string,
-): Promise<TPractitionerResponse | null> {
-  const [data, err] = await getMyPractitionerAction({
-    payload: { userId },
-  });
+async function fetchPractitionerOrNull(): Promise<TPractitionerResponse | null> {
+  const [data, err] = await getMyPractitionerAction();
   if (err) {
     // NOT_FOUND means first-time setup — render the form in create mode.
     if (err.code === "NOT_FOUND") return null;
@@ -47,7 +42,7 @@ async function DoctorProfilePage() {
     return null;
   }
 
-  const practitioner = await fetchPractitionerOrNull(session.user.id);
+  const practitioner = await fetchPractitionerOrNull();
 
   return (
     <DoctorProfileForm

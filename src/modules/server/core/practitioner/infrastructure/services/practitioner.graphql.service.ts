@@ -62,7 +62,7 @@ export class PractitionerGraphQLService implements IPractitionersService {
   async list(_query?: TListPractitionersQuery): Promise<TPaginatedPractitionerResponse> {
     throw new Error("PractitionerGraphQLService.list is not yet implemented.");
   }
-  async getMe(_userId: string): Promise<TPractitionerResponse> {
+  async getMe(): Promise<TPractitionerResponse> {
     throw new Error("PractitionerGraphQLService.getMe is not yet implemented.");
   }
   async getById(_id: number): Promise<TPractitionerResponse> {

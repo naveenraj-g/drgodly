@@ -94,13 +94,12 @@ export interface IPractitionersService {
   list(query?: TListPractitionersQuery): Promise<TPaginatedPractitionerResponse>;
 
   /**
-   * Resolves the Practitioner record linked to the given user ID.
-   * Internally calls list with user_id=userId and re-fetches the full record.
-   * @param userId - Auth user sub/ID (UUID string).
-   * @returns The matching Practitioner resource.
-   * @throws NotFoundError when no Practitioner is linked to this user.
+   * Fetches the Practitioner record for the authenticated caller via GET /practitioners/me.
+   * The JWT sub is used server-side — no userId is needed from the client.
+   * @returns The caller's Practitioner resource.
+   * @throws NotFoundError when no Practitioner is linked to the caller's JWT.
    */
-  getMe(userId: string): Promise<TPractitionerResponse>;
+  getMe(): Promise<TPractitionerResponse>;
 
   /**
    * Fetches a single Practitioner by numeric ID.

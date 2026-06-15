@@ -11,7 +11,6 @@
 import { randomUUID } from "crypto";
 import axios, { AxiosInstance } from "axios";
 import { logOperation } from "@/modules/server/config/logger/log-operation";
-import { NotFoundError } from "@/modules/server/shared/errors/commonErrors";
 import {
   PractitionerResponseSchema,
   PaginatedPractitionerResponseSchema,
@@ -188,32 +187,22 @@ export class PractitionerCoreRestService {
   }
 
   /**
-   * Resolves the Practitioner linked to a user ID by listing with user_id filter.
-   * Mirrors fhir-gql get_me: list(user_id=sub, limit=1) → getById(data[0].id).
-   * @param userId - Auth user sub (UUID string).
-   * @returns The matching Practitioner.
-   * @throws NotFoundError when no Practitioner is linked to this user.
+   * GET /practitioners/me — resolves the caller's own Practitioner via JWT sub.
+   * No userId needed; fhir-gql reads actor.sub from the Bearer token.
+   * @returns The caller's Practitioner resource.
+   * @throws NotFoundError when no Practitioner is linked to the caller's JWT.
    */
-  async getMe(userId: string): Promise<TPractitionerResponse> {
+  async getMe(): Promise<TPractitionerResponse> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
     logOperation("start", {
       name: "PractitionerCoreRestService.getMe",
       startTimeMs,
-      context: { operationId, userId },
+      context: { operationId },
     });
     try {
-      const listResult = await this.list({
-        user_id: userId,
-        limit: 1,
-        offset: 0,
-      });
-      if (!listResult.data.length) {
-        throw new NotFoundError(
-          `No Practitioner record found for user ${userId}.`,
-        );
-      }
-      const data = await this.getById(listResult.data[0].id);
+      const res = await this.client.get<unknown>("/me");
+      const data = await PractitionerResponseSchema.parseAsync(res.data);
       logOperation("success", {
         name: "PractitionerCoreRestService.getMe",
         startTimeMs,

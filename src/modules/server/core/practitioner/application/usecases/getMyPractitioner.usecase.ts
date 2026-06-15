@@ -11,15 +11,12 @@ import { getInjection } from "@/modules/server/di/container";
 import { type TPractitionerResponse } from "@/modules/entities/schemas/practitioner";
 
 /**
- * Fetches the Practitioner record linked to the given user ID.
+ * Fetches the Practitioner record for the authenticated caller via JWT sub.
  *
- * @param userId - Auth user sub/UUID from the authenticated session.
- * @returns The matching Practitioner resource.
- * @throws NotFoundError when no Practitioner is linked to this user.
+ * @returns The caller's Practitioner resource.
+ * @throws NotFoundError when no Practitioner is linked to the caller's JWT.
  */
-export async function getMyPractitionerUseCase(
-  userId: string,
-): Promise<TPractitionerResponse> {
+export async function getMyPractitionerUseCase(): Promise<TPractitionerResponse> {
   const service = getInjection("IPractitionersService");
-  return service.getMe(userId);
+  return service.getMe();
 }

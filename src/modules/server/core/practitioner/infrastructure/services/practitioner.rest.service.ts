@@ -127,8 +127,8 @@ export class PractitionerRestApiService implements IPractitionersService {
     return this.core.list(query);
   }
   /** @inheritdoc */
-  getMe(userId: string): Promise<TPractitionerResponse> {
-    return this.core.getMe(userId);
+  getMe(): Promise<TPractitionerResponse> {
+    return this.core.getMe();
   }
   /** @inheritdoc */
   getById(id: number): Promise<TPractitionerResponse> {

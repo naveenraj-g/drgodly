@@ -15,7 +15,6 @@ import {
   CreatePractitionerActionSchema,
   CreatePractitionerFullActionSchema,
   DeletePractitionerActionSchema,
-  GetMyPractitionerActionSchema,
   GetPractitionerByIdActionSchema,
   ListPractitionersActionSchema,
   UpdatePractitionerActionSchema,
@@ -23,7 +22,6 @@ import {
   type TCreatePractitionerAction,
   type TCreatePractitionerFullAction,
   type TDeletePractitionerAction,
-  type TGetMyPractitionerAction,
   type TGetPractitionerByIdAction,
   type TListPractitionersAction,
   type TUpdatePractitionerAction,
@@ -102,16 +100,15 @@ export const listPractitionersAction = authenticatedProcedure
   });
 
 /**
- * Fetches the Practitioner record linked to the given userId.
- * The client passes the authenticated user's ID from their session.
+ * Fetches the Practitioner record linked to the currently authenticated user.
+ * No input required — userId is resolved from the session.
  */
 export const getMyPractitionerAction = authenticatedProcedure
   .createServerAction()
-  .input(GetMyPractitionerActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TGetMyPractitionerAction }) => {
+  .handler(async () => {
     return await runWithTransport<TGetMyPractitionerControllerOutput>(
       async () => {
-        const data = await getMyPractitionerController(input.payload);
+        const data = await getMyPractitionerController();
         return { result: data };
       },
     );
