@@ -8,3 +8,8 @@ export * from "./slot/slot.module";
 export * from "./appointment/appointment.module";
 export * from "./intake/intake.module";
 export * from "./consultation/consultation.module";
+export * from "./encounter/encounter.module";
+export * from "./service-request/service-request.module";
+export * from "./medication-request/medication-request.module";
+export * from "./observation/observation.module";
+export * from "./condition/condition.module";

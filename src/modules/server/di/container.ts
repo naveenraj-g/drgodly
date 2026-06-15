@@ -11,6 +11,11 @@ import {
   registerAppointmentModule,
   registerIntakeModule,
   registerConsultationModule,
+  registerEncounterModule,
+  registerServiceRequestModule,
+  registerMedicationRequestModule,
+  registerObservationModule,
+  registerConditionModule,
 } from "./modules";
 
 const ApplicationContainer = createContainer();
@@ -25,6 +30,11 @@ registerSlotModule(ApplicationContainer);
 registerAppointmentModule(ApplicationContainer);
 registerIntakeModule(ApplicationContainer);
 registerConsultationModule(ApplicationContainer);
+registerEncounterModule(ApplicationContainer);
+registerServiceRequestModule(ApplicationContainer);
+registerMedicationRequestModule(ApplicationContainer);
+registerObservationModule(ApplicationContainer);
+registerConditionModule(ApplicationContainer);
 
 export const getInjection = <K extends keyof typeof DI_SYMBOLS>(
   symbol: K,

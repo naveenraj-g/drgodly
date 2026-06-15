@@ -8,6 +8,11 @@ import { ISlotService } from "../core/slot/domain/interfaces/slot.service.interf
 import { IAppointmentService } from "../core/appointment/domain/interfaces/appointment.service.interface";
 import { IIntakeRepository } from "../core/intake/domain/interfaces/intake.repository.interface";
 import { IConsultationRepository } from "../core/consultation/domain/interfaces/consultation.repository.interface";
+import { IEncounterService } from "../core/encounter/domain/interfaces/encounter.service.interface";
+import { IServiceRequestService } from "../core/service-request/domain/interfaces/service-request.service.interface";
+import { IMedicationRequestService } from "../core/medication-request/domain/interfaces/medication-request.service.interface";
+import { IObservationService } from "../core/observation/domain/interfaces/observation.service.interface";
+import { IConditionService } from "../core/condition/domain/interfaces/condition.service.interface";
 
 export const DI_SYMBOLS = {
   IPatientsService: Symbol.for("IPatientsService"),
@@ -20,6 +25,11 @@ export const DI_SYMBOLS = {
   IAppointmentService: Symbol.for("IAppointmentService"),
   IIntakeRepository: Symbol.for("IIntakeRepository"),
   IConsultationRepository: Symbol.for("IConsultationRepository"),
+  IEncounterService: Symbol.for("IEncounterService"),
+  IServiceRequestService: Symbol.for("IServiceRequestService"),
+  IMedicationRequestService: Symbol.for("IMedicationRequestService"),
+  IObservationService: Symbol.for("IObservationService"),
+  IConditionService: Symbol.for("IConditionService"),
 };
 
 export interface DI_RETURN_TYPES {
@@ -33,4 +43,9 @@ export interface DI_RETURN_TYPES {
   IAppointmentService: IAppointmentService;
   IIntakeRepository: IIntakeRepository;
   IConsultationRepository: IConsultationRepository;
+  IEncounterService: IEncounterService;
+  IServiceRequestService: IServiceRequestService;
+  IMedicationRequestService: IMedicationRequestService;
+  IObservationService: IObservationService;
+  IConditionService: IConditionService;
 }
