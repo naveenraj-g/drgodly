@@ -32,6 +32,7 @@ import { ConsultationNotes } from "./ConsultationNotes";
 import { Suggestion } from "./Suggestion";
 import { completeConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import { createEncounterAction } from "@/modules/server/presentation/actions/encounter/core.actions";
+import { updateAppointmentAction } from "@/modules/server/presentation/actions/appointment/core.actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,8 @@ interface DoctorConsultProps {
   patientId?: number;
   /** FHIR practitioner integer ID — used as participant on the created Encounter. */
   practitionerId?: number;
+  /** Active organisation ID from the session — written as org_id on the created Encounter. */
+  orgId?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,7 +68,9 @@ interface DoctorConsultProps {
  */
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
+  const m = Math.floor((seconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
   const s = (seconds % 60).toString().padStart(2, "0");
   return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
 }
@@ -88,6 +93,7 @@ export function DoctorConsult({
   details,
   patientId,
   practitionerId,
+  orgId,
 }: DoctorConsultProps) {
   const router = useRouter();
   const [token, setToken] = useState("");
@@ -181,7 +187,9 @@ export function DoctorConsult({
     const conversation = currentTranscripts
       .filter((t) => t.text?.trim())
       .map((t) => {
-        const role = t.name.toLowerCase().includes("doctor") ? "DOCTOR" : "PATIENT";
+        const role = t.name.toLowerCase().includes("doctor")
+          ? "DOCTOR"
+          : "PATIENT";
         return `${role}: ${t.text.trim()}`;
       });
     // Append doctor notes so the report agent has full context
@@ -191,9 +199,9 @@ export function DoctorConsult({
 
     // Map transcript lines to the consultation storage shape
     const virtualConversation = currentTranscripts.map((t) => ({
-      speaker: (t.name.toLowerCase().includes("doctor") ? "DOCTOR" : "PATIENT") as
-        | "DOCTOR"
-        | "PATIENT",
+      speaker: (t.name.toLowerCase().includes("doctor")
+        ? "DOCTOR"
+        : "PATIENT") as "DOCTOR" | "PATIENT",
       text: t.text,
       timestamp: t.timestamp,
     }));
@@ -232,10 +240,19 @@ export function DoctorConsult({
       toast.success("Consultation completed");
     }
 
+    /* Mark the FHIR Appointment as fulfilled now that the consultation is done. */
+    try {
+      await updateAppointmentAction({
+        payload: { id: fhirAppointmentId, status: "fulfilled" },
+      });
+    } catch {
+      /* Non-fatal — status update failure should not block the review redirect. */
+    }
+
     /* Create the FHIR Encounter linking this consultation to clinical resources.
        Awaited so the encounter exists in FHIR before the review page renders. */
     try {
-      await createEncounterAction({
+      const [data, error] = await createEncounterAction({
         payload: {
           status: "completed",
           ...(patientId ? { subject: `Patient/${patientId}` } : {}),
@@ -244,6 +261,7 @@ export function DoctorConsult({
           ...(practitionerId
             ? { participant: [{ reference: `Practitioner/${practitionerId}` }] }
             : {}),
+          ...(orgId ? { org_id: orgId } : {}),
         },
       });
     } catch {

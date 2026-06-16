@@ -32,8 +32,10 @@ function getParticipantName(
   appointment: TAppointmentResponse,
   type: "Practitioner" | "Patient",
 ): string | undefined {
-  return appointment.participant?.find((p) => p.reference_type === type)
-    ?.reference_display ?? undefined;
+  return (
+    appointment.participant?.find((p) => p.reference_type === type)
+      ?.reference_display ?? undefined
+  );
 }
 
 /** Derives the integer FHIR resource ID of the first matching participant. */
@@ -41,8 +43,9 @@ function getParticipantId(
   appointment: TAppointmentResponse,
   type: "Practitioner" | "Patient",
 ): number | undefined {
-  const id = appointment.participant?.find((p) => p.reference_type === type)
-    ?.reference_id;
+  const id = appointment.participant?.find(
+    (p) => p.reference_type === type,
+  )?.reference_id;
   return id ?? undefined;
 }
 
@@ -64,7 +67,9 @@ interface PageProps {
  * Resolves the LiveKit room from the Consultation record and renders
  * the DoctorConsult room UI (with full end-call report generation).
  */
-export default async function DoctorOnlineConsultationPage({ searchParams }: PageProps) {
+export default async function DoctorOnlineConsultationPage({
+  searchParams,
+}: PageProps) {
   const { appointmentId } = await searchParams;
   const session = await getServerSession();
   const locale = await getLocale();
@@ -94,7 +99,9 @@ export default async function DoctorOnlineConsultationPage({ searchParams }: Pag
   }
 
   if (!consultation) {
-    return <NotFound message="No virtual consultation room was provisioned for this appointment." />;
+    return (
+      <NotFound message="No virtual consultation room was provisioned for this appointment." />
+    );
   }
 
   const doctorName = getParticipantName(appointment, "Practitioner");
@@ -110,11 +117,15 @@ export default async function DoctorOnlineConsultationPage({ searchParams }: Pag
         fhirAppointmentId={numericId}
         participantName={doctorName ?? session.user.name ?? "Doctor"}
         details={{
-          doctor: { name: doctorName ?? session.user.name, speciality: specialty },
+          doctor: {
+            name: doctorName ?? session.user.name,
+            speciality: specialty,
+          },
           patient: { name: patientName },
         }}
         patientId={patientId}
         practitionerId={practitionerId}
+        orgId={session.session.activeOrganizationId ?? undefined}
       />
     </div>
   );

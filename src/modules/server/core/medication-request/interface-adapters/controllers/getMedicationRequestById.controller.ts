@@ -6,7 +6,7 @@
 
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import {
-  GetMedicationRequestByIdValidationSchema,
+  GetByIdMedicationRequestValidationSchema,
   type TMedicationRequestResponse,
 } from "@/modules/entities/schemas/medication-request";
 import { getMedicationRequestByIdUseCase } from "../../application/usecases/getMedicationRequestById.usecase";
@@ -28,7 +28,7 @@ export type TGetMedicationRequestByIdControllerOutput = ReturnType<typeof presen
 export async function getMedicationRequestByIdController(
   input: unknown,
 ): Promise<TGetMedicationRequestByIdControllerOutput> {
-  const parsed = await GetMedicationRequestByIdValidationSchema.safeParseAsync(input);
+  const parsed = await GetByIdMedicationRequestValidationSchema.safeParseAsync(input);
   if (!parsed.success) throw new InputParseError(parsed.error);
   const data = await getMedicationRequestByIdUseCase(parsed.data.id);
   return presenter(data);

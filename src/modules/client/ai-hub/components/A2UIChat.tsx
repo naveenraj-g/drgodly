@@ -488,7 +488,7 @@ export default function A2UIChatPage() {
     getSortedSteps(activeWorkflow)[currentStepIndex]?.optional === true;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-160px)] overflow-hidden rounded-lg border border-border bg-background">
+    <div className="flex flex-col w-full h-full overflow-hidden bg-background">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-4xl mx-auto space-y-4">

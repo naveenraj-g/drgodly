@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { CalendarClock, CheckCircle2, Eye, XCircle, User, Video } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardList, Eye, XCircle, User, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -136,6 +136,8 @@ export interface DoctorAppointmentColumnCallbacks {
   onReschedule: (row: TAppointmentResponse) => void;
   /** Called when the doctor joins the virtual consultation room for a booked appointment. */
   onConsult: (row: TAppointmentResponse) => void;
+  /** Called when the doctor opens the post-consultation review page. */
+  onReview: (row: TAppointmentResponse) => void;
 }
 
 /**
@@ -273,6 +275,12 @@ export function createDoctorAppointmentColumns(
           !!row.original.slot?.length;
 
         const actions: RowAction<TAppointmentResponse>[] = [
+          // Review — navigates to the post-consultation review page
+          {
+            label: "Review",
+            icon: ClipboardList,
+            onClick: () => callbacks.onReview(row.original),
+          },
           ...(canConfirm
             ? [
                 {
@@ -326,10 +334,8 @@ export function createDoctorAppointmentColumns(
                 Consult Online
               </Button>
             )}
-            {/* Three-dot menu — only when status-dependent actions exist */}
-            {actions.length > 0 && (
-              <DataTableRowActions row={row} actions={actions} />
-            )}
+            {/* Three-dot menu — always present (Review is always available) */}
+            <DataTableRowActions row={row} actions={actions} />
           </div>
         );
       },

@@ -20,7 +20,7 @@
 
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
 import { Brain, Loader2, Send, Square } from "lucide-react";
@@ -77,6 +77,13 @@ export function TextIntake({
 
   const abortRef = useRef<AbortController | null>(null);
   const liveTextRef = useRef("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Re-focus the input whenever the AI finishes streaming so the patient
+  // can type their next message without clicking the field manually.
+  useEffect(() => {
+    if (!isStreaming) inputRef.current?.focus();
+  }, [isStreaming]);
 
   // ── Parse a single SSE/NDJSON chunk line — mirrors MVP parseChunkLine ─────
   const parseChunkLine = useCallback(
@@ -333,6 +340,7 @@ export function TextIntake({
         {/* ── Input row ── */}
         <div className="flex gap-2 items-center">
           <Input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

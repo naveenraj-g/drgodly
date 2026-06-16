@@ -6,7 +6,7 @@
 
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import {
-  GetServiceRequestByIdValidationSchema,
+  GetByIdServiceRequestValidationSchema,
   type TServiceRequestResponse,
 } from "@/modules/entities/schemas/service-request";
 import { getServiceRequestByIdUseCase } from "../../application/usecases/getServiceRequestById.usecase";
@@ -28,7 +28,7 @@ export type TGetServiceRequestByIdControllerOutput = ReturnType<typeof presenter
 export async function getServiceRequestByIdController(
   input: unknown,
 ): Promise<TGetServiceRequestByIdControllerOutput> {
-  const parsed = await GetServiceRequestByIdValidationSchema.safeParseAsync(input);
+  const parsed = await GetByIdServiceRequestValidationSchema.safeParseAsync(input);
   if (!parsed.success) throw new InputParseError(parsed.error);
   const data = await getServiceRequestByIdUseCase(parsed.data.id);
   return presenter(data);

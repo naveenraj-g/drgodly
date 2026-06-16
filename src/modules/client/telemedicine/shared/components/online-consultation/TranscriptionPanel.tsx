@@ -53,7 +53,29 @@ export function TranscriptionPanel({
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to the SSE transcript stream from the Python agent
+  // Keep a stable ref to onTranscript so the SSE effect doesn't reconnect
+  // every render when the parent passes an inline function reference.
+  const onTranscriptRef = useRef(onTranscript);
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  });
+
+  // Tell the Python agent to attach a transcriber to this room.
+  // Without this call the agent never starts producing transcript events and
+  // the SSE stream below stays silent.
+  useEffect(() => {
+    fetch("/api/livekit-start-transcriber", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId }),
+    }).catch((err) => {
+      console.error("[TranscriptionPanel] failed to start transcriber:", err);
+    });
+  }, [roomId]);
+
+  // Subscribe to the SSE transcript stream from the Python agent.
+  // Dependency array is [roomId] only — onTranscript is accessed via ref above
+  // so changing the callback never causes a reconnect.
   useEffect(() => {
     setError(null);
     const agentUrl = process.env.NEXT_PUBLIC_LIVEKIT_AGENT_URL;
@@ -81,7 +103,7 @@ export function TranscriptionPanel({
             // timestamp unavailable — leave empty
           }
           setError(null);
-          onTranscript({
+          onTranscriptRef.current({
             timestamp: timeStr,
             name: data.participantName ?? "Unknown",
             text: data.text,
@@ -100,7 +122,7 @@ export function TranscriptionPanel({
     return () => {
       eventSource.close();
     };
-  }, [roomId, onTranscript]);
+  }, [roomId]);
 
   // Auto-scroll to the bottom on each new transcript line
   useEffect(() => {

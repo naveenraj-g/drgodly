@@ -17,8 +17,6 @@
  * Both modes return: { concepts: ConceptResponse[] }
  */
 
-import { getAuthToken as getJWTToken } from "@/modules/server/auth/jwt-token";
-
 const FHIR_SERVER_URL = process.env.FHIR_SERVER_URL!;
 
 /**
@@ -45,7 +43,6 @@ export async function GET(req: Request) {
   }
 
   try {
-    const token = await getJWTToken();
     let concepts: unknown[];
 
     if (isSystemSearch) {
@@ -53,23 +50,24 @@ export async function GET(req: Request) {
       if (system) params.set("system", system);
 
       const res = await fetch(
-        `${FHIR_SERVER_URL}/api/fhir/v1/terminology/search?${params}`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+        `${FHIR_SERVER_URL}/api/v1/terminology/search?${params}`,
+        { cache: "no-store" },
       );
       if (!res.ok) throw new Error(`Terminology search error: ${res.status}`);
       const data = await res.json();
-      // /terminology/search returns { data: [...] } — normalise to concepts array.
+      // /terminology/search returns { total, limit, offset, data: [...] }
       concepts = Array.isArray(data.data) ? data.data : [];
     } else {
       const params = new URLSearchParams({ resource: resource!, field: field! });
       if (query) params.set("q", query);
 
       const res = await fetch(
-        `${FHIR_SERVER_URL}/api/fhir/v1/terminology/concepts?${params}`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+        `${FHIR_SERVER_URL}/api/v1/terminology/concepts?${params}`,
+        { next: { revalidate: 3600 } },
       );
       if (!res.ok) throw new Error(`Terminology concepts error: ${res.status}`);
       const data = await res.json();
+      // /terminology/concepts returns { concepts: [...] }
       concepts = Array.isArray(data.concepts) ? data.concepts : [];
     }
 

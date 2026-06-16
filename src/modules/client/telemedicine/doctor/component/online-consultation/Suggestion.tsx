@@ -142,7 +142,9 @@ export function Suggestion({ transcripts, notes = "" }: SuggestionProps) {
 
       const data = await res.json();
       const fetched: string[] = Array.isArray(data?.questions)
-        ? data.questions.filter((q: unknown) => typeof q === "string" && (q as string).trim())
+        ? data.questions.filter(
+            (q: unknown) => typeof q === "string" && (q as string).trim(),
+          )
         : [];
 
       if (fetched.length > 0) {
@@ -185,7 +187,10 @@ export function Suggestion({ transcripts, notes = "" }: SuggestionProps) {
       ) : questions.length > 0 ? (
         <ol className="space-y-1.5 list-none">
           {questions.map((q, i) => (
-            <li key={i} className="flex gap-2 text-sm">
+            <li
+              key={i}
+              className="flex gap-2 text-sm text-black dark:text-white"
+            >
               <span className="shrink-0 w-4 text-muted-foreground font-mono">
                 {i + 1}.
               </span>
@@ -208,7 +213,10 @@ export function Suggestion({ transcripts, notes = "" }: SuggestionProps) {
           {history.slice(0, -1).map((set, si) => (
             <ol key={si} className="space-y-1 list-none">
               {set.map((q, qi) => (
-                <li key={qi} className="flex gap-2 text-xs text-muted-foreground">
+                <li
+                  key={qi}
+                  className="flex gap-2 text-xs text-muted-foreground"
+                >
                   <span className="shrink-0 w-4 font-mono">{qi + 1}.</span>
                   <span>{q}</span>
                 </li>

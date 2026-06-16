@@ -6,7 +6,7 @@
 
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import {
-  GetConditionByIdValidationSchema,
+  GetByIdConditionValidationSchema,
   type TConditionResponse,
 } from "@/modules/entities/schemas/condition";
 import { getConditionByIdUseCase } from "../../application/usecases/getConditionById.usecase";
@@ -28,7 +28,7 @@ export type TGetConditionByIdControllerOutput = ReturnType<typeof presenter>;
 export async function getConditionByIdController(
   input: unknown,
 ): Promise<TGetConditionByIdControllerOutput> {
-  const parsed = await GetConditionByIdValidationSchema.safeParseAsync(input);
+  const parsed = await GetByIdConditionValidationSchema.safeParseAsync(input);
   if (!parsed.success) throw new InputParseError(parsed.error);
   const data = await getConditionByIdUseCase(parsed.data.id);
   return presenter(data);

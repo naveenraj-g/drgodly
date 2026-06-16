@@ -6,7 +6,7 @@
 
 import { InputParseError } from "@/modules/server/shared/errors/schemaParseError";
 import {
-  GetObservationByIdValidationSchema,
+  GetByIdObservationValidationSchema,
   type TObservationResponse,
 } from "@/modules/entities/schemas/observation";
 import { getObservationByIdUseCase } from "../../application/usecases/getObservationById.usecase";
@@ -28,7 +28,7 @@ export type TGetObservationByIdControllerOutput = ReturnType<typeof presenter>;
 export async function getObservationByIdController(
   input: unknown,
 ): Promise<TGetObservationByIdControllerOutput> {
-  const parsed = await GetObservationByIdValidationSchema.safeParseAsync(input);
+  const parsed = await GetByIdObservationValidationSchema.safeParseAsync(input);
   if (!parsed.success) throw new InputParseError(parsed.error);
   const data = await getObservationByIdUseCase(parsed.data.id);
   return presenter(data);

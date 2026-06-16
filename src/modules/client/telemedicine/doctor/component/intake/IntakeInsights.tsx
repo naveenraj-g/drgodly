@@ -47,6 +47,111 @@ const RISK_CLASS: Record<string, string> = {
   critical: "bg-red-200 text-red-900 border-red-300",
 };
 
+// ── Polymorphic field renderers ───────────────────────────────────────────────
+// The AI agent can return strings OR structured objects for several fields.
+// Each renderer below handles both shapes gracefully.
+
+/**
+ * Renders one differential-diagnosis entry.
+ * Handles both plain string and {condition, rationale, likelihood} object.
+ */
+function DiffDiagItem({ item, index }: { item: unknown; index: number }) {
+  if (typeof item === "string") {
+    return (
+      <li key={index} className="text-sm flex items-start gap-2">
+        <span className="text-primary font-bold mt-0.5">·</span>
+        {item}
+      </li>
+    );
+  }
+  if (item && typeof item === "object") {
+    const d = item as Record<string, unknown>;
+    return (
+      <li key={index} className="text-sm border-l-2 border-primary/20 pl-2 space-y-0.5">
+        {d.condition != null && (
+          <p className="font-medium text-foreground">{String(d.condition)}</p>
+        )}
+        {d.rationale != null && (
+          <p className="text-xs text-muted-foreground">{String(d.rationale)}</p>
+        )}
+        {d.likelihood != null && (
+          <Badge variant="outline" className="text-[10px] w-fit">
+            {String(d.likelihood)}
+          </Badge>
+        )}
+      </li>
+    );
+  }
+  return null;
+}
+
+/**
+ * Renders a plan field (diagnostic_plan or treatment_plan).
+ * Handles plain string, and structured objects whose values are strings or
+ * string arrays (e.g. {imaging: [...], laboratory_tests: [...], other: [...]}).
+ */
+function PlanField({ value }: { value: unknown }) {
+  if (typeof value === "string") {
+    return <p className="text-sm leading-relaxed">{value}</p>;
+  }
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const entries = Object.entries(value as Record<string, unknown>).filter(
+      ([, v]) => v != null,
+    );
+    return (
+      <div className="space-y-2">
+        {entries.map(([key, val]) => (
+          <div key={key}>
+            <p className="text-xs font-medium text-muted-foreground capitalize mb-0.5">
+              {key.replace(/_/g, " ")}
+            </p>
+            {Array.isArray(val) ? (
+              <ul className="space-y-0.5">
+                {(val as unknown[]).map((it, i) => (
+                  <li key={i} className="text-sm flex items-start gap-2">
+                    <span className="text-primary font-bold mt-0.5">·</span>
+                    {String(it)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm leading-relaxed">{String(val)}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
+
+/**
+ * Renders one red-flag entry.
+ * Handles both plain string and arbitrary objects (joins string values with " — ").
+ */
+function RedFlagItem({ flag, index }: { flag: unknown; index: number }) {
+  let text: string;
+  if (typeof flag === "string") {
+    text = flag;
+  } else if (flag && typeof flag === "object") {
+    // Join all string values in the object (e.g. {flag: "...", severity: "..."})
+    text =
+      Object.values(flag as Record<string, unknown>)
+        .filter((v) => typeof v === "string")
+        .join(" — ") || JSON.stringify(flag);
+  } else {
+    return null;
+  }
+  return (
+    <li key={index} className="text-sm text-red-700 flex items-start gap-2">
+      <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+      {text}
+    </li>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Renders the AI clinical assessment section.
  *
@@ -79,44 +184,41 @@ function ReportSection({ report }: { report: TIntakeReport }) {
         </div>
       )}
 
-      {/* Differential diagnosis */}
+      {/* Differential diagnosis — items may be strings or {condition, rationale, likelihood} */}
       {report.differential_diagnosis && report.differential_diagnosis.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Differential Diagnosis
           </p>
-          <ul className="space-y-1">
+          <ul className="space-y-2">
             {report.differential_diagnosis.map((item, i) => (
-              <li key={i} className="text-sm flex items-start gap-2">
-                <span className="text-primary font-bold mt-0.5">·</span>
-                {item}
-              </li>
+              <DiffDiagItem key={i} item={item} index={i} />
             ))}
           </ul>
         </div>
       )}
 
-      {/* Diagnostic plan */}
-      {report.diagnostic_plan && (
+      {/* Diagnostic plan — may be a string or structured object */}
+      {report.diagnostic_plan != null && (
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Diagnostic Plan
           </p>
-          <p className="text-sm leading-relaxed">{report.diagnostic_plan}</p>
+          <PlanField value={report.diagnostic_plan} />
         </div>
       )}
 
-      {/* Treatment plan */}
-      {report.treatment_plan && (
+      {/* Treatment plan — may be a string or structured object */}
+      {report.treatment_plan != null && (
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Treatment Plan
           </p>
-          <p className="text-sm leading-relaxed">{report.treatment_plan}</p>
+          <PlanField value={report.treatment_plan} />
         </div>
       )}
 
-      {/* Red flags */}
+      {/* Red flags — items may be strings or structured objects */}
       {report.red_flags && report.red_flags.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs font-semibold text-red-600 uppercase tracking-wide flex items-center gap-1">
@@ -125,10 +227,7 @@ function ReportSection({ report }: { report: TIntakeReport }) {
           </p>
           <ul className="space-y-1">
             {report.red_flags.map((flag, i) => (
-              <li key={i} className="text-sm text-red-700 flex items-start gap-2">
-                <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
-                {flag}
-              </li>
+              <RedFlagItem key={i} flag={flag} index={i} />
             ))}
           </ul>
         </div>

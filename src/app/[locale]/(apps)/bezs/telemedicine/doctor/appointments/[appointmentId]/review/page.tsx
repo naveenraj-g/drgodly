@@ -56,8 +56,9 @@ function getParticipantId(
   appointment: TAppointmentResponse,
   type: "Practitioner" | "Patient",
 ): number | undefined {
-  const id = appointment.participant?.find((p) => p.reference_type === type)
-    ?.reference_id;
+  const id = appointment.participant?.find(
+    (p) => p.reference_type === type,
+  )?.reference_id;
   return id ?? undefined;
 }
 
@@ -125,7 +126,8 @@ export default async function DoctorAppointmentReviewPage({
     : null;
 
   /* The encounter links all created FHIR resources. May be undefined if creation raced. */
-  const encounters = (encountersPage as { data?: { id: number }[] } | null)?.data ?? [];
+  const encounters =
+    (encountersPage as { data?: { id: number }[] } | null)?.data ?? [];
   const encounter = encounters[0];
 
   if (!encounter) {
@@ -142,7 +144,7 @@ export default async function DoctorAppointmentReviewPage({
       patientName={patientName}
       doctorName={doctorName}
       appointmentDate={appointmentDate}
-      fullReport={consultation?.full_report ?? null}
+      fullReport={consultation?.full_report?.soap_report ?? null}
     />
   );
 }
