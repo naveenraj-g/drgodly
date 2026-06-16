@@ -1,8 +1,22 @@
+/**
+ * Footer — site-wide footer for the DrGodly marketing landing page.
+ *
+ * Layer: client / (marketing) / components
+ *
+ * Four-column layout: brand tagline, Product links, Company links, Legal links.
+ * Bottom bar includes copyright and compliance trust badges
+ * (HIPAA, HL7 FHIR R4, MCP Server).
+ */
+
 "use client";
 
 import { motion } from "framer-motion";
 import { Activity } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
+/**
+ * Marketing page footer with compliance trust badges and navigation links.
+ */
 export default function Footer() {
   return (
     <motion.footer
@@ -20,18 +34,43 @@ export default function Footer() {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
                 <Activity className="w-5 h-5" />
               </div>
-              <span className="text-2xl font-bold text-foreground">Dr. Godly</span>
+              <span className="text-2xl font-bold text-foreground">DrGodly</span>
             </a>
-            <p className="mt-4 text-muted-foreground text-sm">The future of intelligent, seamless, and secure healthcare.</p>
+            <p className="mt-4 text-muted-foreground text-sm leading-relaxed">
+              The AI-native FHIR R4 EMR built for HIPAA-compliant telemedicine
+              and electronic medical records.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                FHIR R4
+              </Badge>
+              <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">
+                HIPAA
+              </Badge>
+              <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-600">
+                MCP
+              </Badge>
+            </div>
           </div>
 
           {/* Product */}
           <div>
             <h3 className="font-semibold text-foreground">Product</h3>
             <ul className="mt-4 space-y-2 text-sm">
-              {["Features", "For Patients", "For Doctors", "Pricing"].map((item) => (
-                <li key={item}>
-                  <a href="#features" className="text-muted-foreground hover:text-primary transition-colors">{item}</a>
+              {[
+                { label: "FHIR EMR", href: "#fhir-emr" },
+                { label: "AI Clinical Agents", href: "#features" },
+                { label: "MCP Server", href: "#mcp" },
+                { label: "Telemedicine", href: "#features" },
+                { label: "Pricing", href: "#" },
+              ].map((item) => (
+                <li key={item.label}>
+                  <a
+                    href={item.href}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {item.label}
+                  </a>
                 </li>
               ))}
             </ul>
@@ -43,7 +82,9 @@ export default function Footer() {
             <ul className="mt-4 space-y-2 text-sm">
               {["About Us", "Careers", "Press", "Contact"].map((item) => (
                 <li key={item}>
-                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors">{item}</a>
+                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+                    {item}
+                  </a>
                 </li>
               ))}
             </ul>
@@ -53,19 +94,29 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-foreground">Legal</h3>
             <ul className="mt-4 space-y-2 text-sm">
-              {["Privacy Policy", "Terms of Service", "Compliance"].map((item) => (
+              {["Privacy Policy", "Terms of Service", "HIPAA BAA", "Compliance"].map((item) => (
                 <li key={item}>
-                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors">{item}</a>
+                  <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+                    {item}
+                  </a>
                 </li>
               ))}
             </ul>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center">
+        {/* Bottom bar */}
+        <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} Dr. Godly. All rights reserved.
+            &copy; {new Date().getFullYear()} DrGodly. All rights reserved.
           </p>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span>HL7® FHIR® R4 Compliant</span>
+            <span className="text-border">·</span>
+            <span>HIPAA Secured</span>
+            <span className="text-border">·</span>
+            <span>MCP Server Integration</span>
+          </div>
         </div>
       </div>
     </motion.footer>

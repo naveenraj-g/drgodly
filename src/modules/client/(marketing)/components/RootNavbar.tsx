@@ -1,6 +1,17 @@
-﻿"use client";
+/**
+ * RootNavbar — fixed top navigation for the DrGodly marketing landing page.
+ *
+ * Layer: client / (marketing) / components
+ *
+ * Renders the brand logo, main nav links (FHIR EMR, Platform, Security,
+ * Integrations), and action buttons (Sign In / Sign Up or Open App if
+ * already authenticated). Becomes opaque + blurred on scroll.
+ */
+
+"use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { OAuthPkceButton } from "@/modules/client/auth/components/OAuthPkceButton";
 import { ThemeSwitcher } from "@/theme/ThemeSwitcher";
 import LocaleSwitcher from "@/modules/client/shared/components/LocaleSwitcher";
@@ -11,6 +22,11 @@ import { Activity } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AuthResponse } from "@/modules/server/auth/types";
 
+/**
+ * Top navigation bar for the marketing landing page.
+ *
+ * @param session - Current server session (null if unauthenticated).
+ */
 export default function RootNavbar({
   session,
 }: {
@@ -38,15 +54,14 @@ export default function RootNavbar({
     <motion.header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? "bg-background/80 backdrop-blur-md shadow-sm border-b border-border"
+          ? "bg-background/90 backdrop-blur-md shadow-sm border-b border-border"
           : "bg-transparent"
       }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* max-w-[110rem] */}
-      <div className="max-w-440 mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[110rem] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 text-primary">
@@ -56,27 +71,36 @@ export default function RootNavbar({
             <span className="text-2xl font-bold text-foreground tracking-tight">
               DrGodly
             </span>
+            <Badge variant="outline" className="text-[10px] font-bold ml-1 hidden sm:inline-flex border-primary/30 text-primary">
+              FHIR R4
+            </Badge>
           </Link>
 
           {/* Nav links */}
           <nav className="hidden md:flex items-center space-x-8">
             <a
+              href="#fhir-emr"
+              className="text-muted-foreground font-medium hover:text-primary transition-colors"
+            >
+              FHIR EMR
+            </a>
+            <a
               href="#features"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
-              Features
+              Platform
             </a>
             <a
-              href="#how-it-works"
+              href="#security"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
-              How It Works
+              Security
             </a>
             <a
-              href="#testimonials"
+              href="#mcp"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
-              Testimonials
+              MCP API
             </a>
           </nav>
 
@@ -97,7 +121,7 @@ export default function RootNavbar({
                   size="sm"
                   className="rounded-full px-6 shadow-md hover:shadow-lg transition-all"
                 >
-                  Sign Up
+                  Get Started Free
                 </OAuthPkceButton>
               </>
             ) : (
