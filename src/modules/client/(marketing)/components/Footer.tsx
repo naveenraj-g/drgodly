@@ -58,10 +58,10 @@ export default function Footer() {
             <h3 className="font-semibold text-foreground">Product</h3>
             <ul className="mt-4 space-y-2 text-sm">
               {[
-                { label: "FHIR EMR", href: "#fhir-emr" },
-                { label: "AI Clinical Agents", href: "#features" },
-                { label: "MCP Server", href: "#mcp" },
-                { label: "Telemedicine", href: "#features" },
+                { label: "FHIR EMR", href: "/fhir-emr" },
+                { label: "AI Clinical Agents", href: "/ai-agents" },
+                { label: "MCP Server", href: "/mcp" },
+                { label: "How It Works", href: "/how-it-works" },
                 { label: "Pricing", href: "#" },
               ].map((item) => (
                 <li key={item.label}>

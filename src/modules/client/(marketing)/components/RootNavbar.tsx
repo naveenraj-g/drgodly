@@ -78,30 +78,30 @@ export default function RootNavbar({
 
           {/* Nav links */}
           <nav className="hidden md:flex items-center space-x-8">
-            <a
-              href="#fhir-emr"
+            <Link
+              href="/fhir-emr"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
               FHIR EMR
-            </a>
-            <a
-              href="#features"
+            </Link>
+            <Link
+              href="/ai-agents"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
-              Platform
-            </a>
-            <a
-              href="#security"
+              AI Agents
+            </Link>
+            <Link
+              href="/hipaa"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
               Security
-            </a>
-            <a
-              href="#mcp"
+            </Link>
+            <Link
+              href="/mcp"
               className="text-muted-foreground font-medium hover:text-primary transition-colors"
             >
               MCP API
-            </a>
+            </Link>
           </nav>
 
           {/* Actions */}

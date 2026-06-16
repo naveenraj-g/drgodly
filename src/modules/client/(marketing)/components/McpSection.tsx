@@ -140,13 +140,13 @@ export default function McpSection() {
               ))}
             </ul>
 
-            {/* Compatible AIs */}
+            {/* Compatible clients */}
             <div className="pt-4 border-t border-border/50">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                Compatible With
+                Works With Any MCP-Compatible AI Client
               </p>
               <div className="flex flex-wrap gap-2">
-                {["Claude", "Claude Code", "GPT-4", "Gemini", "Open Source MCP Clients"].map((ai) => (
+                {["AI Chat Assistants", "AI Coding Tools", "AI Agents", "Open Source MCP Clients"].map((ai) => (
                   <Badge key={ai} variant="secondary" className="text-xs">
                     {ai}
                   </Badge>
