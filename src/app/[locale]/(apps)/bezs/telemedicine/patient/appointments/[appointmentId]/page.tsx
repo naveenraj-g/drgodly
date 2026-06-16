@@ -8,12 +8,14 @@
  *  2. Redirects to /patient/profile if no FHIR Patient record exists.
  *
  * Data flow:
- *  1. Fetches the full appointment record by numeric ID.
- *  2. Fetches the linked intake record (if any) by fhir_appointment_id.
- *  3. Renders AppointmentDetailHeader + IntakeReportSection.
+ *  1. Fetches appointment, intake, consultation, and encounter in parallel.
+ *  2. If an encounter exists, fetches all 4 FHIR resource lists by encounter_id.
+ *  3. Renders AppointmentDetailHeader + AppointmentReportTabs (Intake | Doctor tabs).
  *
- * The page is intentionally server-rendered so the report is available on
- * first paint without a loading spinner.
+ * The Doctor Report tab shows the SOAP note from the consultation full report
+ * and the confirmed FHIR records (Conditions, Observations, Medications, Orders).
+ * If the doctor hasn't completed the review yet, DoctorReportSection shows an
+ * appropriate empty state message.
  */
 
 import Link from "next/link";
@@ -24,10 +26,21 @@ import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePatientProfile } from "@/modules/server/auth/require-profile";
 import { getAppointmentByIdAction } from "@/modules/server/presentation/actions/appointment";
 import { getIntakeByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/intake";
+import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
+import { listEncountersAction } from "@/modules/server/presentation/actions/encounter/core.actions";
+import { listConditionsAction } from "@/modules/server/presentation/actions/condition/core.actions";
+import { listObservationsAction } from "@/modules/server/presentation/actions/observation/core.actions";
+import { listMedicationRequestsAction } from "@/modules/server/presentation/actions/medication-request/core.actions";
+import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
 import { AppointmentDetailHeader } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailHeader";
-import { IntakeReportSection } from "@/modules/client/telemedicine/shared/components/appointment/IntakeReportSection";
+import { AppointmentReportTabs } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentReportTabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import type { TPaginatedConditionResponse } from "@/modules/entities/schemas/condition";
+import type { TPaginatedObservationResponse } from "@/modules/entities/schemas/observation";
+import type { TPaginatedMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
+import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
+import type { SoapNote } from "@/modules/client/telemedicine/doctor/component/appointment-review/types";
 
 /** Route params for the dynamic segment. */
 interface PatientAppointmentViewPageProps {
@@ -37,9 +50,13 @@ interface PatientAppointmentViewPageProps {
 /**
  * Patient-facing appointment detail page.
  *
- * Shows appointment metadata from the patient's perspective (doctor name,
- * date/time, status) and the AI pre-intake report if one was linked to this
- * appointment.
+ * Shows appointment metadata and two report tabs:
+ *   Intake Report — AI pre-intake assessment + conversation transcript.
+ *   Doctor Report — Post-consultation SOAP note + confirmed FHIR records.
+ *
+ * The Doctor Report tab is read-only; the patient cannot edit it.
+ *
+ * @param params - Dynamic route params ({ appointmentId, locale }).
  */
 export default async function PatientAppointmentViewPage({
   params,
@@ -53,7 +70,6 @@ export default async function PatientAppointmentViewPage({
     return null;
   }
 
-  // Redirects to /patient/profile if no FHIR Patient record exists
   await requirePatientProfile();
 
   const backHref = `/${locale}/bezs/telemedicine/patient/appointments`;
@@ -63,29 +79,90 @@ export default async function PatientAppointmentViewPage({
     return <AppointmentNotFound backHref={backHref} />;
   }
 
-  // Fetch the appointment and linked intake in parallel
-  const [[appointment], [intake]] = await Promise.all([
-    getAppointmentByIdAction({ payload: { id: numericId } }),
-    getIntakeByFhirAppointmentIdAction({
-      payload: { fhir_appointment_id: numericId },
-    }),
-  ]);
+  /* Fetch appointment, intake, consultation, and encounter in parallel. */
+  const [[appointment], [intake], [consultation], [encountersPage]] =
+    await Promise.all([
+      getAppointmentByIdAction({ payload: { id: numericId } }),
+      getIntakeByFhirAppointmentIdAction({
+        payload: { fhir_appointment_id: numericId },
+      }),
+      getConsultationByFhirAppointmentIdAction({
+        payload: { fhir_appointment_id: numericId },
+      }),
+      listEncountersAction({ payload: { appointment_id: numericId, limit: 1 } }),
+    ]);
 
   if (!appointment) {
     return <AppointmentNotFound backHref={backHref} />;
   }
 
+  /* Extract encounter (if it exists) to query FHIR resources. */
+  const encounter = (
+    encountersPage as { data?: { id: number }[] } | null
+  )?.data?.[0];
+
+  /* Fetch FHIR clinical records if an encounter exists. */
+  const [
+    [conditionsPage],
+    [observationsPage],
+    [medicationsPage],
+    [serviceRequestsPage],
+  ] = encounter
+    ? await Promise.all([
+        listConditionsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }),
+        listObservationsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }),
+        listMedicationRequestsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }),
+        listServiceRequestsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }),
+      ])
+    : [
+        [null] as [null],
+        [null] as [null],
+        [null] as [null],
+        [null] as [null],
+      ];
+
+  const conditions =
+    (conditionsPage as TPaginatedConditionResponse | null)?.data ?? [];
+  const observations =
+    (observationsPage as TPaginatedObservationResponse | null)?.data ?? [];
+  const medications =
+    (medicationsPage as TPaginatedMedicationRequestResponse | null)?.data ?? [];
+  const serviceRequests =
+    (serviceRequestsPage as TPaginatedServiceRequestResponse | null)?.data ?? [];
+
+  /* Extract SOAP note from the consultation full report. */
+  const soapNote =
+    (consultation?.full_report?.soap_report as { soap?: SoapNote } | null)
+      ?.soap ?? null;
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Appointment header — date, status, doctor, type */}
+      {/* Appointment header — date, status, doctor name, type */}
       <AppointmentDetailHeader
         appointment={appointment}
         backHref={backHref}
         perspective="patient"
       />
 
-      {/* AI intake report — component handles its own empty state */}
-      <IntakeReportSection intake={intake} />
+      {/* Tabbed report sections */}
+      <AppointmentReportTabs
+        intake={intake}
+        doctorReport={{
+          soap: soapNote,
+          conditions,
+          observations,
+          medications,
+          serviceRequests,
+        }}
+      />
     </div>
   );
 }
@@ -100,7 +177,12 @@ export default async function PatientAppointmentViewPage({
 function AppointmentNotFound({ backHref }: { backHref: string }) {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <Button asChild variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground">
+      <Button
+        asChild
+        variant="ghost"
+        size="sm"
+        className="gap-1.5 -ml-2 text-muted-foreground"
+      >
         <Link href={backHref}>
           <ArrowLeft className="size-4" />
           Back to Appointments
