@@ -10,10 +10,12 @@
 
 import type {
   TConsultationResponse,
+  TPaginatedConsultationResponse,
   TCreateConsultation,
   TCompleteConsultation,
   TSaveClinicalData,
   TAbandonConsultation,
+  TListConsultationsQuery,
 } from "@/modules/entities/schemas/consultation";
 
 /**
@@ -70,4 +72,13 @@ export interface IConsultationRepository {
   getByFhirAppointmentId(
     fhirAppointmentId: number,
   ): Promise<TConsultationResponse | null>;
+
+  /**
+   * Returns a paginated list of consultation records with optional filters.
+   * Returns lightweight list items (no JSON blobs) for performance.
+   *
+   * @param query - Optional filters (user_id, org_id, status, limit, offset).
+   * @returns Paginated consultation list.
+   */
+  list(query?: TListConsultationsQuery): Promise<TPaginatedConsultationResponse>;
 }

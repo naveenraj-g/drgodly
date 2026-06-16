@@ -28,3 +28,8 @@ export {
   abandonConsultationController,
   type TAbandonConsultationControllerOutput,
 } from "./abandonConsultation.controller";
+
+export {
+  listConsultationsController,
+  type TListConsultationsControllerOutput,
+} from "./listConsultations.controller";

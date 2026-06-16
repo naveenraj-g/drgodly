@@ -22,10 +22,12 @@ import { NotFoundError } from "@/modules/server/shared/errors/commonErrors";
 import type { IIntakeRepository } from "../../domain/interfaces/intake.repository.interface";
 import type {
   TIntakeResponse,
+  TPaginatedIntakeResponse,
   TCreateIntake,
   TUpdateIntake,
   TLinkIntake,
   TAbandonIntake,
+  TListIntakesQuery,
 } from "@/modules/entities/schemas/intake";
 
 /**
@@ -311,6 +313,70 @@ export class IntakePrismaRepository implements IIntakeRepository {
         startTimeMs,
         err,
         context: { operationId, id },
+      });
+      throw err;
+    }
+  }
+
+  /**
+   * Returns a paginated list of intake records with optional filters.
+   * Records are ordered newest-first (created_at DESC).
+   *
+   * @param query - Optional filters: user_id, org_id, status, mode, limit, offset.
+   * @returns Paginated intake list.
+   */
+  async list(query: TListIntakesQuery = {}): Promise<TPaginatedIntakeResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "IntakePrismaRepository.list",
+      startTimeMs,
+      context: { operationId, query },
+    });
+
+    try {
+      const where = {
+        ...(query.user_id ? { user_id: query.user_id } : {}),
+        ...(query.org_id ? { org_id: query.org_id } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        ...(query.mode ? { mode: query.mode } : {}),
+      };
+
+      const limit = query.limit ?? 10;
+      const offset = query.offset ?? 0;
+
+      const [rows, total] = await Promise.all([
+        prisma.intake.findMany({
+          where,
+          orderBy: { created_at: "desc" },
+          take: limit,
+          skip: offset,
+        }),
+        prisma.intake.count({ where }),
+      ]);
+
+      const result: TPaginatedIntakeResponse = {
+        total,
+        limit,
+        offset,
+        data: rows.map(toDto),
+      };
+
+      logOperation("success", {
+        name: "IntakePrismaRepository.list",
+        startTimeMs,
+        data: { total, returned: rows.length },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "IntakePrismaRepository.list",
+        startTimeMs,
+        err,
+        context: { operationId, query },
       });
       throw err;
     }

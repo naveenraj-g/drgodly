@@ -16,6 +16,7 @@ import {
   AbandonIntakeValidationSchema,
   GetIntakeByIdValidationSchema,
   GetIntakeByFhirAppointmentIdValidationSchema,
+  ListIntakesValidationSchema,
 } from "./input";
 
 /** Action schema for starting a new intake session. */
@@ -58,3 +59,10 @@ export const GetIntakeByFhirAppointmentIdActionSchema = z.object({
 export type TGetIntakeByFhirAppointmentIdAction = z.infer<
   typeof GetIntakeByFhirAppointmentIdActionSchema
 >;
+
+/** Action schema for paginated AI Intake list. */
+export const ListIntakesActionSchema = z.object({
+  payload: ListIntakesValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TListIntakesAction = z.infer<typeof ListIntakesActionSchema>;

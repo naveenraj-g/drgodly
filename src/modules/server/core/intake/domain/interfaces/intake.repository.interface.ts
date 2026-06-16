@@ -10,10 +10,12 @@
 
 import type {
   TIntakeResponse,
+  TPaginatedIntakeResponse,
   TCreateIntake,
   TUpdateIntake,
   TLinkIntake,
   TAbandonIntake,
+  TListIntakesQuery,
 } from "@/modules/entities/schemas/intake";
 
 /**
@@ -75,4 +77,12 @@ export interface IIntakeRepository {
    * @returns The linked Intake record, or null if no intake was linked.
    */
   getByFhirAppointmentId(fhirAppointmentId: number): Promise<TIntakeResponse | null>;
+
+  /**
+   * Returns a paginated list of intake records with optional filters.
+   *
+   * @param query - Optional filters (user_id, org_id, status, mode, limit, offset).
+   * @returns Paginated intake list.
+   */
+  list(query?: TListIntakesQuery): Promise<TPaginatedIntakeResponse>;
 }

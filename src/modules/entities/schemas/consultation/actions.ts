@@ -15,6 +15,7 @@ import {
   SaveClinicalDataValidationSchema,
   AbandonConsultationValidationSchema,
   GetConsultationByFhirAppointmentIdValidationSchema,
+  ListConsultationsValidationSchema,
 } from "./input";
 
 /** Action schema for provisioning a consultation room after booking. */
@@ -52,3 +53,10 @@ export const GetConsultationByFhirAppointmentIdActionSchema = z.object({
 export type TGetConsultationByFhirAppointmentIdAction = z.infer<
   typeof GetConsultationByFhirAppointmentIdActionSchema
 >;
+
+/** Action schema for paginated AI Consultation list. */
+export const ListConsultationsActionSchema = z.object({
+  payload: ListConsultationsValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TListConsultationsAction = z.infer<typeof ListConsultationsActionSchema>;

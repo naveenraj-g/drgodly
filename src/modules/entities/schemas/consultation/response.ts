@@ -88,6 +88,36 @@ export type TFullConsultationReport = z.infer<typeof FullConsultationReportSchem
 // ── Top-level response ────────────────────────────────────────────────────────
 
 /**
+ * Lightweight row returned by the paginated list query.
+ * Excludes heavy JSON blobs (virtual_conversation, soap_note, full_report,
+ * service_requests, medication_requests, observations, conditions) to keep
+ * list payloads small. Full record is available via getByFhirAppointmentId.
+ */
+export const ConsultationListItemSchema = z.object({
+  id: z.number(),
+  fhir_appointment_id: z.number(),
+  user_id: z.string(),
+  org_id: z.string().nullable(),
+  room_id: z.string(),
+  status: ConsultationStatusSchema,
+  created_at: z.coerce.date(),
+  updated_at: z.coerce.date(),
+});
+export type TConsultationListItem = z.infer<typeof ConsultationListItemSchema>;
+
+/**
+ * Paginated list response for the AI Consultation table.
+ * Mirrors the same shape used by TPaginatedAppointmentResponse.
+ */
+export const PaginatedConsultationResponseSchema = z.object({
+  total: z.number(),
+  limit: z.number(),
+  offset: z.number(),
+  data: z.array(ConsultationListItemSchema),
+});
+export type TPaginatedConsultationResponse = z.infer<typeof PaginatedConsultationResponseSchema>;
+
+/**
  * Full Consultation record as returned from the local database.
  * Matches the Prisma Consultation model.
  */

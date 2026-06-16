@@ -20,12 +20,14 @@ import {
   AbandonIntakeActionSchema,
   GetIntakeByIdActionSchema,
   GetIntakeByFhirAppointmentIdActionSchema,
+  ListIntakesActionSchema,
   type TCreateIntakeAction,
   type TUpdateIntakeAction,
   type TLinkIntakeAction,
   type TAbandonIntakeAction,
   type TGetIntakeByIdAction,
   type TGetIntakeByFhirAppointmentIdAction,
+  type TListIntakesAction,
 } from "@/modules/entities/schemas/intake";
 import {
   createIntakeController,
@@ -34,12 +36,14 @@ import {
   abandonIntakeController,
   getIntakeByIdController,
   getIntakeByFhirAppointmentIdController,
+  listIntakesController,
   type TCreateIntakeControllerOutput,
   type TUpdateIntakeControllerOutput,
   type TLinkIntakeControllerOutput,
   type TAbandonIntakeControllerOutput,
   type TGetIntakeByIdControllerOutput,
   type TGetIntakeByFhirAppointmentIdControllerOutput,
+  type TListIntakesControllerOutput,
 } from "@/modules/server/core/intake/interface-adapters/controllers";
 import { authenticatedProcedure } from "../procedures";
 
@@ -148,5 +152,23 @@ export const getIntakeByFhirAppointmentIdAction = authenticatedProcedure
       input: TGetIntakeByFhirAppointmentIdAction;
     }): Promise<TGetIntakeByFhirAppointmentIdControllerOutput> => {
       return getIntakeByFhirAppointmentIdController(input.payload);
+    },
+  );
+
+/**
+ * Returns a paginated list of AI Intake records.
+ * Patient portal passes user_id to scope to own records.
+ * Admin/doctor portal can omit user_id to see org-wide records.
+ */
+export const listIntakesAction = authenticatedProcedure
+  .createServerAction()
+  .input(ListIntakesActionSchema, { skipInputParsing: true })
+  .handler(
+    async ({
+      input,
+    }: {
+      input: TListIntakesAction;
+    }): Promise<TListIntakesControllerOutput> => {
+      return listIntakesController(input.payload);
     },
   );

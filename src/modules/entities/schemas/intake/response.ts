@@ -70,3 +70,15 @@ export const IntakeResponseSchema = z.object({
   updated_at: z.coerce.date(),
 });
 export type TIntakeResponse = z.infer<typeof IntakeResponseSchema>;
+
+/**
+ * Paginated list response for the AI Intake table.
+ * Mirrors the same shape used by TPaginatedAppointmentResponse.
+ */
+export const PaginatedIntakeResponseSchema = z.object({
+  total: z.number(),
+  limit: z.number(),
+  offset: z.number(),
+  data: z.array(IntakeResponseSchema),
+});
+export type TPaginatedIntakeResponse = z.infer<typeof PaginatedIntakeResponseSchema>;

@@ -25,10 +25,13 @@ import { NotFoundError } from "@/modules/server/shared/errors/commonErrors";
 import type { IConsultationRepository } from "../../domain/interfaces/consultation.repository.interface";
 import type {
   TConsultationResponse,
+  TPaginatedConsultationResponse,
+  TConsultationListItem,
   TCreateConsultation,
   TCompleteConsultation,
   TSaveClinicalData,
   TAbandonConsultation,
+  TListConsultationsQuery,
 } from "@/modules/entities/schemas/consultation";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -314,6 +317,89 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
       throw new NotFoundError(
         `Consultation for appointment ${dto.fhir_appointment_id} not found`,
       );
+    }
+  }
+
+  /**
+   * Returns a paginated list of consultation list items with optional filters.
+   * Uses a Prisma select to exclude large JSON blobs for list performance.
+   * Records are ordered newest-first (created_at DESC).
+   *
+   * @param query - Optional filters: user_id, org_id, status, limit, offset.
+   * @returns Paginated consultation list.
+   */
+  async list(query: TListConsultationsQuery = {}): Promise<TPaginatedConsultationResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "ConsultationPrismaRepository.list",
+      startTimeMs,
+      context: { operationId, query },
+    });
+
+    try {
+      const where = {
+        ...(query.user_id ? { user_id: query.user_id } : {}),
+        ...(query.org_id ? { org_id: query.org_id } : {}),
+        ...(query.status ? { status: query.status } : {}),
+      };
+
+      const limit = query.limit ?? 10;
+      const offset = query.offset ?? 0;
+
+      /* select only scalar fields — excludes heavy JSON blobs */
+      const select = {
+        id: true,
+        fhir_appointment_id: true,
+        user_id: true,
+        org_id: true,
+        room_id: true,
+        status: true,
+        created_at: true,
+        updated_at: true,
+      } as const;
+
+      const [rows, total] = await Promise.all([
+        prisma.consultation.findMany({
+          where,
+          select,
+          orderBy: { created_at: "desc" },
+          take: limit,
+          skip: offset,
+        }),
+        prisma.consultation.count({ where }),
+      ]);
+
+      const data: TConsultationListItem[] = rows.map((r) => ({
+        id: r.id,
+        fhir_appointment_id: r.fhir_appointment_id,
+        user_id: r.user_id,
+        org_id: r.org_id,
+        room_id: r.room_id,
+        status: r.status as TConsultationListItem["status"],
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      }));
+
+      const result: TPaginatedConsultationResponse = { total, limit, offset, data };
+
+      logOperation("success", {
+        name: "ConsultationPrismaRepository.list",
+        startTimeMs,
+        data: { total, returned: rows.length },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "ConsultationPrismaRepository.list",
+        startTimeMs,
+        err,
+        context: { operationId, query },
+      });
+      throw err;
     }
   }
 

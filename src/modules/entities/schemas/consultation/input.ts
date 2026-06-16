@@ -90,3 +90,23 @@ export const GetConsultationByFhirAppointmentIdValidationSchema = z.object({
 export type TGetConsultationByFhirAppointmentId = z.infer<
   typeof GetConsultationByFhirAppointmentIdValidationSchema
 >;
+
+// ── List (paginated) ──────────────────────────────────────────────────────────
+
+/**
+ * Query filters for the paginated AI Consultation list.
+ * All filters are optional — omitting them returns the full table.
+ */
+export const ListConsultationsValidationSchema = z.object({
+  /** Filter by Better Auth user ID (own records only for patient view). */
+  user_id: z.string().optional(),
+  /** Filter by organisation ID. */
+  org_id: z.string().optional(),
+  /** Filter by consultation status: WAITING | ACTIVE | COMPLETED | ABANDONED. */
+  status: z.enum(["WAITING", "ACTIVE", "COMPLETED", "ABANDONED"]).optional(),
+  /** Maximum records to return. Defaults to 10. */
+  limit: z.number().int().positive().optional(),
+  /** Zero-based offset for pagination. */
+  offset: z.number().int().min(0).optional(),
+});
+export type TListConsultationsQuery = z.infer<typeof ListConsultationsValidationSchema>;

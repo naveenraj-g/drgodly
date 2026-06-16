@@ -17,11 +17,13 @@ import {
   SaveClinicalDataActionSchema,
   AbandonConsultationActionSchema,
   GetConsultationByFhirAppointmentIdActionSchema,
+  ListConsultationsActionSchema,
   type TCreateConsultationAction,
   type TCompleteConsultationAction,
   type TSaveClinicalDataAction,
   type TAbandonConsultationAction,
   type TGetConsultationByFhirAppointmentIdAction,
+  type TListConsultationsAction,
 } from "@/modules/entities/schemas/consultation";
 import {
   createConsultationController,
@@ -29,11 +31,13 @@ import {
   saveClinicalDataController,
   abandonConsultationController,
   getConsultationByFhirAppointmentIdController,
+  listConsultationsController,
   type TCreateConsultationControllerOutput,
   type TCompleteConsultationControllerOutput,
   type TSaveClinicalDataControllerOutput,
   type TAbandonConsultationControllerOutput,
   type TGetConsultationByFhirAppointmentIdControllerOutput,
+  type TListConsultationsControllerOutput,
 } from "@/modules/server/core/consultation/interface-adapters/controllers";
 import { authenticatedProcedure } from "../procedures";
 
@@ -127,5 +131,23 @@ export const getConsultationByFhirAppointmentIdAction = authenticatedProcedure
       input: TGetConsultationByFhirAppointmentIdAction;
     }): Promise<TGetConsultationByFhirAppointmentIdControllerOutput> => {
       return getConsultationByFhirAppointmentIdController(input.payload);
+    },
+  );
+
+/**
+ * Returns a paginated list of AI Consultation records.
+ * Patient portal passes user_id to scope to own records.
+ * Admin/doctor portal can omit user_id to see org-wide records.
+ */
+export const listConsultationsAction = authenticatedProcedure
+  .createServerAction()
+  .input(ListConsultationsActionSchema, { skipInputParsing: true })
+  .handler(
+    async ({
+      input,
+    }: {
+      input: TListConsultationsAction;
+    }): Promise<TListConsultationsControllerOutput> => {
+      return listConsultationsController(input.payload);
     },
   );

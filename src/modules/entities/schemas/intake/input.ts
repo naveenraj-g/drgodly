@@ -89,3 +89,25 @@ export const GetIntakeByFhirAppointmentIdValidationSchema = z.object({
 export type TGetIntakeByFhirAppointmentId = z.infer<
   typeof GetIntakeByFhirAppointmentIdValidationSchema
 >;
+
+// ── List (paginated) ──────────────────────────────────────────────────────────
+
+/**
+ * Query filters for the paginated AI Intake list.
+ * All filters are optional — omitting them returns the full table.
+ */
+export const ListIntakesValidationSchema = z.object({
+  /** Filter by Better Auth user ID (own records only for patient view). */
+  user_id: z.string().optional(),
+  /** Filter by organisation ID. */
+  org_id: z.string().optional(),
+  /** Filter by intake status: IN_PROGRESS | COMPLETED | ABANDONED. */
+  status: z.enum(["IN_PROGRESS", "COMPLETED", "ABANDONED"]).optional(),
+  /** Filter by channel mode: TEXT | VOICE. */
+  mode: z.enum(["TEXT", "VOICE"]).optional(),
+  /** Maximum records to return. Defaults to 10. */
+  limit: z.number().int().positive().optional(),
+  /** Zero-based offset for pagination. */
+  offset: z.number().int().min(0).optional(),
+});
+export type TListIntakesQuery = z.infer<typeof ListIntakesValidationSchema>;
