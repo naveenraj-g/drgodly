@@ -11,6 +11,7 @@ import {
   registerAppointmentModule,
   registerIntakeModule,
   registerConsultationModule,
+  registerAiConsultationModule,
   registerEncounterModule,
   registerServiceRequestModule,
   registerMedicationRequestModule,
@@ -30,6 +31,7 @@ registerSlotModule(ApplicationContainer);
 registerAppointmentModule(ApplicationContainer);
 registerIntakeModule(ApplicationContainer);
 registerConsultationModule(ApplicationContainer);
+registerAiConsultationModule(ApplicationContainer);
 registerEncounterModule(ApplicationContainer);
 registerServiceRequestModule(ApplicationContainer);
 registerMedicationRequestModule(ApplicationContainer);

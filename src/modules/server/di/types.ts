@@ -8,6 +8,7 @@ import { ISlotService } from "../core/slot/domain/interfaces/slot.service.interf
 import { IAppointmentService } from "../core/appointment/domain/interfaces/appointment.service.interface";
 import { IIntakeRepository } from "../core/intake/domain/interfaces/intake.repository.interface";
 import { IConsultationRepository } from "../core/consultation/domain/interfaces/consultation.repository.interface";
+import { IAiConsultationRepository } from "../core/ai-consultation/domain/interfaces/ai-consultation.repository.interface";
 import { IEncounterService } from "../core/encounter/domain/interfaces/encounter.service.interface";
 import { IServiceRequestService } from "../core/service-request/domain/interfaces/service-request.service.interface";
 import { IMedicationRequestService } from "../core/medication-request/domain/interfaces/medication-request.service.interface";
@@ -25,6 +26,7 @@ export const DI_SYMBOLS = {
   IAppointmentService: Symbol.for("IAppointmentService"),
   IIntakeRepository: Symbol.for("IIntakeRepository"),
   IConsultationRepository: Symbol.for("IConsultationRepository"),
+  IAiConsultationRepository: Symbol.for("IAiConsultationRepository"),
   IEncounterService: Symbol.for("IEncounterService"),
   IServiceRequestService: Symbol.for("IServiceRequestService"),
   IMedicationRequestService: Symbol.for("IMedicationRequestService"),
@@ -43,6 +45,7 @@ export interface DI_RETURN_TYPES {
   IAppointmentService: IAppointmentService;
   IIntakeRepository: IIntakeRepository;
   IConsultationRepository: IConsultationRepository;
+  IAiConsultationRepository: IAiConsultationRepository;
   IEncounterService: IEncounterService;
   IServiceRequestService: IServiceRequestService;
   IMedicationRequestService: IMedicationRequestService;

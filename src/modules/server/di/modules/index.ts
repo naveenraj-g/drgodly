@@ -7,6 +7,7 @@ export * from "./practitioner-role/practitioner-role.module";
 export * from "./slot/slot.module";
 export * from "./appointment/appointment.module";
 export * from "./intake/intake.module";
+export * from "./ai-consultation/ai-consultation.module";
 export * from "./consultation/consultation.module";
 export * from "./encounter/encounter.module";
 export * from "./service-request/service-request.module";

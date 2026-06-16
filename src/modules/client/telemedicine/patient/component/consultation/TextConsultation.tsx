@@ -1,21 +1,23 @@
 /**
- * TextIntake — patient-facing text chat intake component.
+ * TextConsultation — patient-facing text chat AI consultation component.
  *
- * Layer: client / telemedicine / patient / intake
+ * Layer: client / telemedicine / patient / component / consultation
+ *
+ * Mirrors TextIntake.tsx exactly in structure and streaming logic, but:
+ *   - Calls /api/consultation-agent instead of /api/intake-agent
+ *   - Persists to AiConsultation table via createAiConsultationAction / updateAiConsultationAction
+ *   - Shows ConsultationCompleteModal (not IntakeCompleteModal) on completion
  *
  * Flow:
  *  1. Patient types freely — no DB record until they end the chat.
- *  2. Messages stream from /api/intake-agent token by token.
+ *  2. Messages stream from /api/consultation-agent token by token.
  *     The AI agent session id is obtained lazily from the first response
  *     (X-Session-Id header or agent_end chunk) and reused for subsequent turns.
  *  3. "End Chat" button (lazy create-and-save):
- *     a. POST conversation to /api/assessment-plan-agent → clinical report.
- *     b. createIntakeAction → creates the DB record.
- *     c. updateIntakeAction(id, conversation, report) → status=COMPLETED.
- *     d. Opens IntakeCompleteModal.
- *
- * UI mirrors drgodly-mvp TextIntake exactly: Brain-icon header with live
- * Online/Thinking status, ConversationChat thread, Input + Stop/Send + End Chat.
+ *     a. POST conversation to /api/assessment-plan-agent → clinical report (non-fatal).
+ *     b. createAiConsultationAction → creates the DB record.
+ *     c. updateAiConsultationAction(id, conversation, report) → status=COMPLETED.
+ *     d. Opens ConsultationCompleteModal.
  */
 
 "use client";
@@ -27,42 +29,45 @@ import { Brain, Loader2, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  createIntakeAction,
-  updateIntakeAction,
-} from "@/modules/server/presentation/actions/intake";
-import { ConversationChat, type ChatMessage } from "./ConversationChat";
-import { IntakeCompleteModal } from "./IntakeCompleteModal";
+  createAiConsultationAction,
+  updateAiConsultationAction,
+} from "@/modules/server/presentation/actions/ai-consultation/core.actions";
+import { ConversationChat, type ChatMessage } from "../intake/ConversationChat";
+import { ConsultationCompleteModal } from "./ConsultationCompleteModal";
 
-/** Props for TextIntake. */
-interface TextIntakeProps {
-  /** FHIR Patient.id — passed to createIntakeAction for doctor cross-reference. */
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+/** Props for TextConsultation. */
+interface TextConsultationProps {
+  /** FHIR Patient.id — passed to createAiConsultationAction for doctor cross-reference. */
   patientFhirId?: number;
-  /** Better Auth active organization id — scopes the intake to the tenant. */
+  /** Better Auth active organization id — scopes the session to the tenant. */
   orgId?: string | null;
-  /** Locale-prefixed base path for post-intake navigation. */
+  /** Locale-prefixed base path for post-consultation navigation. */
   basePath: string;
   /** Patient's display name — shown as avatar initial in the chat thread. */
   userName: string;
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 /**
- * Text-based patient intake chat.
+ * Text-based patient AI consultation chat.
  *
- * Streams AI responses from /api/intake-agent. Generates a clinical report on
- * completion and persists everything via server actions.
+ * Streams AI responses from /api/consultation-agent. Generates a clinical
+ * report on completion and persists everything via server actions.
  *
  * @param patientFhirId - Optional FHIR Patient.id for cross-reference.
+ * @param orgId - Active org id scoping the record.
  * @param basePath - Locale-prefixed base path (e.g. "/en/bezs/telemedicine/patient").
  * @param userName - Patient display name, used as avatar initial.
  */
-export function TextIntake({
+export function TextConsultation({
   patientFhirId,
   orgId,
   basePath,
   userName,
-}: TextIntakeProps) {
-  // DB id — only set after endChat creates the record
-  const [intakeId, setIntakeId] = useState<number | null>(null);
+}: TextConsultationProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -78,7 +83,8 @@ export function TextIntake({
   const abortRef = useRef<AbortController | null>(null);
   const liveTextRef = useRef("");
 
-  // ── Parse a single SSE/NDJSON chunk line — mirrors MVP parseChunkLine ─────
+  // ── Parse a single SSE/NDJSON chunk line — mirrors TextIntake parseChunkLine ─
+
   const parseChunkLine = useCallback(
     (
       raw: string,
@@ -131,15 +137,12 @@ export function TextIntake({
   );
 
   // ── Send a message and stream the response ────────────────────────────────
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isStreaming) return;
 
-      const userMsg: ChatMessage = {
-        key: nanoid(),
-        from: "user",
-        content: text,
-      };
+      const userMsg: ChatMessage = { key: nanoid(), from: "user", content: text };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setIsStreaming(true);
@@ -150,17 +153,15 @@ export function TextIntake({
       abortRef.current = controller;
 
       try {
-        const res = await fetch("/api/intake-agent", {
+        const res = await fetch("/api/consultation-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // sessionId is null on the first message; the agent creates a new session
           body: JSON.stringify({ message: text, session_id: sessionId }),
           signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`Agent responded ${res.status}`);
 
-        // Capture the session id from the response header on the first turn
         const headerSessionId = res.headers.get("X-Session-Id");
         if (headerSessionId) setSessionId(headerSessionId);
 
@@ -182,7 +183,6 @@ export function TextIntake({
           for (const line of lines) {
             if (!line.trim()) continue;
             const result = parseChunkLine(line);
-            // Also capture session id from the agent_end chunk
             if (result.sessionId) setSessionId(result.sessionId);
             if (result.token !== null) appendToken(result.token);
             if (result.done) break outer;
@@ -200,7 +200,6 @@ export function TextIntake({
           toast.error("Failed to get response. Please try again.");
         }
       } finally {
-        // Commit live text to messages
         const finalText = liveTextRef.current;
         liveTextRef.current = "";
         setLiveTranscript("");
@@ -219,7 +218,8 @@ export function TextIntake({
 
   const cancelStream = () => abortRef.current?.abort();
 
-  // ── End chat: generate report → create DB record → save → show modal ────────
+  // ── End chat: generate report → create DB record → save → show modal ─────
+
   const endChat = async () => {
     if (isStreaming) cancelStream();
     if (messages.length === 0) {
@@ -228,7 +228,7 @@ export function TextIntake({
     }
 
     try {
-      // Step 1: generate clinical report (non-fatal — intake saves even without it)
+      // Step 1: generate clinical report (non-fatal — session saves even without it)
       setEndingPhase("report");
       let report: unknown = undefined;
       try {
@@ -238,7 +238,7 @@ export function TextIntake({
           body: JSON.stringify({
             conversation: messages.map((m) => {
               const speaker =
-                m.from === "assistant" ? "appointment-intake-agent" : "patient";
+                m.from === "assistant" ? "consultation-agent" : "patient";
               return `${speaker}: ${m.content}`;
             }),
           }),
@@ -248,9 +248,9 @@ export function TextIntake({
         /* non-fatal */
       }
 
-      // Step 2: create the DB record + save conversation atomically
+      // Step 2: create the DB record
       setEndingPhase("saving");
-      const [created, createErr] = await createIntakeAction({
+      const [created, createErr] = await createAiConsultationAction({
         payload: {
           userId: "",
           mode: "TEXT",
@@ -259,12 +259,13 @@ export function TextIntake({
         },
       });
       if (createErr || !created) {
-        console.error("[endChat] createIntakeAction failed:", createErr);
-        toast.error("Failed to save intake session");
+        console.error("[endChat] createAiConsultationAction failed:", createErr);
+        toast.error("Failed to save consultation session");
         return;
       }
 
-      const [, updateErr] = await updateIntakeAction({
+      // Step 3: save conversation + report, flip status to COMPLETED
+      const [, updateErr] = await updateAiConsultationAction({
         payload: {
           id: created.id,
           conversation: messages.map((m) => ({
@@ -275,12 +276,11 @@ export function TextIntake({
         },
       });
       if (updateErr) {
-        console.error("[endChat] updateIntakeAction failed:", updateErr);
+        console.error("[endChat] updateAiConsultationAction failed:", updateErr);
         toast.error("Failed to save conversation");
         return;
       }
 
-      setIntakeId(created.id);
       setShowModal(true);
     } finally {
       setEndingPhase("idle");
@@ -294,11 +294,12 @@ export function TextIntake({
     }
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <>
       <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-156px)]">
-        {/* ── Header ── */}
+        {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border bg-card shadow-sm">
           <div
             className={`bg-primary/10 rounded-full p-2 shrink-0 ${isStreaming ? "animate-pulse" : ""}`}
@@ -308,7 +309,7 @@ export function TextIntake({
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm leading-none">Bezs AI</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Intake Assistant
+              Consultation Agent
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -321,7 +322,7 @@ export function TextIntake({
           </div>
         </div>
 
-        {/* ── Conversation thread ── */}
+        {/* Conversation thread */}
         <ConversationChat
           messages={messages}
           liveTranscript={liveTranscript}
@@ -330,13 +331,13 @@ export function TextIntake({
           userName={userName}
         />
 
-        {/* ── Input row ── */}
+        {/* Input row */}
         <div className="flex gap-2 items-center">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
+            placeholder="Describe your symptoms or ask a question..."
             disabled={isStreaming || endingPhase !== "idle"}
             className="flex-1"
           />
@@ -388,13 +389,9 @@ export function TextIntake({
         </div>
       </div>
 
-      {/* Post-intake modal */}
-      {showModal && intakeId && (
-        <IntakeCompleteModal
-          open={showModal}
-          intakeId={intakeId}
-          basePath={basePath}
-        />
+      {/* Post-consultation modal */}
+      {showModal && (
+        <ConsultationCompleteModal open={showModal} basePath={basePath} />
       )}
     </>
   );

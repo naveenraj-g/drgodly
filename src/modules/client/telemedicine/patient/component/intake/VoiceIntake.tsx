@@ -25,7 +25,10 @@ import { nanoid } from "nanoid";
 import { Brain, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createIntakeAction, updateIntakeAction } from "@/modules/server/presentation/actions/intake";
+import {
+  createIntakeAction,
+  updateIntakeAction,
+} from "@/modules/server/presentation/actions/intake";
 import { ConversationChat, type ChatMessage } from "./ConversationChat";
 import { IntakeCompleteModal } from "./IntakeCompleteModal";
 
@@ -52,13 +55,19 @@ interface VoiceIntakeProps {
  * @param basePath - Locale-prefixed base path.
  * @param userName - Patient display name.
  */
-export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakeProps) {
+export function VoiceIntake({
+  patientFhirId,
+  basePath,
+  userName,
+}: VoiceIntakeProps) {
   const [intakeId, setIntakeId] = useState<number | null>(null);
   const [callStarted, setCallStarted] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
-  const [currentRole, setCurrentRole] = useState<"user" | "assistant" | null>(null);
+  const [currentRole, setCurrentRole] = useState<"user" | "assistant" | null>(
+    null,
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showModal, setShowModal] = useState(false);
 
@@ -81,14 +90,21 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
       const [data, err] = await createIntakeAction({
         payload: { userId: "", mode: "VOICE", patient_fhir_id: patientFhirId },
       });
-      if (err) { toast.error("Failed to start intake session"); return; }
+      if (err) {
+        toast.error("Failed to start intake session");
+        return;
+      }
       setIntakeId(data!.id);
     }
     init();
 
     // Cleanup: stop the call if the page unmounts mid-session
     return () => {
-      try { vapiRef.current?.stop(); } catch { /* ignore */ }
+      try {
+        vapiRef.current?.stop();
+      } catch {
+        /* ignore */
+      }
     };
   }, [patientFhirId]);
 
@@ -168,14 +184,23 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
       vapiRef.current = vapi;
       vapi.start(VAPI_AGENT_ID);
 
-      const onCallStart = () => { setCallStarted(true); setIsConnecting(false); };
-      const onCallEnd = () => { setCallStarted(false); setIsConnecting(false); setLiveTranscript(""); setCurrentRole(null); };
+      const onCallStart = () => {
+        setCallStarted(true);
+        setIsConnecting(false);
+      };
+      const onCallEnd = () => {
+        setCallStarted(false);
+        setIsConnecting(false);
+        setLiveTranscript("");
+        setCurrentRole(null);
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onMessage = (message: any) => {
         try {
           if (message.type === "transcript") {
             const { role, transcriptType, transcript } = message;
-            const from: "user" | "assistant" = role === "assistant" ? "assistant" : "user";
+            const from: "user" | "assistant" =
+              role === "assistant" ? "assistant" : "user";
             if (transcriptType === "partial") {
               setLiveTranscript(transcript);
               setCurrentRole(from);
@@ -185,17 +210,28 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
               setCurrentRole(null);
             }
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       };
       const onSpeechStart = () => setCurrentRole("assistant");
       const onSpeechEnd = () => setCurrentRole("user");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onError = (error: any) => {
         console.error("Vapi error", error);
-        toast.error("Voice assistant error", { description: "Failed to connect with assistant." });
+        toast.error("Voice assistant error", {
+          description: "Failed to connect with assistant.",
+        });
       };
 
-      handlersRef.current = { onCallStart, onCallEnd, onMessage, onSpeechStart, onSpeechEnd, onError };
+      handlersRef.current = {
+        onCallStart,
+        onCallEnd,
+        onMessage,
+        onSpeechStart,
+        onSpeechEnd,
+        onError,
+      };
 
       vapi.on("call-start", onCallStart);
       vapi.on("call-end", onCallEnd);
@@ -212,8 +248,7 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="flex flex-col gap-4 w-full overflow-hidden h-[calc(100dvh-144px)]">
-
+      <div className="flex flex-col gap-4 w-full overflow-hidden h-[calc(100dvh-156px)]">
         {/* ── Title ── */}
         <h1 className="text-xl font-bold text-center">
           Talk to Your AI Intake Assistant
@@ -223,13 +258,19 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
         <div className="flex gap-4 justify-around items-center">
           {/* AI avatar */}
           <div className="flex flex-col items-center">
-            <div className={`bg-secondary w-fit rounded-full p-4 mb-1 ${callStarted ? "animate-pulse" : ""}`}>
+            <div
+              className={`bg-secondary w-fit rounded-full p-4 mb-1 ${callStarted ? "animate-pulse" : ""}`}
+            >
               <Brain className="size-10" />
             </div>
             <p className="font-bold">Bezs AI</p>
             <p className="text-xs text-muted-foreground">Intake Assistant</p>
             <Badge className="mt-4" variant="secondary">
-              {callStarted ? "Connected" : isConnecting ? "Connecting..." : "Waiting..."}
+              {callStarted
+                ? "Connected"
+                : isConnecting
+                  ? "Connecting..."
+                  : "Waiting..."}
             </Badge>
           </div>
 
@@ -242,7 +283,9 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
             </div>
             <p className="font-bold">You</p>
             <p className="text-xs text-muted-foreground">{userName}</p>
-            <Badge className="mt-4" variant="secondary">Ready</Badge>
+            <Badge className="mt-4" variant="secondary">
+              Ready
+            </Badge>
           </div>
         </div>
 
@@ -256,7 +299,11 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
 
         {/* ── Call controls ── */}
         {isPending ? (
-          <Button className="w-fit self-center px-6 h-7 rounded-2xl" size="sm" disabled>
+          <Button
+            className="w-fit self-center px-6 h-7 rounded-2xl"
+            size="sm"
+            disabled
+          >
             <Loader2 className="animate-spin mr-1" />
             Loading...
           </Button>
@@ -276,14 +323,25 @@ export function VoiceIntake({ patientFhirId, basePath, userName }: VoiceIntakePr
             onClick={startCall}
             disabled={isConnecting || !intakeId}
           >
-            {isConnecting ? <><Loader2 className="animate-spin mr-1 size-3" />Connecting...</> : "Start Call"}
+            {isConnecting ? (
+              <>
+                <Loader2 className="animate-spin mr-1 size-3" />
+                Connecting...
+              </>
+            ) : (
+              "Start Call"
+            )}
           </Button>
         )}
       </div>
 
       {/* Post-intake modal */}
       {showModal && intakeId && (
-        <IntakeCompleteModal open={showModal} intakeId={intakeId} basePath={basePath} />
+        <IntakeCompleteModal
+          open={showModal}
+          intakeId={intakeId}
+          basePath={basePath}
+        />
       )}
     </>
   );

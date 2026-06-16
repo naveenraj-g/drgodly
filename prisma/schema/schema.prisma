@@ -139,6 +139,55 @@ model Consultation {
   @@map("consultations")
 }
 
+// ── AI Consultation ───────────────────────────────────────────────────────────
+
+/** Channel through which the AI consultation was conducted. */
+enum AiConsultationMode {
+  TEXT
+  VOICE
+}
+
+/** Lifecycle status of a patient AI consultation session. */
+enum AiConsultationStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+/**
+ * Standalone AI consultation record.
+ *
+ * Stores the conversation transcript and AI-generated clinical report from a
+ * patient's direct consultation with the AI agent — independent of any doctor
+ * appointment. Patients may optionally book a follow-up with a real doctor
+ * afterwards, at which point fhir_appointment_id is set.
+ *
+ * This is distinct from Intake (pre-appointment information gathering) and from
+ * Consultation (live LiveKit video session with a doctor).
+ */
+model AiConsultation {
+  id                  Int                    @id @default(autoincrement())
+  /** Better Auth user ID of the consulting patient. */
+  user_id             String
+  org_id              String?
+  /** FHIR Patient.id — populated so doctors can cross-reference. */
+  patient_fhir_id     Int?
+  mode                AiConsultationMode
+  status              AiConsultationStatus   @default(IN_PROGRESS)
+  /** Chat transcript: [{ role: "user"|"assistant", content: string }] */
+  conversation        Json?
+  /** AI-generated clinical assessment (risk_level, differential_diagnosis, etc.) */
+  report              Json?
+  /** Set if the patient books a follow-up FHIR appointment after this session. */
+  fhir_appointment_id Int?
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+
+  @@index([user_id])
+  @@index([fhir_appointment_id])
+  @@map("ai_consultations")
+}
+
 // ── EMR Chat Session ──────────────────────────────────────────────────────────
 
 enum EmrChatSessionStatus {
