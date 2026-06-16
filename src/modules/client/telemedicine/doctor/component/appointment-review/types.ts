@@ -85,6 +85,8 @@ export interface AiServiceRequest {
 /** Condition form item — AI suggestion plus doctor-resolved terminology code and status. */
 export interface ConditionFormItem extends AiCondition {
   id: string;
+  /** Numeric FHIR DB id — set when this item was loaded from an existing FHIR record. */
+  fhirId?: number;
   resolved?: ResolvedConcept;
   clinicalStatus?: string;
   verificationStatus?: string;
@@ -93,6 +95,8 @@ export interface ConditionFormItem extends AiCondition {
 /** Observation form item — AI suggestion plus doctor-edited value/unit and resolved code. */
 export interface ObservationFormItem extends AiObservation {
   id: string;
+  /** Numeric FHIR DB id — set when this item was loaded from an existing FHIR record. */
+  fhirId?: number;
   resolved?: ResolvedConcept;
   status?: string;
   editedValue?: string;
@@ -102,6 +106,8 @@ export interface ObservationFormItem extends AiObservation {
 /** Medication form item — AI suggestion plus doctor-edited dosage fields and resolved code. */
 export interface MedicationFormItem extends AiMedicationRequest {
   id: string;
+  /** Numeric FHIR DB id — set when this item was loaded from an existing FHIR record. */
+  fhirId?: number;
   resolved?: ResolvedConcept;
   status?: string;
   intent?: string;
@@ -114,6 +120,8 @@ export interface MedicationFormItem extends AiMedicationRequest {
 /** Service request form item — AI suggestion plus doctor-selected status/intent/priority. */
 export interface ServiceRequestFormItem extends AiServiceRequest {
   id: string;
+  /** Numeric FHIR DB id — set when this item was loaded from an existing FHIR record. */
+  fhirId?: number;
   resolved?: ResolvedConcept;
   status?: string;
   intent?: string;

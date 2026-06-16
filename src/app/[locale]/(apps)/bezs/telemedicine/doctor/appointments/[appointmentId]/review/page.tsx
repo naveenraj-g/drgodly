@@ -9,12 +9,15 @@
  *
  * Data flow:
  *  1. Resolves the numeric appointmentId from route params.
- *  2. Fetches: appointment, consultation (for full_report), encounter (by appointment_id).
- *  3. Extracts patient info (name, FHIR id) from appointment participants.
- *  4. Renders AppointmentReview with SOAP + clinical extraction pre-seeded from the AI report.
+ *  2. Fetches in parallel: appointment, consultation, encounter, and all 4 FHIR
+ *     resource lists (Condition, Observation, MedicationRequest, ServiceRequest)
+ *     filtered by encounter_id.
+ *  3. Passes saved FHIR records to AppointmentReview for pre-population.
+ *     On revisit the saved records are rehydrated into form state so doctor
+ *     edits are preserved across page loads.
  *
- * On submit, AppointmentReview calls individual FHIR create actions for each resource
- * (Condition, Observation, MedicationRequest, ServiceRequest) linked to the encounter.
+ * On save, AppointmentReview diffs form state against loaded state and applies
+ * CREATE / UPDATE / DELETE per resource in parallel.
  */
 
 import { redirect } from "@/i18n/navigation";
@@ -24,9 +27,17 @@ import { requirePractitionerProfile } from "@/modules/server/auth/require-profil
 import { getAppointmentByIdAction } from "@/modules/server/presentation/actions/appointment";
 import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import { listEncountersAction } from "@/modules/server/presentation/actions/encounter/core.actions";
+import { listConditionsAction } from "@/modules/server/presentation/actions/condition/core.actions";
+import { listObservationsAction } from "@/modules/server/presentation/actions/observation/core.actions";
+import { listMedicationRequestsAction } from "@/modules/server/presentation/actions/medication-request/core.actions";
+import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
 import { AppointmentReview } from "@/modules/client/telemedicine/doctor/component/appointment-review/AppointmentReview";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
+import type { TPaginatedConditionResponse } from "@/modules/entities/schemas/condition";
+import type { TPaginatedObservationResponse } from "@/modules/entities/schemas/observation";
+import type { TPaginatedMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
+import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -73,8 +84,8 @@ interface ReviewPageProps {
 
 /**
  * Post-consultation review server page.
- * Resolves appointment, consultation, and encounter data server-side before
- * rendering the client AppointmentReview component.
+ * Resolves appointment, consultation, encounter, and saved FHIR resource data
+ * server-side before rendering the client AppointmentReview component.
  *
  * @param params - Dynamic route params ({ appointmentId, locale }).
  */
@@ -136,6 +147,32 @@ export default async function DoctorAppointmentReviewPage({
     );
   }
 
+  /*
+   * Fetch all 4 FHIR resource lists linked to this encounter in parallel.
+   * These are the records saved from a previous doctor review session (if any).
+   * On first visit all lists will be empty — the AI report seeds the form instead.
+   */
+  const [
+    [conditionsPage],
+    [observationsPage],
+    [medicationsPage],
+    [serviceRequestsPage],
+  ] = await Promise.all([
+    listConditionsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
+    listObservationsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
+    listMedicationRequestsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
+    listServiceRequestsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
+  ]);
+
+  const savedConditions =
+    (conditionsPage as TPaginatedConditionResponse | null)?.data ?? [];
+  const savedObservations =
+    (observationsPage as TPaginatedObservationResponse | null)?.data ?? [];
+  const savedMedications =
+    (medicationsPage as TPaginatedMedicationRequestResponse | null)?.data ?? [];
+  const savedServiceRequests =
+    (serviceRequestsPage as TPaginatedServiceRequestResponse | null)?.data ?? [];
+
   return (
     <AppointmentReview
       fhirAppointmentId={numericId}
@@ -145,6 +182,10 @@ export default async function DoctorAppointmentReviewPage({
       doctorName={doctorName}
       appointmentDate={appointmentDate}
       fullReport={consultation?.full_report?.soap_report ?? null}
+      savedConditions={savedConditions}
+      savedObservations={savedObservations}
+      savedMedications={savedMedications}
+      savedServiceRequests={savedServiceRequests}
     />
   );
 }
