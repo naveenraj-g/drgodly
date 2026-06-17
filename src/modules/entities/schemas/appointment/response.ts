@@ -191,7 +191,7 @@ export type TAppointmentPatientInstructionResponse = z.infer<typeof AppointmentP
 
 /** Role type a participant plays in an Appointment. */
 export const AppointmentParticipantTypeResponseSchema = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   coding_system: z.string().nullish(),
   coding_code: z.string().nullish(),
   coding_display: z.string().nullish(),

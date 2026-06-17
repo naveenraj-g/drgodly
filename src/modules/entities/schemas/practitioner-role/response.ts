@@ -283,7 +283,7 @@ export const PractitionerDetailResponseSchema = z.object({
   qualifications: z
     .array(
       z.object({
-        id: z.number(),
+        id: z.number().optional(),
         code_system: z.string().nullish(),
         code_code: z.string().nullish(),
         code_display: z.string().nullish(),
