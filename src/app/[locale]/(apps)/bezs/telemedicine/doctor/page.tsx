@@ -65,6 +65,11 @@ export default async function DoctorPage() {
     return null;
   }
 
+  console.log({
+    orgId: session.session.activeOrganizationId,
+    userId: session.user.id,
+  });
+
   // Redirects to /doctor/settings/profile if no FHIR Practitioner record
   const practitioner = await requirePractitionerProfile();
 

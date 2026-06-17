@@ -2,7 +2,7 @@ import { redirect } from "@/i18n/navigation";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { getLocale } from "next-intl/server";
 
-async function BezsPage() {
+async function TelemedicinePage() {
   const locale = await getLocale();
   const session = await getServerSession();
   const url =
@@ -13,9 +13,9 @@ async function BezsPage() {
 
   return (
     <div>
-      <h1>BezsPage</h1>
+      <h1>TelemedicinePage</h1>
     </div>
   );
 }
 
-export default BezsPage;
+export default TelemedicinePage;

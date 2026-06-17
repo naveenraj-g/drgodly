@@ -71,7 +71,10 @@ export default function RootNavbar({
             <span className="text-2xl font-bold text-foreground tracking-tight">
               DrGodly
             </span>
-            <Badge variant="outline" className="text-[10px] font-bold ml-1 hidden sm:inline-flex border-primary/30 text-primary">
+            <Badge
+              variant="outline"
+              className="text-[10px] font-bold ml-1 hidden sm:inline-flex border-primary/30 text-primary"
+            >
               FHIR R4
             </Badge>
           </Link>
@@ -131,7 +134,8 @@ export default function RootNavbar({
                   className="rounded-full px-6 shadow-md hover:shadow-lg transition-all"
                   onClick={() => {
                     const url =
-                      session?.session.activeRoleRedirectUrl ?? "/dashboard";
+                      session?.session.activeRoleRedirectUrl ??
+                      "/bezs/telemedicine/patient/profile";
                     router.push(url as any);
                   }}
                 >

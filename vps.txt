@@ -249,3 +249,5 @@ On the VPS:
   docker image prune -f
 
 ================================================================================
+
+./docker-build.sh .env ghcr.io/naveenraj-g/drgodly:latest

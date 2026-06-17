@@ -42,6 +42,11 @@ export default async function PatientPage() {
     return null;
   }
 
+  console.log({
+    orgId: session.session.activeOrganizationId,
+    userId: session.user.id,
+  });
+
   /* Enforce that the user has completed their patient FHIR profile setup. */
   await requirePatientProfile();
 
