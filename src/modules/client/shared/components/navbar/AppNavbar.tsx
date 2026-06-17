@@ -18,7 +18,7 @@ type TUser = {
   username?: string | null;
 };
 
-const AppNavbar = ({ user }: { user: TUser }) => {
+const AppNavbar = ({ user, apps }: { user: TUser; apps: unknown[] }) => {
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
@@ -45,14 +45,14 @@ const AppNavbar = ({ user }: { user: TUser }) => {
             className="cursor-pointer max-md:scale-125"
             variant="outline"
           />
-          <Separator orientation="vertical" className="!h-6" />
-          <CommandSearch />
+          <Separator orientation="vertical" className="h-6!" />
+          <CommandSearch apps={apps} user={user} />
         </div>
         <div className="flex items-center gap-4">
           <LocaleSwitcher />
           <ThemeSwitcher />
           <Bell className="h-5 w-5 text-zinc-500 dark:text-zinc-300 cursor-pointer" />
-          <AppLauncher />
+          <AppLauncher apps={apps} />
           <NavUser user={user} />
         </div>
       </nav>

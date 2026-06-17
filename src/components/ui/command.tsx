@@ -59,7 +59,8 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        {/* CommandPrimitive root must wrap all cmdk children so they share context */}
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )

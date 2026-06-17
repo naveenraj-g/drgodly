@@ -5,7 +5,7 @@ FROM node:22-alpine AS base
 # ─── deps: install node_modules via pnpm ─────────────────────────────────────
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile
 
 # ─── builder: prisma generate + next build ────────────────────────────────────
 FROM base AS builder
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -62,11 +62,18 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/src/messages ./src/messages
 
-# Install Prisma CLI so db push has all transitive deps available at runtime
-RUN npm install -g prisma@6 --legacy-peer-deps
+# Install prisma CLI globally with npm (real files, no pnpm symlink issues).
+# prisma.config.ts is removed below so prisma reads DATABASE_URL from the
+# environment directly — no dotenv or prisma/config module needed at runtime.
+RUN npm install -g prisma@7.8.0
 
 # Prisma schema needed by db push at runtime
 COPY --from=builder --chown=nextjs:nodejs /app/prisma/schema/schema.prisma ./prisma/schema/schema.prisma
+
+# Drop prisma.config.ts — the standalone output includes it but it imports
+# dotenv/config and prisma/config which are not available in this image.
+# db push uses --schema + DATABASE_URL env var injected by docker compose.
+RUN rm -f ./prisma.config.ts
 
 # Entrypoint: runs db push, then starts the server
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh

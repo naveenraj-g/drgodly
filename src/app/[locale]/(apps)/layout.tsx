@@ -25,11 +25,13 @@ const AppsLayout = async ({ children }: { children: React.ReactNode }) => {
     activeOrganizationId: session.session.activeOrganizationId,
   };
 
+  const apps = (session.session as any).apps ?? [];
+
   return (
     <SidebarProvider>
       <MenuBar {...user} />
       <SidebarInset className="min-w-0">
-        <AppNavbar user={user} />
+        <AppNavbar user={user} apps={apps} />
         <main className="mx-auto px-4 py-4 pb-6 max-w-[110rem] space-y-6 w-full">
           <BreadCrumb />
           <div className="w-full">{children}</div>

@@ -1,7 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Link } from "@/i18n/navigation";
 import { Grip, LayoutGrid, Stethoscope } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -13,9 +17,10 @@ interface AppEntry {
   slug: string;
 }
 
-const APP_CONFIG: Record<string, { icon: LucideIcon; bg: string; fg: string }> = {
-  telemedicine: { icon: Stethoscope, bg: "bg-blue-500", fg: "text-white" },
-};
+const APP_CONFIG: Record<string, { icon: LucideIcon; bg: string; fg: string }> =
+  {
+    telemedicine: { icon: Stethoscope, bg: "bg-blue-500", fg: "text-white" },
+  };
 
 export function AppLauncher({ apps = [] }: { apps?: AppEntry[] }) {
   const [open, setOpen] = useState(false);
@@ -23,14 +28,23 @@ export function AppLauncher({ apps = [] }: { apps?: AppEntry[] }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:text-foreground" aria-label="Open apps">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full text-muted-foreground hover:text-foreground"
+          aria-label="Open apps"
+        >
           <Grip className="size-5 text-zinc-500 dark:text-zinc-300" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-56 p-3">
-        <p className="text-xs font-semibold text-muted-foreground px-1 mb-2 tracking-wide uppercase">Apps</p>
+        <p className="text-xs font-semibold text-muted-foreground px-1 mb-2 tracking-wide uppercase">
+          Apps
+        </p>
         {apps.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">No apps available</p>
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No apps available
+          </p>
         ) : (
           <div className="grid grid-cols-3 gap-1">
             {apps.map((app) => {
