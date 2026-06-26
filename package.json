@@ -11,6 +11,9 @@
     "db:push": "pnpm dlx prisma db push"
   },
   "dependencies": {
+    "@filenest/node": "file:E:/work/code/file-nest/sdks/node",
+    "@filenest/react": "file:E:/work/code/file-nest/sdks/react",
+    "@filenest/nextjs": "file:E:/work/code/file-nest/sdks/nextjs",
     "@base-ui/react": "^1.4.1",
     "@better-auth/oauth-provider": "^1.6.9",
     "@evyweb/ioctopus": "^1.4.1",

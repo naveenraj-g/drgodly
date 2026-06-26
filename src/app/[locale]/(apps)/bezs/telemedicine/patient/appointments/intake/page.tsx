@@ -15,10 +15,10 @@ import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePatientProfile } from "@/modules/server/auth/require-profile";
-import { VoiceIntake } from "@/modules/client/telemedicine/patient/component/intake/VoiceIntake";
+import { VoiceIntakeTest } from "@/modules/client/telemedicine/patient/component/intake/VoiceIntakeTest";
 
 /**
- * Voice-based intake session page (Vapi AI).
+ * Voice-based intake session page (custom WebSocket voice agent).
  */
 export default async function VoiceIntakePage() {
   const session = await getServerSession();
@@ -35,7 +35,7 @@ export default async function VoiceIntakePage() {
   const basePath = `/${locale}/bezs/telemedicine/patient`;
 
   return (
-    <VoiceIntake
+    <VoiceIntakeTest
       patientFhirId={patient.id}
       basePath={basePath}
       userName={session.user.name ?? "Patient"}

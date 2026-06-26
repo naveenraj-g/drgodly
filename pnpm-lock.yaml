@@ -17,6 +17,15 @@ importers:
       '@evyweb/ioctopus':
         specifier: ^1.4.1
         version: 1.4.1
+      '@filenest/nextjs':
+        specifier: file:E:/work/code/file-nest/sdks/nextjs
+        version: file:../file-nest/sdks/nextjs(next@16.2.4(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))
+      '@filenest/node':
+        specifier: file:E:/work/code/file-nest/sdks/node
+        version: file:../file-nest/sdks/node
+      '@filenest/react':
+        specifier: file:E:/work/code/file-nest/sdks/react
+        version: file:../file-nest/sdks/react(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.75.0(react@19.2.4))
@@ -738,6 +747,22 @@ packages:
 
   '@evyweb/ioctopus@1.4.1':
     resolution: {integrity: sha512-0hlCf9AwICiHIoh4hKxluanrRb6Q430PBwEBoVYkN251639qbm+uQ/W5XjBI4oKhL9AuTy6Dp/AxeyCwe/hDtg==}
+
+  '@filenest/nextjs@file:../file-nest/sdks/nextjs':
+    resolution: {directory: ../file-nest/sdks/nextjs, type: directory}
+    engines: {node: '>=18'}
+    peerDependencies:
+      next: '>=14'
+
+  '@filenest/node@file:../file-nest/sdks/node':
+    resolution: {directory: ../file-nest/sdks/node, type: directory}
+    engines: {node: '>=18'}
+
+  '@filenest/react@file:../file-nest/sdks/react':
+    resolution: {directory: ../file-nest/sdks/react, type: directory}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
 
   '@floating-ui/core@1.7.5':
     resolution: {integrity: sha512-1Ih4WTWyw0+lKyFMcBHGbb5U5FtuHJuujoyyr5zTaWS5EYMeT6Jb2AuDeftsCsEuchO+mM2ij5+q9crhydzLhQ==}
@@ -6852,6 +6877,27 @@ snapshots:
       levn: 0.4.1
 
   '@evyweb/ioctopus@1.4.1': {}
+
+  '@filenest/nextjs@file:../file-nest/sdks/nextjs(next@16.2.4(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))':
+    dependencies:
+      next: 16.2.4(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+
+  '@filenest/node@file:../file-nest/sdks/node': {}
+
+  '@filenest/react@file:../file-nest/sdks/react(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+    dependencies:
+      '@radix-ui/react-checkbox': 1.3.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-context-menu': 2.2.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-dropdown-menu': 2.1.16(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-scroll-area': 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@radix-ui/react-tooltip': 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@tanstack/react-query': 5.101.0(react@19.2.4)
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
 
   '@floating-ui/core@1.7.5':
     dependencies:
