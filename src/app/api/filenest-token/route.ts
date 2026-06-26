@@ -11,9 +11,11 @@
  *   - Patient exists  →  "{patientFhirId}-{userId}/profile"
  *   - No patient yet  →  "{userId}/profile"
  *
- * `ensurePath` idempotently creates missing path segments and returns the
- * leaf folder ID, which is then embedded in the upload token so the FileNest
- * storage server places the file in the correct folder automatically.
+ * Folder lookup strategy: `getByPath` is called first — if the full path
+ * already exists the existing folder is reused with no write to FileNest.
+ * Only when the path is absent does `ensurePath` run to create the missing
+ * segments. The resolved folder ID is embedded in the upload token so
+ * FileNest places the file in the correct folder automatically.
  *
  * Query params:
  *   patientFhirId  — optional numeric FHIR patient ID
@@ -38,14 +40,17 @@ export async function POST(req: Request): Promise<Response> {
   const patientFhirIdParam = searchParams.get("patientFhirId");
   const patientFhirId = patientFhirIdParam ? Number(patientFhirIdParam) : null;
 
-  // ── Build folder path and ensure it exists ────────────────────────────────
-  // Two-level path: "{patientFhirId}-{userId}" (or just "{userId}") → "profile"
-  // ensurePath creates missing segments idempotently — safe to call on every upload.
+  // ── Resolve or create the upload folder ──────────────────────────────────
+  // Path: "{patientFhirId}-{userId}/profile" (or "{userId}/profile" in create mode).
+  // Check via getByPath first — if the full path already exists, reuse it without
+  // touching the API again. Only call ensurePath (which creates missing segments)
+  // when the folder is genuinely absent.
   const rootSegment =
     patientFhirId != null ? `${patientFhirId}-${userId}` : userId;
   const folderPath = `${rootSegment}/profile`;
 
-  const folder = await filenest.folders.ensurePath(folderPath);
+  const existing = await filenest.folders.getByPath(folderPath);
+  const folder = existing ?? (await filenest.folders.ensurePath(folderPath));
 
   // ── Generate scoped upload token ──────────────────────────────────────────
   const token = await filenest.uploadTokens.create({
