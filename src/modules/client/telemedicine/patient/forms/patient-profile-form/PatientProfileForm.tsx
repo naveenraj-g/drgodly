@@ -30,6 +30,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CircleAlert, Loader2 } from "lucide-react";
+import { FileNestProvider } from "@filenest/react";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -39,6 +40,7 @@ import {
   updatePatientFullAction,
 } from "@/modules/server/presentation/actions/patient";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
+import { ProfilePhotoUpload } from "@/modules/client/telemedicine/patient/component/profile/ProfilePhotoUpload";
 
 import { ProfileFormSchema, deriveDefaults, type TProfileForm } from "./schema";
 import { PersonalDetailsSection } from "./sections/PersonalDetailsSection";
@@ -57,6 +59,7 @@ export function PatientProfileForm({
   initialPatient,
   userId,
   orgId,
+  existingPhotoFileId,
 }: PatientProfileFormProps) {
   const router = useRouter();
   const isCreateMode = initialPatient === null;
@@ -218,51 +221,77 @@ export function PatientProfileForm({
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
+  // Build token endpoint URL with patientFhirId so the server can scope the
+  // upload folder to "{patientFhirId}-{userId}/profile" (or "{userId}/profile"
+  // in create mode where no patient record exists yet).
+  const tokenEndpoint = initialPatient?.id
+    ? `/api/filenest-token?patientFhirId=${initialPatient.id}`
+    : "/api/filenest-token";
+
+  // Derive a display name for the avatar fallback letter from the patient's
+  // given name if available, otherwise fall back to the userId initial.
+  const displayName =
+    initialPatient?.names?.[0]?.given?.[0] ?? undefined;
+
   return (
-    <div>
-      {/* Page title */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Patient Profile</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {isCreateMode
-            ? "Complete your medical profile to get started."
-            : "Your health information on file."}
-        </p>
-      </div>
-
-      {/* Incomplete profile banner */}
-      {isCreateMode && (
-        <div className="flex items-center gap-2 bg-warning/20 text-warning px-4 py-2 rounded-full mb-6 text-sm font-medium">
-          <CircleAlert className="size-4 shrink-0" />
-          <span>Complete your profile first!</span>
+    <FileNestProvider
+      tokenEndpoint={tokenEndpoint}
+      projectId={process.env.NEXT_PUBLIC_FILENEST_PROJECT_ID!}
+      baseUrl={process.env.NEXT_PUBLIC_FILENEST_API_URL}
+    >
+      <div>
+        {/* Page title */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Patient Profile</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {isCreateMode
+              ? "Complete your medical profile to get started."
+              : "Your health information on file."}
+          </p>
         </div>
-      )}
 
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col min-h-[calc(100dvh-10rem)] -mb-6"
-        >
-          <div className="flex flex-col gap-10 flex-1 mb-4">
-            <PersonalDetailsSection />
-            <ContactSection />
-            <AddressSection />
+        {/* Incomplete profile banner */}
+        {isCreateMode && (
+          <div className="flex items-center gap-2 bg-warning/20 text-warning px-4 py-2 rounded-full mb-6 text-sm font-medium">
+            <CircleAlert className="size-4 shrink-0" />
+            <span>Complete your profile first!</span>
           </div>
+        )}
 
-          {/* Sticky submit bar */}
-          <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isSaving}
-              className="w-full md:w-fit min-w-32"
-            >
-              {isSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
-              {isCreateMode ? "Set up profile" : "Save changes"}
-            </Button>
-          </div>
-        </form>
-      </Form>
-    </div>
+        {/* Profile photo — independent of the form submit; uploads immediately on selection */}
+        <div className="mb-8">
+          <ProfilePhotoUpload
+            initialFileId={existingPhotoFileId}
+            displayName={displayName}
+          />
+        </div>
+
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col min-h-[calc(100dvh-10rem)] -mb-6"
+          >
+            <div className="flex flex-col gap-10 flex-1 mb-4">
+              <PersonalDetailsSection />
+              <ContactSection />
+              <AddressSection />
+            </div>
+
+            {/* Sticky submit bar */}
+            <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSaving}
+                className="w-full md:w-fit min-w-32"
+              >
+                {isSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
+                {isCreateMode ? "Set up profile" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
+    </FileNestProvider>
   );
 }

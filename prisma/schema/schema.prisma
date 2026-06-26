@@ -14,6 +14,31 @@ model Test {
     name String
 }
 
+// ── Patient Photo ─────────────────────────────────────────────────────────────
+
+/**
+ * FileNest-backed patient profile photo record.
+ *
+ * Stores the FileNest file metadata (id, filename, content type, size) for
+ * the patient's profile picture. One row per user — the photo is replaced via
+ * upsert on re-upload. Actual bytes live in FileNest storage; this table is
+ * the authoritative reference for which file belongs to which user.
+ */
+model PatientPhoto {
+  id           String   @id @default(cuid())
+  /** Better Auth user ID — one profile photo per user. */
+  user_id      String   @unique
+  /** FileNest file ID — used to generate presigned download URLs. */
+  file_id      String
+  filename     String
+  content_type String
+  size_bytes   Int
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@map("patient_photos")
+}
+
 // ── Intake ────────────────────────────────────────────────────────────────────
 
 /** Channel through which the intake was conducted. */

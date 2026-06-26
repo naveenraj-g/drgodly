@@ -13,6 +13,7 @@
 import { redirect } from "@/i18n/navigation";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { getPatientMeAction } from "@/modules/server/presentation/actions/patient";
+import { getPatientPhotoAction } from "@/modules/server/presentation/actions/patient/profilePhoto.actions";
 import { getLocale } from "next-intl/server";
 import { PatientProfileForm } from "@/modules/client/telemedicine/patient/forms/patient-profile-form";
 import type { TPatientResponse } from "@/modules/entities/schemas/patient";
@@ -42,13 +43,18 @@ async function PatientProfilePage() {
     return null;
   }
 
-  const patient = await fetchPatientOrNull();
+  // Fetch patient (FHIR) and profile photo (local DB) in parallel.
+  const [patient, [photoData]] = await Promise.all([
+    fetchPatientOrNull(),
+    getPatientPhotoAction(),
+  ]);
 
   return (
     <PatientProfileForm
       initialPatient={patient}
       userId={session.user.id}
       orgId={session.session.activeOrganizationId ?? ""}
+      existingPhotoFileId={photoData?.file_id ?? undefined}
     />
   );
 }
