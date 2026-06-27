@@ -19,6 +19,7 @@ import { practitionerIdentifierCreateSchema } from "./practitioner/practitioner_
 import { practitionerTelecomCreateSchema } from "./practitioner/practitioner_telecom_create_schema";
 import { practitionerQualificationCreateSchema } from "./practitioner/practitioner_qualification_create_schema";
 import { practitionerCommunicationCreateSchema } from "./practitioner/practitioner_communication_create_schema";
+import { practitionerPhotoCreateSchema } from "./practitioner/practitioner_photo_create_schema";
 import { practitionerRoleCreateSchema } from "./practitioner/practitioner_role_create_schema";
 import { scheduleCreateSchema } from "./schedule/schedule_create_schema";
 import { slotCreateSchema } from "./schedule/slot_create_schema";
@@ -71,6 +72,7 @@ export const VALIDATION_SCHEMAS: Record<string, z.ZodTypeAny> = {
   practitioner_telecom_create_schema: practitionerTelecomCreateSchema,
   practitioner_qualification_create_schema: practitionerQualificationCreateSchema,
   practitioner_communication_create_schema: practitionerCommunicationCreateSchema,
+  practitioner_photo_create_schema: practitionerPhotoCreateSchema,
   practitioner_role_create_schema: practitionerRoleCreateSchema,
   schedule_create_schema: scheduleCreateSchema,
   slot_create_schema: slotCreateSchema,

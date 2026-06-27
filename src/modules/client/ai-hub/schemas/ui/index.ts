@@ -24,6 +24,7 @@ import practitionerIdentifierForm from "./practitioner_identifier_form.json";
 import practitionerTelecomForm from "./practitioner_telecom_form.json";
 import practitionerQualificationForm from "./practitioner_qualification_form.json";
 import practitionerCommunicationForm from "./practitioner_communication_form.json";
+import practitionerPhotoUploadForm from "./practitioner_photo_upload_form.json";
 import practitionerRoleCreateForm from "./practitioner_role_create_form.json";
 import scheduleCreateForm from "./schedule_create_form.json";
 import slotCreateForm from "./slot_create_form.json";
@@ -82,6 +83,7 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   practitioner_telecom_form: practitionerTelecomForm,
   practitioner_qualification_form: practitionerQualificationForm,
   practitioner_communication_form: practitionerCommunicationForm,
+  practitioner_photo_upload_form: practitionerPhotoUploadForm,
   practitioner_role_create_form: practitionerRoleCreateForm,
   schedule_create_form: scheduleCreateForm,
   slot_create_form: slotCreateForm,

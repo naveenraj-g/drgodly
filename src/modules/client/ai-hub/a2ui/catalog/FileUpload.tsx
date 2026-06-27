@@ -22,15 +22,21 @@
  * Must be rendered inside the app's <QueryProvider>. The app's existing
  * QueryClient is shared with FileNestProvider via useQueryClient() to avoid
  * a duplicate provider in the tree.
+ *
+ * Image preview:
+ *   After a successful upload, image files (contentType starting with "image/")
+ *   show an eye icon in the file list. Clicking it opens a Dialog that previews
+ *   the image directly from the local blob URL — no server round-trip needed.
+ *   Object URLs are revoked when the file is removed or the component unmounts.
  */
 
 "use client";
 
-import { useRef, useState, useCallback, useMemo } from "react";
+import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileNestProvider, useUpload } from "@filenest/react";
 import type { FileRecord } from "@filenest/react";
-import { Upload, File, X, Loader2, AlertCircle } from "lucide-react";
+import { Upload, File, X, Loader2, AlertCircle, Eye } from "lucide-react";
 
 import { useDynamicComponent } from "../hooks/use-dynamic-component";
 import type { FileUploadNode } from "../types";
@@ -38,6 +44,17 @@ import type { IMessageProcessor } from "../rendering/processor";
 import { useFileNestTokenFetcher } from "@/modules/client/shared/hooks/useFileNestTokenFetcher";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -47,6 +64,12 @@ interface UploadedFile {
   filename: string;
   contentType: string;
   sizeBytes: number;
+  /**
+   * Blob URL created from the local File object before upload.
+   * Only present for image files; used for the in-UI preview dialog.
+   * Must be revoked via URL.revokeObjectURL when no longer needed.
+   */
+  localObjectUrl?: string;
 }
 
 // ── Outer component ───────────────────────────────────────────────────────────
@@ -233,17 +256,43 @@ function FileUploadInner({
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  /**
+   * Map of filename → blob URL for local image preview.
+   * Populated in handleFiles before upload starts so the URL is available
+   * as soon as the upload completes and handleComplete fires.
+   */
+  const pendingPreviewUrls = useRef<Record<string, string>>({});
+
+  /** File currently shown in the preview dialog; null when dialog is closed. */
+  const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
+
+  // Revoke all remaining blob URLs on unmount to release memory.
+  useEffect(() => {
+    return () => {
+      for (const url of Object.values(pendingPreviewUrls.current)) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, []);
+
   // ── Hidden input value ────────────────────────────────────────────────────
 
   /**
    * JSON value written to the hidden input.
    * Single-file mode → plain object; multi-file mode → array.
+   * localObjectUrl is excluded — it's browser-only and not sent to the server.
    * Empty string when nothing has been uploaded yet — Form ignores empty keys.
    */
   const hiddenInputValue = useMemo(() => {
     if (uploadedFiles.length === 0) return "";
+    const toSerialise = (f: UploadedFile) => ({
+      fileId: f.fileId,
+      filename: f.filename,
+      contentType: f.contentType,
+      sizeBytes: f.sizeBytes,
+    });
     const data =
-      maxFiles === 1 ? uploadedFiles[0] : uploadedFiles;
+      maxFiles === 1 ? toSerialise(uploadedFiles[0]) : uploadedFiles.map(toSerialise);
     return JSON.stringify(data);
   }, [uploadedFiles, maxFiles]);
 
@@ -268,11 +317,17 @@ function FileUploadInner({
         raw["size_bytes"] ??
         0) as number;
 
+      // Attach the blob URL created in handleFiles (images only).
+      const localObjectUrl = pendingPreviewUrls.current[fileRecord.filename];
+      // Remove from the pending map so unmount cleanup doesn't double-revoke.
+      delete pendingPreviewUrls.current[fileRecord.filename];
+
       const uploaded: UploadedFile = {
         fileId: fileRecord.id,
         filename: fileRecord.filename,
         contentType,
         sizeBytes,
+        localObjectUrl,
       };
 
       setUploadedFiles((prev) =>
@@ -306,6 +361,14 @@ function FileUploadInner({
       setError(null);
       const toUpload =
         maxFiles === 1 ? [files[0]] : files.slice(0, maxFiles);
+
+      // Create blob URLs for image files so they're ready when handleComplete fires.
+      for (const file of toUpload) {
+        if (file.type.startsWith("image/")) {
+          pendingPreviewUrls.current[file.name] = URL.createObjectURL(file);
+        }
+      }
+
       upload(toUpload);
     },
     [upload, maxFiles],
@@ -325,8 +388,20 @@ function FileUploadInner({
     handleFiles(Array.from(e.dataTransfer.files));
   };
 
-  const removeFile = (fileId: string) =>
-    setUploadedFiles((prev) => prev.filter((f) => f.fileId !== fileId));
+  /**
+   * Removes a file from the list and revokes its blob URL to free memory.
+   *
+   * @param fileId - FileNest file ID of the entry to remove.
+   */
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => {
+      const target = prev.find((f) => f.fileId === fileId);
+      if (target?.localObjectUrl) URL.revokeObjectURL(target.localObjectUrl);
+      return prev.filter((f) => f.fileId !== fileId);
+    });
+    // Close preview dialog if the file being previewed is removed.
+    setPreviewFile((prev) => (prev?.fileId === fileId ? null : prev));
+  };
 
   // ── Derived UI values ─────────────────────────────────────────────────────
 
@@ -425,16 +500,40 @@ function FileUploadInner({
                   {f.contentType} · {(f.sizeBytes / 1024).toFixed(1)} KB
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() => removeFile(f.fileId)}
-                aria-label={`Remove ${f.filename}`}
-              >
-                <X className="size-4" />
-              </Button>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Preview — only for images that have a local blob URL */}
+                {f.localObjectUrl && f.contentType.startsWith("image/") && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => setPreviewFile(f)}
+                        aria-label={`Preview ${f.filename}`}
+                      >
+                        <Eye className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Preview</TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Remove */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-muted-foreground hover:text-destructive"
+                  onClick={() => removeFile(f.fileId)}
+                  aria-label={`Remove ${f.filename}`}
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
@@ -457,6 +556,28 @@ function FileUploadInner({
         className="sr-only"
         onChange={handleInputChange}
       />
+
+      {/* Image preview dialog */}
+      <Dialog
+        open={previewFile !== null}
+        onOpenChange={(open) => { if (!open) setPreviewFile(null); }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="truncate text-sm font-medium">
+              {previewFile?.filename}
+            </DialogTitle>
+          </DialogHeader>
+          {previewFile?.localObjectUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewFile.localObjectUrl}
+              alt={previewFile.filename}
+              className="w-full rounded-md object-contain max-h-[60vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

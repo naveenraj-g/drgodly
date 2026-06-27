@@ -45,6 +45,7 @@ import create_healthcare_service from "@/modules/client/ai-hub/workflows/healthc
 import create_practitioner from "@/modules/client/ai-hub/workflows/practitioner/create_practitioner.json";
 import create_schedule_with_slots from "@/modules/client/ai-hub/workflows/schedule/create_schedule_with_slots.json";
 import create_service_request from "@/modules/client/ai-hub/workflows/orders/create_service_request.json";
+import upload_practitioner_photo from "@/modules/client/ai-hub/workflows/practitioner/upload_practitioner_photo.json";
 
 // Suppress unused-variable warnings while the agent integration is in development.
 void create_patient_workflow;
@@ -55,6 +56,7 @@ void create_organization;
 void create_healthcare_service;
 void create_practitioner;
 void create_schedule_with_slots;
+void upload_practitioner_photo;
 
 const AGENT_API_URL = process.env.AGENT_API_URL!;
 // Suppress unused warning — will be used once agent integration is live.
@@ -108,7 +110,7 @@ export async function POST(req: Request) {
 
     // ** Testing **
     const workflow: WorkflowDefinition =
-      create_organization as WorkflowDefinition;
+      upload_practitioner_photo as WorkflowDefinition;
 
     const steps = sortedSteps(workflow.workflow_steps);
     const firstStep = steps[0];
@@ -137,20 +139,28 @@ export async function POST(req: Request) {
         mergedContext,
         token,
       );
+      console.log("[workflow] stepData from context_resolvers:", JSON.stringify(stepData, null, 2));
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
         : {};
+      console.log("[workflow] context.outputs:", JSON.stringify(firstStep.context?.outputs, null, 2));
+      console.log("[workflow] extracted outputs:", JSON.stringify(extracted, null, 2));
       mergedContext = { ...mergedContext, ...stepData, ...extracted };
+      console.log("[workflow] mergedContext keys:", Object.keys(mergedContext));
     } else if (firstStep.context_resolver) {
       stepData = await runContextResolver(
         firstStep.context_resolver,
         mergedContext,
         token,
       );
+      console.log("[workflow] stepData from context_resolver:", JSON.stringify(stepData, null, 2));
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
         : {};
+      console.log("[workflow] context.outputs:", JSON.stringify(firstStep.context?.outputs, null, 2));
+      console.log("[workflow] extracted outputs:", JSON.stringify(extracted, null, 2));
       mergedContext = { ...mergedContext, ...stepData, ...extracted };
+      console.log("[workflow] mergedContext keys:", Object.keys(mergedContext));
     }
 
     return Response.json({
