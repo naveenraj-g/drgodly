@@ -1,62 +1,22 @@
 /**
- * PractitionerRole REST API error mapper.
+ * handlePractitionerRoleApiError — Axios → domain error mapper for PractitionerRole REST services.
  *
- * Layer: server / core / practitioner-role / infrastructure / services / rest
+ * Layer: infrastructure / services / rest (shared utility)
  *
- * Standalone function that maps an AxiosError from fhir-gql to the appropriate
- * domain error. Imported by PractitionerRoleCoreRestService.
- *
- * Note: fhir-gql uses FastAPI — error detail lives in body?.detail, not body?.message.
+ * Thin wrapper around the shared handleFhirApiError.
  */
 
 import { AxiosError } from "axios";
-import {
-  BadGatewayError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-  RateLimitError,
-  UnauthorizedError,
-  ValidationError,
-} from "@/modules/server/shared/errors/commonErrors";
+import { handleFhirApiError } from "@/modules/server/shared/errors/handleFhirApiError";
 
 /**
- * Maps an AxiosError from fhir-gql to a typed domain error and throws it.
- * Always throws — return type is `never`.
+ * Maps an AxiosError from the fhir-gql PractitionerRole API to a typed domain error and throws it.
+ * Return type `never` tells TypeScript this always throws so callers need no follow-up throw.
  *
- * @param error - The AxiosError received from the HTTP call.
- * @throws ValidationError    on HTTP 400
- * @throws UnauthorizedError  on HTTP 401
- * @throws ForbiddenError     on HTTP 403
- * @throws NotFoundError      on HTTP 404
- * @throws ConflictError      on HTTP 409
- * @throws RateLimitError     on HTTP 429
- * @throws BadGatewayError    on all other non-2xx responses
+ * @param error - The AxiosError thrown on non-2xx responses.
+ * @throws ValidationError | UnauthorizedError | ForbiddenError | NotFoundError |
+ *         ConflictError | RateLimitError | BadGatewayError
  */
 export function handlePractitionerRoleApiError(error: AxiosError): never {
-  const body = error.response?.data as Record<string, unknown> | undefined;
-  // FastAPI default error format: { detail: "..." }
-  const message =
-    typeof body?.detail === "string"
-      ? body.detail
-      : (error.response?.statusText ?? error.message);
-
-  switch (error.response?.status) {
-    case 400:
-      throw new ValidationError(message);
-    case 401:
-      throw new UnauthorizedError(message);
-    case 403:
-      throw new ForbiddenError(message);
-    case 404:
-      throw new NotFoundError(message);
-    case 409:
-      throw new ConflictError(message);
-    case 429:
-      throw new RateLimitError(message);
-    default:
-      throw new BadGatewayError(
-        `PractitionerRole API error ${error.response?.status ?? "unknown"}: ${message}`,
-      );
-  }
+  handleFhirApiError(error, "PractitionerRole");
 }

@@ -1,47 +1,22 @@
 /**
- * Condition REST API error mapper.
+ * handleConditionApiError — Axios → domain error mapper for Condition REST services.
  *
- * Layer: server / core / condition / infrastructure / services / rest
+ * Layer: infrastructure / services / rest (shared utility)
  *
- * FastAPI error detail lives in body?.detail, not body?.message.
+ * Thin wrapper around the shared handleFhirApiError.
  */
 
 import { AxiosError } from "axios";
-import {
-  BadGatewayError, ConflictError, ForbiddenError, NotFoundError,
-  RateLimitError, UnauthorizedError, ValidationError,
-} from "@/modules/server/shared/errors/commonErrors";
+import { handleFhirApiError } from "@/modules/server/shared/errors/handleFhirApiError";
 
 /**
- * Maps an AxiosError from fhir-gql to a typed domain error and throws it.
- * Always throws — return type is `never`.
+ * Maps an AxiosError from the fhir-gql Condition API to a typed domain error and throws it.
+ * Return type `never` tells TypeScript this always throws so callers need no follow-up throw.
  *
- * @param error - The AxiosError received from the HTTP call.
- * @throws ValidationError on HTTP 400/422, UnauthorizedError on 401,
- *   ForbiddenError on 403, NotFoundError on 404, ConflictError on 409,
- *   RateLimitError on 429, BadGatewayError on all others.
+ * @param error - The AxiosError thrown on non-2xx responses.
+ * @throws ValidationError | UnauthorizedError | ForbiddenError | NotFoundError |
+ *         ConflictError | RateLimitError | BadGatewayError
  */
 export function handleConditionApiError(error: AxiosError): never {
-  const body = error.response?.data as Record<string, unknown> | undefined;
-  const message =
-    typeof body?.detail === "string"
-      ? body.detail
-      : (error.response?.statusText ?? error.message);
-  switch (error.response?.status) {
-    case 400:
-    case 422:
-      throw new ValidationError(message);
-    case 401:
-      throw new UnauthorizedError(message);
-    case 403:
-      throw new ForbiddenError(message);
-    case 404:
-      throw new NotFoundError(message);
-    case 409:
-      throw new ConflictError(message);
-    case 429:
-      throw new RateLimitError(message);
-    default:
-      throw new BadGatewayError(`Condition API error ${error.response?.status ?? "unknown"}: ${message}`);
-  }
+  handleFhirApiError(error, "Condition");
 }
