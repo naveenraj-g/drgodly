@@ -24,17 +24,24 @@
  *
  * Key schema note:
  *   - `prefix` is submitted as string[] (wrapped from the single form string)
+ *
+ * Photo upload:
+ *   Handled independently of form submit via DoctorProfilePhotoUpload, which
+ *   uploads immediately on file selection and writes to practitioner.photo[].
+ *   Requires a FileNestProvider wrapping this component (set up here).
  */
 
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CircleAlert, Loader2 } from "lucide-react";
+import { FileNestProvider } from "@filenest/react";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -44,6 +51,8 @@ import {
   updatePractitionerFullAction,
 } from "@/modules/server/presentation/actions/practitioner";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
+import { useFileNestTokenFetcher } from "@/modules/client/shared/hooks/useFileNestTokenFetcher";
+import { DoctorProfilePhotoUpload } from "@/modules/client/telemedicine/doctor/component/profile/DoctorProfilePhotoUpload";
 
 import {
   DoctorProfileFormSchema,
@@ -69,6 +78,7 @@ export function DoctorProfileForm({
   orgId,
 }: DoctorProfileFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isCreateMode = initialPractitioner === null;
   const [isSaving, setIsSaving] = useState(false);
 
@@ -242,52 +252,100 @@ export function DoctorProfileForm({
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
+  // Folder path is "{practitionerFhirId}/profile". Undefined in create mode —
+  // upload is disabled until the practitioner record exists (see DoctorProfilePhotoUpload).
+  const folderPath = initialPractitioner?.id
+    ? `${initialPractitioner.id}/profile`
+    : undefined;
+
+  const tokenFetcher = useFileNestTokenFetcher({
+    filePath: folderPath,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    maxSizeMb: 5,
+    maxFiles: 1,
+    metadata: initialPractitioner?.id
+      ? { practitionerFhirId: initialPractitioner.id }
+      : {},
+    userId,
+    orgId,
+  });
+
+  // Derive photo state from the FHIR practitioner.photo[] array (first entry = profile photo).
+  const existingPhoto = initialPractitioner?.photo?.[0] ?? null;
+  /** FileNest file ID stored in the FHIR photo url field — used to fetch presigned URLs. */
+  const initialFileId = existingPhoto?.url ?? undefined;
+  /** FHIR Practitioner.id — required to call addPractitionerPhotoAction / patchPractitionerPhotoAction. */
+  const practitionerId = initialPractitioner?.id ?? undefined;
+  /** FHIR photo sub-resource item id — used by patchPractitionerPhotoAction when updating. */
+  const existingPhotoItemId = existingPhoto?.id ?? undefined;
+
+  // Derive a display name for the avatar fallback letter from the practitioner's
+  // given name if available, otherwise fall back to the userId initial.
+  const displayName = initialPractitioner?.name?.[0]?.given?.[0] ?? undefined;
+
   return (
-    <div>
-      {/* Page title */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Doctor Profile</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {isCreateMode
-            ? "Complete your practitioner profile to get started."
-            : "Your practitioner information on file."}
-        </p>
-      </div>
-
-      {/* Incomplete profile banner */}
-      {isCreateMode && (
-        <div className="flex items-center gap-2 bg-warning/20 text-warning px-4 py-2 rounded-full mb-6 text-sm font-medium">
-          <CircleAlert className="size-4 shrink-0" />
-          <span>Complete your profile first!</span>
+    <FileNestProvider
+      tokenFetcher={tokenFetcher}
+      projectId={process.env.NEXT_PUBLIC_FILENEST_PROJECT_ID!}
+      baseUrl={process.env.NEXT_PUBLIC_FILENEST_API_URL}
+      queryClient={queryClient}
+    >
+      <div>
+        {/* Page title */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-foreground">Doctor Profile</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {isCreateMode
+              ? "Complete your practitioner profile to get started."
+              : "Your practitioner information on file."}
+          </p>
         </div>
-      )}
 
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col min-h-[calc(100dvh-10rem)] -mb-6"
-        >
-          <div className="flex flex-col gap-10 flex-1 mb-4">
-            <PersonalDetailsSection />
-            <ContactSection />
-            <AddressSection />
-            <LanguagesSection />
+        {/* Incomplete profile banner */}
+        {isCreateMode && (
+          <div className="flex items-center gap-2 bg-warning/20 text-warning px-4 py-2 rounded-full mb-6 text-sm font-medium">
+            <CircleAlert className="size-4 shrink-0" />
+            <span>Complete your profile first!</span>
           </div>
+        )}
 
-          {/* Sticky submit bar */}
-          <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isSaving}
-              className="w-full md:w-fit min-w-32"
-            >
-              {isSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
-              {isCreateMode ? "Set up profile" : "Save changes"}
-            </Button>
-          </div>
-        </form>
-      </Form>
-    </div>
+        {/* Profile photo — independent of the form submit; uploads immediately on selection */}
+        <div className="mb-8">
+          <DoctorProfilePhotoUpload
+            initialFileId={initialFileId}
+            practitionerId={practitionerId}
+            existingPhotoItemId={existingPhotoItemId}
+            displayName={displayName}
+          />
+        </div>
+
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col min-h-[calc(100dvh-10rem)] -mb-6"
+          >
+            <div className="flex flex-col gap-10 flex-1 mb-4">
+              <PersonalDetailsSection />
+              <ContactSection />
+              <AddressSection />
+              <LanguagesSection />
+            </div>
+
+            {/* Sticky submit bar */}
+            <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSaving}
+                className="w-full md:w-fit min-w-32"
+              >
+                {isSaving && <Loader2 className="size-4 mr-2 animate-spin" />}
+                {isCreateMode ? "Set up profile" : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
+    </FileNestProvider>
   );
 }
