@@ -25,6 +25,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
@@ -40,6 +41,7 @@ import {
   updatePatientFullAction,
 } from "@/modules/server/presentation/actions/patient";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
+import { useFileNestTokenFetcher } from "@/modules/client/shared/hooks/useFileNestTokenFetcher";
 import { ProfilePhotoUpload } from "@/modules/client/telemedicine/patient/component/profile/ProfilePhotoUpload";
 
 import { ProfileFormSchema, deriveDefaults, type TProfileForm } from "./schema";
@@ -59,9 +61,9 @@ export function PatientProfileForm({
   initialPatient,
   userId,
   orgId,
-  existingPhotoFileId,
 }: PatientProfileFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isCreateMode = initialPatient === null;
   const [isSaving, setIsSaving] = useState(false);
 
@@ -221,28 +223,48 @@ export function PatientProfileForm({
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
-  // Build token endpoint URL with patientFhirId so the server can scope the
-  // upload folder to "{patientFhirId}-{userId}/profile" (or "{userId}/profile"
-  // in create mode where no patient record exists yet).
-  const tokenEndpoint = initialPatient?.id
-    ? `/api/filenest-token?patientFhirId=${initialPatient.id}`
-    : "/api/filenest-token";
+  // Folder path is "{patientFhirId}/profile". Undefined in create mode —
+  // upload is disabled until the patient record exists (see ProfilePhotoUpload).
+  const folderPath = initialPatient?.id
+    ? `${initialPatient.id}/profile`
+    : undefined;
+
+  const tokenFetcher = useFileNestTokenFetcher({
+    filePath: folderPath,
+    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    maxSizeMb: 5,
+    maxFiles: 1,
+    metadata: initialPatient?.id ? { patientFhirId: initialPatient.id } : {},
+    userId,
+    orgId,
+  });
+
+  // Derive photo state from the FHIR patient.photo[] array (first entry = profile photo).
+  const existingPhoto = initialPatient?.photo?.[0] ?? null;
+  /** FileNest file ID stored in the FHIR photo url field — used to fetch presigned URLs. */
+  const initialFileId = existingPhoto?.url ?? undefined;
+  /** FHIR Patient.id — required to call addPatientPhotoAction / patchPatientPhotoAction. */
+  const patientId = initialPatient?.id ?? undefined;
+  /** FHIR photo sub-resource item id — used by patchPatientPhotoAction when updating. */
+  const existingPhotoItemId = existingPhoto?.id ?? undefined;
 
   // Derive a display name for the avatar fallback letter from the patient's
   // given name if available, otherwise fall back to the userId initial.
-  const displayName =
-    initialPatient?.names?.[0]?.given?.[0] ?? undefined;
+  const displayName = initialPatient?.name?.[0]?.given?.[0] ?? undefined;
 
   return (
     <FileNestProvider
-      tokenEndpoint={tokenEndpoint}
+      tokenFetcher={tokenFetcher}
       projectId={process.env.NEXT_PUBLIC_FILENEST_PROJECT_ID!}
       baseUrl={process.env.NEXT_PUBLIC_FILENEST_API_URL}
+      queryClient={queryClient}
     >
       <div>
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Patient Profile</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Patient Profile
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {isCreateMode
               ? "Complete your medical profile to get started."
@@ -261,7 +283,9 @@ export function PatientProfileForm({
         {/* Profile photo — independent of the form submit; uploads immediately on selection */}
         <div className="mb-8">
           <ProfilePhotoUpload
-            initialFileId={existingPhotoFileId}
+            initialFileId={initialFileId}
+            patientId={patientId}
+            existingPhotoItemId={existingPhotoItemId}
             displayName={displayName}
           />
         </div>

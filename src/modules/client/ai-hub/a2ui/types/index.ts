@@ -577,6 +577,53 @@ export interface SliderNode extends BaseComponentNode {
   properties: Slider;
 }
 
+export interface FileUploadType {
+  /** Label shown above the drop zone. */
+  label?: StringValue;
+  /**
+   * Base URL of the server-side token endpoint (e.g. "/api/filenest-token").
+   * The component appends `folder` and `patientFhirId` query params as needed.
+   * Required — no default is assumed because different upload steps may use
+   * different folder scopes.
+   */
+  tokenEndpoint: StringValue;
+  /**
+   * Full nested folder path for the upload, e.g. "10000/servicerequest/xray".
+   * Sent to the token endpoint as `filePath` in the POST body. The route creates
+   * all missing segments via ensurePath. Supports $variable path resolution from
+   * the current data context, e.g. { "path": "$uploadPath" } where uploadPath is
+   * set in the workflow's sessionContext.
+   */
+  filePath?: StringValue;
+  /** MIME types shown as a hint and sent to the route as the `allowedMimeTypes` constraint. */
+  allowedMimeTypes?: string[];
+  /** Max file count. Sent to the route as `maxFiles`. Default 1. */
+  maxFiles?: NumberValue;
+  /** Max upload size in MB. Sent to the route as `maxSize` (converted to bytes). Default 5. */
+  maxSizeMb?: NumberValue;
+  /**
+   * Arbitrary key-value metadata embedded in every FileNest file record uploaded
+   * with this token. Each value is resolved from the current data context, so
+   * paths like `{ "path": "$patientFhirId" }` are supported alongside literals.
+   */
+  metadata?: Record<string, StringValue | NumberValue | BooleanValue>;
+  /**
+   * Auth user id sent as `userId` in the token request body, overriding the
+   * session-derived value on the server. Supports $variable resolution.
+   */
+  userId?: StringValue;
+  /**
+   * Organisation id sent as `orgId` in the token request body, overriding the
+   * session-derived value on the server. Supports $variable resolution.
+   */
+  orgId?: StringValue;
+}
+
+export interface FileUploadNode extends BaseComponentNode {
+  type: "FileUpload";
+  properties: FileUploadType;
+}
+
 export interface MarkdownContent {
   content: StringValue;
 }
@@ -757,6 +804,7 @@ export interface DataTableNode extends BaseComponentNode {
 export type AnyComponentNode =
   | MarkdownNode
   | TextNode
+  | FileUploadNode
   | TerminologySelectNode
   | RepeatableGroupNode
   | DataSelectNode

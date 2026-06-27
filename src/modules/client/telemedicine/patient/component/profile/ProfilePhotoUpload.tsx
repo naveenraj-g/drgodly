@@ -7,10 +7,16 @@
  * component fetches a short-lived presigned URL from /api/filenest-download-url
  * and displays it; otherwise a single-letter fallback is shown. Clicking the
  * avatar (or the pencil overlay) opens a hidden file input that accepts images
- * up to 5 MB. On selection the file is uploaded via the FileNest @filenest/react
- * useUpload hook (which uses the token obtained by the parent FileNestProvider),
- * the FileNest file record is persisted to the local PatientPhoto table via
- * savePatientPhotoAction, and the avatar is refreshed with a new presigned URL.
+ * up to 5 MB.
+ *
+ * On selection the file is uploaded via the FileNest @filenest/react useUpload
+ * hook (token provided by the parent FileNestProvider), then the FileNest file
+ * record is persisted to the FHIR patient.photo[] sub-resource:
+ *  - First upload → addPatientPhotoAction (POST)
+ *  - Re-upload    → patchPatientPhotoAction (PATCH on the existing item)
+ *
+ * The component is disabled in create mode (patientId is undefined) because a
+ * FHIR Patient record must exist before a photo sub-resource can be created.
  *
  * Must be rendered inside a <FileNestProvider> (set up in PatientProfileForm).
  */
@@ -19,18 +25,31 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useUpload, type FileRecord } from "@filenest/react";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, Info } from "lucide-react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { savePatientPhotoAction } from "@/modules/server/presentation/actions/patient/profilePhoto.actions";
+import {
+  addPatientPhotoAction,
+  patchPatientPhotoAction,
+} from "@/modules/server/presentation/actions/patient/photos.actions";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ProfilePhotoUploadProps {
-  /** FileNest file ID of the current photo, if one has been uploaded previously. */
+  /** FileNest file ID stored in patient.photo[0].url — used to load the presigned URL. */
   initialFileId?: string;
+  /**
+   * FHIR Patient.id — required to call add/patch photo actions.
+   * Undefined in create mode (no patient record yet); upload is disabled until set.
+   */
+  patientId?: number;
+  /**
+   * FHIR photo sub-resource item id (patient.photo[0].id).
+   * When present, re-uploads call patchPatientPhotoAction instead of addPatientPhotoAction.
+   */
+  existingPhotoItemId?: number;
   /** Used to derive the avatar fallback letter (first character). Defaults to "P". */
   displayName?: string;
 }
@@ -41,13 +60,17 @@ interface ProfilePhotoUploadProps {
  * Large avatar widget that lets the patient upload a profile photo.
  *
  * State machine:
- *   idle → file selected → uploading → saving to DB → fetching URL → idle (new photo shown)
+ *   idle → file selected → uploading → saving to FHIR → fetching URL → idle (new photo shown)
  *
- * @param initialFileId - FileNest file ID loaded from the PatientPhoto DB record.
- * @param displayName   - Patient's name, used for the initials fallback letter.
+ * @param initialFileId       - FileNest file ID from patient.photo[0].url.
+ * @param patientId           - FHIR Patient.id — required for photo write actions.
+ * @param existingPhotoItemId - FHIR photo item id for patch operations.
+ * @param displayName         - Patient's name, used for the initials fallback letter.
  */
 export function ProfilePhotoUpload({
   initialFileId,
+  patientId,
+  existingPhotoItemId,
   displayName,
 }: ProfilePhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +79,14 @@ export function ProfilePhotoUpload({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  /**
+   * Tracks the FHIR photo sub-resource item id after the first upload.
+   * Starts as existingPhotoItemId; updated to the returned id after addPatientPhotoAction.
+   */
+  const [currentPhotoItemId, setCurrentPhotoItemId] = useState<
+    number | undefined
+  >(existingPhotoItemId);
 
   const fallback = displayName ? displayName.charAt(0).toUpperCase() : "P";
 
@@ -70,7 +101,9 @@ export function ProfilePhotoUpload({
   const fetchDownloadUrl = useCallback(async (fileId: string) => {
     setIsFetchingUrl(true);
     try {
-      const res = await fetch(`/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}`);
+      const res = await fetch(
+        `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}`,
+      );
       if (!res.ok) return;
       const data = (await res.json()) as { url: string };
       setPhotoUrl(data.url);
@@ -86,7 +119,7 @@ export function ProfilePhotoUpload({
     if (initialFileId) {
       fetchDownloadUrl(initialFileId);
     }
-    // Only run on mount — initialFileId is stable (server prop)
+    // Only run on mount — initialFileId is a stable server prop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -94,24 +127,75 @@ export function ProfilePhotoUpload({
 
   /**
    * Called by useUpload when an upload completes successfully.
-   * Persists the FileNest file metadata to the local DB, then refreshes the URL.
+   * Persists the FileNest file metadata to the FHIR patient.photo[] sub-resource,
+   * then refreshes the presigned URL shown in the avatar.
+   *
+   * Uses addPatientPhotoAction for the first photo, patchPatientPhotoAction for
+   * subsequent uploads (keyed by currentPhotoItemId).
    *
    * @param fileRecord - Completed FileRecord returned by FileNest.
    */
   const handleComplete = useCallback(
     async (fileRecord: FileRecord) => {
+      if (!patientId) {
+        toast.error("Save your profile first before uploading a photo.");
+        return;
+      }
+
       setIsSaving(true);
       try {
-        const [, err] = await savePatientPhotoAction({
-          fileId: fileRecord.id,
-          filename: fileRecord.filename,
-          contentType: fileRecord.contentType,
-          sizeBytes: fileRecord.sizeBytes,
-        });
-        if (err) {
-          handleZSAError({ err });
-          return;
+        // The SDK's final file-record fetch uses raw `fetch` (not the camelizing
+        // HTTP client), so runtime keys are snake_case despite the TS type saying
+        // camelCase. Read camelCase first and fall back to snake_case.
+        const raw = fileRecord as unknown as Record<string, unknown>;
+        const contentType = (fileRecord.contentType ??
+          raw["content_type"] ??
+          "") as string;
+        const sizeBytes = (fileRecord.sizeBytes ??
+          raw["size_bytes"] ??
+          0) as number;
+        const creation = new Date().toISOString();
+
+        if (currentPhotoItemId != null) {
+          // ── Update existing photo sub-resource ─────────────────────────────
+          const [, err] = await patchPatientPhotoAction({
+            payload: {
+              patient_id: patientId,
+              item_id: currentPhotoItemId,
+              url: fileRecord.id,
+              content_type: contentType,
+              size: sizeBytes,
+              title: fileRecord.filename,
+              creation,
+            },
+          });
+          if (err) {
+            handleZSAError({ err });
+            return;
+          }
+        } else {
+          // ── Create first photo sub-resource ────────────────────────────────
+          const [data, err] = await addPatientPhotoAction({
+            payload: {
+              patient_id: patientId,
+              url: fileRecord.id,
+              content_type: contentType,
+              size: sizeBytes,
+              title: fileRecord.filename,
+              creation,
+            },
+          });
+          if (err) {
+            handleZSAError({ err });
+            return;
+          }
+          // Capture the returned photo item id so future uploads use patch.
+          const addedPhoto = data?.photo?.find((p) => p.url === fileRecord.id);
+          if (addedPhoto?.id != null) {
+            setCurrentPhotoItemId(addedPhoto.id);
+          }
         }
+
         // Refresh the avatar with a presigned URL for the new file
         await fetchDownloadUrl(fileRecord.id);
         toast.success("Profile photo updated.");
@@ -119,10 +203,11 @@ export function ProfilePhotoUpload({
         setIsSaving(false);
       }
     },
-    [fetchDownloadUrl],
+    [patientId, currentPhotoItemId, fetchDownloadUrl],
   );
 
   const handleError = useCallback((error: Error) => {
+    console.log({ error });
     toast.error(`Upload failed: ${error.message}`);
   }, []);
 
@@ -150,6 +235,32 @@ export function ProfilePhotoUpload({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  // ── Create-mode placeholder — shown before the patient record exists ─────────
+
+  if (!patientId) {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <p className="text-sm font-medium text-foreground">Profile photo</p>
+
+        {/* Dimmed placeholder avatar */}
+        <Avatar className="size-20 text-2xl font-semibold opacity-40">
+          <AvatarFallback className="text-2xl">{fallback}</AvatarFallback>
+        </Avatar>
+
+        {/* Info callout */}
+        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 max-w-xs">
+          <Info className="size-4 shrink-0 mt-0.5" />
+          <p className="text-xs leading-relaxed">
+            Complete and save your profile below first. Once saved, you can
+            upload a profile photo here.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Edit-mode upload UI ───────────────────────────────────────────────────────
+
   return (
     <div className="flex flex-col items-start gap-2">
       <p className="text-sm font-medium text-foreground">Profile photo</p>
@@ -161,12 +272,15 @@ export function ProfilePhotoUpload({
           onClick={() => inputRef.current?.click()}
           disabled={isLoading}
           aria-label="Change profile photo"
-          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+          className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
         >
           {/* Avatar — 5rem (80px) circle */}
           <Avatar className="size-20 text-2xl font-semibold">
             {photoUrl && !isLoading && (
-              <AvatarImage src={photoUrl} alt={`${displayName ?? "Patient"} profile photo`} />
+              <AvatarImage
+                src={photoUrl}
+                alt={`${displayName ?? "Patient"} profile photo`}
+              />
             )}
             <AvatarFallback className="text-2xl">
               {isLoading ? (

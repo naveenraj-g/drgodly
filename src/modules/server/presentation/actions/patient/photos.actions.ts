@@ -38,10 +38,12 @@ export const addPatientPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(AddPatientPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPatientPhotoAction }) => {
-    return await runWithTransport<TAddPatientPhotoControllerOutput>(async () => {
-      const data = await addPatientPhotoController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
+    return await runWithTransport<TAddPatientPhotoControllerOutput>(
+      async () => {
+        const data = await addPatientPhotoController(input.payload);
+        return { result: data, transport: input.transportOptions };
+      },
+    );
   });
 
 /** Lists all photo Attachments for a Patient. */
@@ -49,10 +51,12 @@ export const listPatientPhotosAction = authenticatedProcedure
   .createServerAction()
   .input(ListPatientPhotosActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListPatientPhotosAction }) => {
-    return await runWithTransport<TListPatientPhotosControllerOutput>(async () => {
-      const data = await listPatientPhotosController(input.payload);
-      return { result: data };
-    });
+    return await runWithTransport<TListPatientPhotosControllerOutput>(
+      async () => {
+        const data = await listPatientPhotosController(input.payload);
+        return { result: data };
+      },
+    );
   });
 
 /** Updates a specific photo Attachment on a Patient. */
@@ -60,10 +64,12 @@ export const patchPatientPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPatientPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPatientPhotoAction }) => {
-    return await runWithTransport<TPatchPatientPhotoControllerOutput>(async () => {
-      const data = await patchPatientPhotoController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
+    return await runWithTransport<TPatchPatientPhotoControllerOutput>(
+      async () => {
+        const data = await patchPatientPhotoController(input.payload);
+        return { result: data, transport: input.transportOptions };
+      },
+    );
   });
 
 /** Removes a specific photo Attachment from a Patient. */
@@ -71,8 +77,10 @@ export const deletePatientPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(DeletePatientPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePatientPhotoAction }) => {
-    return await runWithTransport<TDeletePatientPhotoControllerOutput>(async () => {
-      const data = await deletePatientPhotoController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
+    return await runWithTransport<TDeletePatientPhotoControllerOutput>(
+      async () => {
+        const data = await deletePatientPhotoController(input.payload);
+        return { result: data, transport: input.transportOptions };
+      },
+    );
   });

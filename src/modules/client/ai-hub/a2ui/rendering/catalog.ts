@@ -42,6 +42,7 @@ import { TerminologySelect } from "../catalog/terminology-select";
 import { RepeatableGroup } from "../catalog/repeatable-group";
 import { DataSelect } from "../catalog/data-select";
 import { SlotPicker } from "../catalog/slot-picker";
+import { FileUpload } from "../catalog/FileUpload";
 
 export type ComponentConfig = {
   component: React.ComponentType<any>;
@@ -96,4 +97,5 @@ export const DEFAULT_CATALOG: Catalog = {
   RepeatableGroup: { component: RepeatableGroup },
   DataSelect: { component: DataSelect },
   SlotPicker: { component: SlotPicker },
+  FileUpload: { component: FileUpload },
 };

@@ -18,9 +18,4 @@ export interface PatientProfileFormProps {
   userId: string;
   /** Active organisation ID — required for multi-tenant patient creation. */
   orgId: string;
-  /**
-   * FileNest file ID of the patient's current profile photo, loaded from the
-   * local PatientPhoto table. Undefined when no photo has been uploaded yet.
-   */
-  existingPhotoFileId?: string;
 }

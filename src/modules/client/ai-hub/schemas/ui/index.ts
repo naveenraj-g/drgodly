@@ -7,6 +7,7 @@ import patientCommunicationForm from "./patient_communication_form.json";
 import patientContactForm from "./patient_contact_form.json";
 import patientGpForm from "./patient_gp_form.json";
 import patientPhotoForm from "./patient_photo_form.json";
+import patientPhotoUploadForm from "./patient_photo_upload_form.json";
 import patientLinkForm from "./patient_link_form.json";
 import vitalsDashboard from "./vitals_dashboard.json";
 import vitalsTable from "./vitals_table.json";
@@ -64,6 +65,7 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   patient_contact_form: patientContactForm,
   patient_gp_form: patientGpForm,
   patient_photo_form: patientPhotoForm,
+  patient_photo_upload_form: patientPhotoUploadForm,
   patient_link_form: patientLinkForm,
   vitals_dashboard: vitalsDashboard,
   vitals_table: vitalsTable,

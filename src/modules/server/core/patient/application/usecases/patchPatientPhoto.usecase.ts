@@ -3,8 +3,15 @@
  * Layer: application / use cases
  */
 import { getInjection } from "@/modules/server/di/container";
-import type { TPatchPatientPhoto, TPatientResponse } from "@/modules/entities/schemas/patient";
+import type {
+  TPatchPatientPhoto,
+  TPatientResponse,
+} from "@/modules/entities/schemas/patient";
 
-export async function patchPatientPhotoUseCase(patientId: number, itemId: number, dto: TPatchPatientPhoto): Promise<TPatientResponse> {
+export async function patchPatientPhotoUseCase(
+  patientId: number,
+  itemId: number,
+  dto: TPatchPatientPhoto,
+): Promise<TPatientResponse> {
   return getInjection("IPatientsService").patchPhoto(patientId, itemId, dto);
 }
