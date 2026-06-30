@@ -110,7 +110,7 @@ export async function POST(req: Request) {
 
     // ** Testing **
     const workflow: WorkflowDefinition =
-      upload_practitioner_photo as WorkflowDefinition;
+      create_patient_workflow as WorkflowDefinition;
 
     const steps = sortedSteps(workflow.workflow_steps);
     const firstStep = steps[0];
@@ -139,28 +139,20 @@ export async function POST(req: Request) {
         mergedContext,
         token,
       );
-      console.log("[workflow] stepData from context_resolvers:", JSON.stringify(stepData, null, 2));
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
         : {};
-      console.log("[workflow] context.outputs:", JSON.stringify(firstStep.context?.outputs, null, 2));
-      console.log("[workflow] extracted outputs:", JSON.stringify(extracted, null, 2));
       mergedContext = { ...mergedContext, ...stepData, ...extracted };
-      console.log("[workflow] mergedContext keys:", Object.keys(mergedContext));
     } else if (firstStep.context_resolver) {
       stepData = await runContextResolver(
         firstStep.context_resolver,
         mergedContext,
         token,
       );
-      console.log("[workflow] stepData from context_resolver:", JSON.stringify(stepData, null, 2));
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
         : {};
-      console.log("[workflow] context.outputs:", JSON.stringify(firstStep.context?.outputs, null, 2));
-      console.log("[workflow] extracted outputs:", JSON.stringify(extracted, null, 2));
       mergedContext = { ...mergedContext, ...stepData, ...extracted };
-      console.log("[workflow] mergedContext keys:", Object.keys(mergedContext));
     }
 
     return Response.json({

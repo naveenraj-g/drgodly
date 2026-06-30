@@ -2,7 +2,7 @@
   "id": "patient-photo-upload-root",
   "type": "Form",
   "properties": {
-    "action": { "name": "upload_patient_photo" },
+    "action": { "name": "add_patient_photo" },
     "submitLabel": { "literalString": "Save Photo" },
     "gap": "medium",
     "alignment": "stretch",
@@ -29,16 +29,16 @@
         "properties": {
           "label": { "literalString": "Profile photo" },
           "tokenEndpoint": { "literalString": "/api/filenest-token" },
-          "filePath": { "path": "$photoUploadPath" },
+          "filePath": "$patient_id/profile",
           "allowedMimeTypes": ["image/jpeg", "image/png", "image/webp", "image/gif"],
           "maxFiles": { "literalNumber": 1 },
           "maxSizeMb": { "literalNumber": 5 },
           "metadata": {
-            "source": { "literalString": "ai-chat" },
-            "patientFhirId": { "path": "$patientFhirId" }
+            "source": "ai-chat",
+            "patientFhirId": "$patient_id"
           },
-          "userId": { "path": "$userId" },
-          "orgId": { "path": "$orgId" }
+          "userId": "$user_id",
+          "orgId": "$org_id"
         }
       }
     ]

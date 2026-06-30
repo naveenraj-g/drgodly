@@ -538,10 +538,10 @@
     {
       "sequence_number": 9,
       "id": "add_patient_photo",
-      "name": "Add Patient Photos",
+      "name": "Add Patient Photo",
       "step_type": "form",
       "optional": true,
-      "description": "Attach one or more photo URLs to the patient record.",
+      "description": "Upload a profile photo for the patient via FileNest. JPEG, PNG, WebP or GIF, max 5 MB.",
       "context": {
         "inputs": {
           "patient_id": {
@@ -551,21 +551,23 @@
           }
         },
         "outputs": {
-          "patient_photo_resource": {
-            "type": "Attachment"
+          "patient_photo_id": {
+            "type": "integer",
+            "resource": "PatientPhoto",
+            "field": "id"
           }
         }
       },
       "context_resolver": {
-        "description": "Confirm the Patient still exists before appending photos.",
+        "description": "Confirm the Patient still exists before uploading a photo.",
         "tool_name": "get_patient_by_id",
         "url": "$fhir_server_url/patients/$patient_id",
         "method": "GET",
         "timeout_ms": 10000
       },
       "ui": {
-        "schema": "patient_photo_form",
-        "mode": "append",
+        "schema": "patient_photo_upload_form",
+        "mode": "create",
         "prefill": false,
         "editable": true
       },
@@ -576,10 +578,9 @@
           "tool_name": "add_patient_photo",
           "url": "$fhir_server_url/patients/$patient_id/photos",
           "method": "POST",
-          "iterate_key": "photos",
-          "validation_schema": "photo_create_schema",
-          "retryable": true,
-          "timeout_ms": 10000
+          "validation_schema": "patient_photo_upload_schema",
+          "retryable": false,
+          "timeout_ms": 15000
         }
       ]
     },

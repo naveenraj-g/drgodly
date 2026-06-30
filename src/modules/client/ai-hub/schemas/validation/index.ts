@@ -9,6 +9,7 @@ import { communicationCreateSchema } from "./patient/communication_create_schema
 import { contactCreateSchema } from "./patient/contact_create_schema";
 import { gpCreateSchema } from "./patient/gp_create_schema";
 import { photoCreateSchema } from "./patient/photo_create_schema";
+import { patientPhotoUploadSchema } from "./patient/patient_photo_upload_schema";
 import { linkCreateSchema } from "./patient/link_create_schema";
 import { organizationCreateSchema } from "./organization/organization_create_schema";
 import { locationCreateSchema } from "./organization/location_create_schema";
@@ -62,6 +63,7 @@ export const VALIDATION_SCHEMAS: Record<string, z.ZodTypeAny> = {
   contact_create_schema: contactCreateSchema,
   gp_create_schema: gpCreateSchema,
   photo_create_schema: photoCreateSchema,
+  patient_photo_upload_schema: patientPhotoUploadSchema,
   link_create_schema: linkCreateSchema,
   organization_create_schema: organizationCreateSchema,
   location_create_schema: locationCreateSchema,
