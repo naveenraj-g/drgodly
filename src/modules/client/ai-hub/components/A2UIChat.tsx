@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Send, Bot, User, SkipForward } from "lucide-react";
 import { useChatStore } from "../store/chat-store";
 import { ToolCallDetails } from "./ToolCallDetails";
+import { PermissionDeniedMessage } from "./PermissionDeniedMessage";
 import type {
   WorkflowDefinition,
   WorkflowStepDefinition,
@@ -118,11 +119,22 @@ export default function A2UIChatPage() {
         const data = await res.json();
 
         if (data.type === "error") {
-          addMessage({
-            id: crypto.randomUUID(),
-            role: "assistant",
-            ui: buildMarkdownNode(`⚠️ ${data.message}`),
-          });
+          if (Array.isArray(data.missing_permissions)) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              permissionDenied: {
+                message: data.message,
+                missing_permissions: data.missing_permissions,
+              },
+            });
+          } else {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              ui: buildMarkdownNode(`⚠️ ${data.message}`),
+            });
+          }
           return;
         }
 
@@ -334,6 +346,18 @@ export default function A2UIChatPage() {
               error: data.error || "Submission failed",
             },
           });
+          // Surface a permission denied card below the tool call when the server
+          // returns missing_permissions — gives the user clear, actionable feedback.
+          if (Array.isArray(data.missing_permissions)) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              permissionDenied: {
+                message: data.error || "You do not have permission to run this workflow.",
+                missing_permissions: data.missing_permissions,
+              },
+            });
+          }
         }
       } catch (err) {
         updateMessage(toolMsgId, {
@@ -443,11 +467,22 @@ export default function A2UIChatPage() {
           ui: buildMarkdownNode(data.message),
         });
       } else if (data.type === "error") {
-        addMessage({
-          id: crypto.randomUUID(),
-          role: "assistant",
-          ui: buildMarkdownNode(`⚠️ ${data.message}`),
-        });
+        if (Array.isArray(data.missing_permissions)) {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            permissionDenied: {
+              message: data.message,
+              missing_permissions: data.missing_permissions,
+            },
+          });
+        } else {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            ui: buildMarkdownNode(`⚠️ ${data.message}`),
+          });
+        }
       } else {
         addMessage({
           id: crypto.randomUUID(),
@@ -543,6 +578,15 @@ export default function A2UIChatPage() {
                 {msg.toolCall && (
                   <div className="mt-2">
                     <ToolCallDetails toolCall={msg.toolCall} />
+                  </div>
+                )}
+
+                {msg.permissionDenied && (
+                  <div className="mt-2">
+                    <PermissionDeniedMessage
+                      message={msg.permissionDenied.message}
+                      missingPermissions={msg.permissionDenied.missing_permissions}
+                    />
                   </div>
                 )}
               </div>

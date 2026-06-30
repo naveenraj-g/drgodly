@@ -7,9 +7,17 @@
  * Calls the FHIR server directly using the URL declared in the step's action
  * definition, bypassing MCP entirely.
  *
+ * Authorization:
+ *   - Requires an authenticated Better Auth session (401 if absent).
+ *   - Re-validates that the caller holds all required_permissions for the
+ *     workflow (403 if missing). The workflow JSON is re-sent by the client on
+ *     every submit, so forged requests are caught here before any FHIR call.
+ *
  * Flow:
- *   1. Resolve the target step from the re-sent WorkflowDefinition.
- *   2. Match the submitted actionName to the step's actions[] array.
+ *   1. Validate session — reject unauthenticated callers immediately.
+ *   2. Check required_permissions on the re-sent workflow.
+ *   3. Resolve the target step from the re-sent WorkflowDefinition.
+ *   4. Match the submitted actionName to the step's actions[] array.
  *      Falls back to actions[0] if no exact match.
  *   3. Obtain a fresh JWT from Better Auth.
  *   4. Unpack formData — A2UI forms dispatch { formData: "<JSON string>" } so
@@ -46,6 +54,8 @@ import {
   cleanFormData,
 } from "../_lib";
 import { VALIDATION_SCHEMAS } from "@/modules/client/ai-hub/schemas/validation";
+import { getServerSession } from "@/modules/server/auth/get-session";
+import { checkWorkflowPermission } from "@/modules/server/shared/auth/checkWorkflowPermission";
 
 /**
  * Executes the action for a specific workflow step.
@@ -55,6 +65,15 @@ import { VALIDATION_SCHEMAS } from "@/modules/client/ai-hub/schemas/validation";
  * @returns Success response with next step index, or failure response with error message.
  */
 export async function POST(req: Request) {
+  // Require an authenticated session before executing any FHIR action.
+  const authSession = await getServerSession();
+  if (!authSession?.user) {
+    return Response.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
   const {
     workflow,
     stepIndex,
@@ -68,6 +87,20 @@ export async function POST(req: Request) {
     formData: Record<string, unknown>;
     sessionContext?: Record<string, unknown>;
   } = await req.json();
+
+  // Re-validate permissions before executing the FHIR action. A forged request
+  // could re-send any workflow JSON, so the server must verify every submission.
+  const permCheck = checkWorkflowPermission(authSession, workflow);
+  if (!permCheck.allowed) {
+    return Response.json(
+      {
+        success: false,
+        error: "You do not have permission to run this workflow.",
+        missing_permissions: permCheck.missing,
+      },
+      { status: 403 },
+    );
+  }
 
   const steps = sortedSteps(workflow.workflow_steps);
   const step = steps[stepIndex];

@@ -13,6 +13,12 @@ export interface WorkflowDefinition {
   description: string;
   version: string;
   tags?: string[];
+  /**
+   * Permission strings the caller must hold in session.session.permissions[]
+   * for this workflow to be accessible. An empty array or absent field means
+   * any authenticated user may run the workflow.
+   */
+  required_permissions?: string[];
   llm_hints?: {
     intent_examples?: string[];
     when_to_use?: string[];

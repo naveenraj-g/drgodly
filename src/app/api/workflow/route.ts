@@ -7,14 +7,21 @@
  * forwards it to the external AI agent, and returns the first step of the
  * workflow that the agent selected.
  *
+ * Authorization:
+ *   - Requires an authenticated Better Auth session (401 if absent).
+ *   - Checks that the resolved workflow's required_permissions[] are all
+ *     present in session.session.permissions (403 if any are missing).
+ *
  * Flow:
- *   1. Obtain a short-lived JWT from Better Auth (forwarding the session cookie).
- *   2. POST the user message to AGENT_API_URL with Bearer auth.
+ *   1. Validate session — reject unauthenticated callers immediately.
+ *   2. Obtain a short-lived JWT from Better Auth (forwarding the session cookie).
+ *   3. POST the user message to AGENT_API_URL with Bearer auth.
  *      The agent interprets intent and returns a WorkflowDefinition JSON.
- *   3. Sort workflow_steps by sequence_number and take step[0].
- *   4. If the first step declares a context_resolver / context_resolvers, run
+ *   4. Check that the caller holds all required_permissions for the workflow.
+ *   5. Sort workflow_steps by sequence_number and take step[0].
+ *   6. If the first step declares a context_resolver / context_resolvers, run
  *      them now so the client receives pre-fetched FHIR data with the step.
- *   5. Return the full workflow object + first step to the client.
+ *   7. Return the full workflow object + first step to the client.
  *      The client stores the workflow in Zustand and renders the step.
  *
  * No server-side workflow state is kept — the full workflow JSON travels back
@@ -34,6 +41,7 @@ import {
   extractOutputs,
 } from "./_lib";
 import { getServerSession } from "@/modules/server/auth/get-session";
+import { checkWorkflowPermission } from "@/modules/server/shared/auth/checkWorkflowPermission";
 
 // ** Testing — replace with live agent call when AGENT_API_URL is wired up **
 import create_patient_workflow from "@/modules/client/ai-hub/workflows/patient/create_patient.json";
@@ -82,12 +90,17 @@ export async function POST(req: Request) {
     );
   }
 
+  // Require an authenticated session before doing any work.
+  const authSession = await getServerSession();
+  if (!authSession?.user) {
+    return Response.json(
+      { type: "error", message: "Unauthorized" },
+      { status: 401 },
+    );
+  }
+
   try {
-    // Fetch a fresh JWT and session in parallel — both are needed before the first step.
-    const [token, authSession] = await Promise.all([
-      getJWTToken(),
-      getServerSession(),
-    ]);
+    const token = await getJWTToken();
 
     // TODO: Replace the hardcoded workflow with the live agent call below once
     //       AGENT_API_URL is configured and the agent is deployed.
@@ -110,7 +123,21 @@ export async function POST(req: Request) {
 
     // ** Testing **
     const workflow: WorkflowDefinition =
-      create_patient_workflow as WorkflowDefinition;
+      create_patient_workflow as unknown as WorkflowDefinition;
+
+    // Enforce permission-based access control. The workflow's required_permissions[]
+    // must all be present in the session before we reveal any step data to the client.
+    const permCheck = checkWorkflowPermission(authSession, workflow);
+    if (!permCheck.allowed) {
+      return Response.json(
+        {
+          type: "error",
+          message: "You do not have permission to run this workflow.",
+          missing_permissions: permCheck.missing,
+        },
+        { status: 403 },
+      );
+    }
 
     const steps = sortedSteps(workflow.workflow_steps);
     const firstStep = steps[0];

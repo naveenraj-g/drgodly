@@ -36,6 +36,11 @@ export interface ChatMessage {
     stepId: string;
     contextAtStep: Record<string, unknown>;
   };
+  /** Set when the server rejects a workflow with a 403 permission error. */
+  permissionDenied?: {
+    message: string;
+    missing_permissions: string[];
+  };
 }
 
 export interface SerializableConversation {

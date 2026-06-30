@@ -4,6 +4,7 @@
   "description": "Create a new Patient resource and optionally append names, identifiers, telecom contact points, addresses, communication languages, emergency contacts, general practitioners, photos, and patient links as part of patient onboarding.",
   "version": "2.0.0",
   "tags": ["fhir", "patient", "create", "crud", "healthcare", "onboarding"],
+  "required_permissions": ["patient:create"],
   "llm_hints": {
     "intent_examples": [
       "Create a new patient",
