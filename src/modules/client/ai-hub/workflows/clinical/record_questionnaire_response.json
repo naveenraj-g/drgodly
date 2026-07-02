@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_questionnaire_response",
   "name": "Record Questionnaire Response",
   "description": "Record a patient's responses to a FHIR Questionnaire, capturing each question and its answer as structured response items.",

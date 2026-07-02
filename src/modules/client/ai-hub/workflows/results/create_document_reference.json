@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_document_reference",
   "name": "Create Document Reference",
   "description": "Create a document reference linking clinical documents (PDFs, notes, reports) to the current patient's record.",

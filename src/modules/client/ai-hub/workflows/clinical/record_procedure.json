@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_procedure",
   "name": "Record Procedure",
   "description": "Record a clinical procedure performed on the current patient, including the procedure code, status, performer, location, and outcome.",

@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_vitals",
   "name": "Record Vitals",
   "description": "Record a patient's vital signs including heart rate, blood pressure, weight, height, oxygen saturation, respiratory rate, temperature, glucose, and activity metrics.",

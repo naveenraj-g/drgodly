@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_related_person",
   "name": "Create Related Person",
   "description": "Register a related person (next of kin, guardian, emergency contact) linked to the current patient, including relationship, name, contact details, gender, birth date, address, and communication preferences.",

@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "close_encounter",
   "name": "Close Encounter",
   "description": "Close an active clinical encounter by setting its final status and recording the actual end time.",

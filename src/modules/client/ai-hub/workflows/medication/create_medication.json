@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_medication",
   "name": "Create Medication",
   "description": "Register a Medication resource in the FHIR server, including drug code (RxNorm/SNOMED), status, dose form, and batch/lot details.",

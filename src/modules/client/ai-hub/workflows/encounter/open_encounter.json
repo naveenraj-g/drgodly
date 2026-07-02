@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "open_encounter",
   "name": "Open Encounter",
   "description": "Open a new clinical encounter in two steps: optionally create an Episode of Care to group related visits, then create the Encounter itself.",

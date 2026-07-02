@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_practitioner",
   "name": "Create Practitioner",
   "description": "Register a new Practitioner in 7 steps: core demographics, names, identifiers, telecom, qualifications, communication languages, and finally a PractitionerRole linking them to an organisation, location, and healthcare service.",

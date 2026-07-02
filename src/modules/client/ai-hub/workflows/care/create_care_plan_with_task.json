@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_care_plan_with_task",
   "name": "Create Care Plan with Task",
   "description": "Create a FHIR CarePlan for a patient and attach a follow-up Task in two steps.",

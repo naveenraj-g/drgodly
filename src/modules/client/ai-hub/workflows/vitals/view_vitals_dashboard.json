@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "view_vitals_dashboard",
   "name": "Vitals Dashboard",
   "description": "Displays a comprehensive vitals dashboard with KPI metrics, trend charts, and a full server-side paginated data table for a given patient.",

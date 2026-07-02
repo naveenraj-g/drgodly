@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_billing_cycle",
   "name": "Create Billing Cycle",
   "description": "Submit a FHIR Claim, record the payer adjudication as a ClaimResponse, and issue a patient Invoice in three steps.",

@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_immunization",
   "name": "Record Immunization",
   "description": "Record a vaccination event for the current patient, including the vaccine code, occurrence date, lot number, injection site, dose quantity, and administering practitioner.",

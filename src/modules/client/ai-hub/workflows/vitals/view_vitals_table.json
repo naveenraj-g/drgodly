@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "view_vitals_table",
   "name": "Vitals Records Table",
   "description": "Displays a full server-side paginated and filterable table of all vitals records for a given patient, with export support.",

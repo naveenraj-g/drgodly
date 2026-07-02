@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_service_request",
   "name": "Create Service Request",
   "description": "Place a new FHIR ServiceRequest (procedure, lab, or imaging order) for the current patient, specifying code, status, intent, priority, and optional category, requester, and notes.",

@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_condition",
   "name": "Record Condition",
   "description": "Record a clinical condition or diagnosis with ICD-10/SNOMED coding, clinical status, verification, severity, and onset timeline.",

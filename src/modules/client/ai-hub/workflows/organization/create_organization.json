@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_organization",
   "name": "Create Organization",
   "description": "Create a new Organisation resource and add a Location in two steps: first provide core organisation details, then define the physical location linked to the new organisation.",

@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_diagnostic_report",
   "name": "Create Diagnostic Report with Observation",
   "description": "Create a diagnostic report for the current patient and then link an observation result to it in two steps.",

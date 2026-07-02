@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_coverage",
   "name": "Create Coverage",
   "description": "Create a health insurance Coverage resource for the current patient, including status, insurer (payor), insurance type, member ID, network, and coverage period.",

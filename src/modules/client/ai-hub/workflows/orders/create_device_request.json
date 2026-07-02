@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_device_request",
   "name": "Create Device Request",
   "description": "Place a FHIR DeviceRequest to order or authorise a medical device (e.g. wheelchair, CPAP, blood glucose monitor) for the current patient.",

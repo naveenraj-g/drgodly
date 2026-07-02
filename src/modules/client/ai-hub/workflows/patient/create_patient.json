@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_patient",
   "name": "Create Patient",
   "description": "Create a new Patient resource and optionally append names, identifiers, telecom contact points, addresses, communication languages, emergency contacts, general practitioners, photos, and patient links as part of patient onboarding.",

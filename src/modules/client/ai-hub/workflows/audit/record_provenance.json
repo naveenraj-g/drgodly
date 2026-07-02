@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_provenance",
   "name": "Record Provenance",
   "description": "Record a FHIR Provenance entry to document the origin, chain of custody, and activity for any FHIR resource.",

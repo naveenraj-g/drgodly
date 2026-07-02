@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_specimen",
   "name": "Record Specimen",
   "description": "Record a biological specimen collected from the current patient, including type, accession identifier, collection details, and body site.",

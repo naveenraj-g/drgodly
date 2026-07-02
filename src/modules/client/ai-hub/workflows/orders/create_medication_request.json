@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_medication_request",
   "name": "Create Medication Request",
   "description": "Prescribe a medication for the current patient by selecting from the formulary or searching by RxNorm code, specifying dosage instructions, dispensing details, and the requesting practitioner.",

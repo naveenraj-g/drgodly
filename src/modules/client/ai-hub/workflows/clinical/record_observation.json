@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_observation",
   "name": "Record Observation",
   "description": "Record a clinical observation with a LOINC code, status, value, interpretation, and performer details.",

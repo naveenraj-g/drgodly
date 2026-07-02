@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "create_healthcare_service",
   "name": "Create Healthcare Service",
   "description": "Register a new HealthcareService offered by an organisation at a location, including classification, specialty, and available hours.",

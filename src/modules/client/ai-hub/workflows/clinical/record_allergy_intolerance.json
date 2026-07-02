@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "record_allergy_intolerance",
   "name": "Record Allergy / Intolerance",
   "description": "Record a patient allergy or intolerance with clinical classification, substance coding, criticality, and optional reaction details.",
