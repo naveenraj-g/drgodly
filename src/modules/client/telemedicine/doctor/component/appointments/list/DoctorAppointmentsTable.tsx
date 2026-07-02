@@ -115,6 +115,9 @@ export function DoctorAppointmentsTable({
         // The page reads ?appointmentId to fetch the LiveKit room_id.
         onConsult: (row) =>
           router.push(`${viewHref}/online-consultation?appointmentId=${row.id}`),
+        // Navigates to the in-person diarization recording screen for this appointment.
+        onInPersonConsult: (row) =>
+          router.push(`${viewHref}/inperson-consultation?appointmentId=${row.id}`),
         // Navigates to the post-consultation review page for this appointment.
         onReview: (row) => router.push(`${viewHref}/${row.id}/review`),
       }),

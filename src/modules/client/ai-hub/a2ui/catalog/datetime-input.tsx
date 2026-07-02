@@ -6,6 +6,7 @@ import type { DateTimeInputNode } from "../types";
 import type { IMessageProcessor } from "../rendering/processor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface DateTimeInputProps {
   processor: IMessageProcessor;
@@ -38,6 +39,7 @@ export function DateTimeInput({
   );
   const enableDate = component.properties.enableDate !== false;
   const enableTime = component.properties.enableTime !== false;
+  const classNames = component.properties.classNames;
 
   const type = enableDate && enableTime
     ? "datetime-local"
@@ -50,13 +52,14 @@ export function DateTimeInput({
   };
 
   return (
-    <div className="space-y-2" style={{ flex: weight }}>
-      {label && <Label htmlFor={component.id}>{label}</Label>}
+    <div className={cn("space-y-2", classNames?.root)} style={{ flex: weight }}>
+      {label && <Label htmlFor={component.id} className={classNames?.label}>{label}</Label>}
       <Input
         id={component.id}
         type={type}
         value={value}
         onChange={handleChange}
+        className={classNames?.input}
       />
     </div>
   );

@@ -82,6 +82,15 @@ export interface TextField {
   text?: StringValue;
   textFieldType?: "shortText" | "longText" | "number" | "date" | "obscured";
   placeholder?: StringValue;
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer wrapper div (space-y-2). */
+    root?: string;
+    /** The <Label> element. */
+    label?: string;
+    /** The <Input> or <Textarea> element. */
+    input?: string;
+  };
 }
 
 export interface Checkbox {
@@ -105,6 +114,15 @@ export interface DateTimeInput {
   enableDate?: boolean;
   enableTime?: boolean;
   outputFormat?: string;
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer wrapper div (space-y-2). */
+    root?: string;
+    /** The <Label> element. */
+    label?: string;
+    /** The <Input> element. */
+    input?: string;
+  };
 }
 
 export interface MultipleChoice {
@@ -137,6 +155,15 @@ export interface TerminologySelectType {
   /** "code" emits a single hidden input; "CodeableConcept" emits four flattened inputs. */
   valueType?: StringValue;
   serverSearch?: TerminologySelectServerSearch;
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer wrapper div (space-y-2). */
+    root?: string;
+    /** The <Label> element. */
+    label?: string;
+    /** The combobox trigger <Button>. */
+    trigger?: string;
+  };
 }
 
 export interface Tabs {
@@ -162,6 +189,13 @@ export interface Row {
     | "spaceAround"
     | "spaceEvenly";
   gap?: "none" | "small" | "medium" | "large";
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer flex container. Use to override the default responsive direction, e.g. "flex-row" to force horizontal on all screens. */
+    root?: string;
+    /** Applied to every direct child wrapper div (the flex item). */
+    item?: string;
+  };
 }
 
 export interface Column {
@@ -178,6 +212,13 @@ export interface Column {
     | "spaceAround"
     | "spaceEvenly";
   gap?: "none" | "small" | "medium" | "large";
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer flex container. */
+    root?: string;
+    /** Applied to every direct child wrapper div. */
+    item?: string;
+  };
 }
 
 export interface List {
@@ -201,6 +242,13 @@ export interface Form {
   submitLabel?: StringValue;
   gap?: "none" | "small" | "medium" | "large";
   alignment?: "start" | "center" | "end" | "stretch";
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer <form> element. */
+    root?: string;
+    /** The submit button wrapper area below the field children. */
+    footer?: string;
+  };
 }
 
 export interface SwitchInput {
@@ -732,6 +780,15 @@ export interface PieChartNode extends BaseComponentNode {
 export interface DashboardCardType {
   title: string;
   subtitle?: string;
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** The outer card div. */
+    root?: string;
+    /** The title/subtitle header area. */
+    header?: string;
+    /** The child content area. */
+    body?: string;
+  };
 }
 
 export interface DashboardCardNode extends BaseComponentNode {

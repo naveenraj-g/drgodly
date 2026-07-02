@@ -6,6 +6,7 @@ import type { FormNode } from "../types";
 import type { IMessageProcessor } from "../rendering/processor";
 import { Renderer } from "../rendering/renderer";
 import { Button as ShadCNButton } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface FormProps {
   processor: IMessageProcessor;
@@ -36,6 +37,7 @@ export function Form({
 
   const alignment = component.properties?.alignment || "stretch";
   const gap = component.properties?.gap || "medium";
+  const classNames = component.properties?.classNames;
 
   const styles = useMemo(() => {
     const alignMap: Record<string, string> = {
@@ -127,7 +129,7 @@ export function Form({
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      className={`flex w-full flex-col ${styles}`}
+      className={cn("flex w-full flex-col", styles, classNames?.root)}
       style={{ flex: weight }}
     >
       {component.properties.children?.map((child) => (
@@ -139,9 +141,11 @@ export function Form({
           weight={child.weight || "initial"}
         />
       ))}
-      <ShadCNButton type="submit" className="mt-2">
-        {submitLabel}
-      </ShadCNButton>
+      <div className={cn("mt-2", classNames?.footer)}>
+        <ShadCNButton type="submit" className="w-full sm:w-auto">
+          {submitLabel}
+        </ShadCNButton>
+      </div>
     </form>
   );
 }

@@ -69,6 +69,7 @@ export function TerminologySelect({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  const classNames = component.properties.classNames;
   const label = resolvePrimitive(component.properties.label) as
     | string
     | undefined;
@@ -156,8 +157,8 @@ export function TerminologySelect({
   const fieldId = component.id;
 
   return (
-    <div className="space-y-2" style={{ flex: weight }}>
-      {label && <Label htmlFor={fieldId}>{label}</Label>}
+    <div className={cn("space-y-2", classNames?.root)} style={{ flex: weight }}>
+      {label && <Label htmlFor={fieldId} className={classNames?.label}>{label}</Label>}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -167,7 +168,7 @@ export function TerminologySelect({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal"
+            className={cn("w-full justify-between font-normal", classNames?.trigger)}
           >
             {selected ? (
               <span>{selected.display}</span>

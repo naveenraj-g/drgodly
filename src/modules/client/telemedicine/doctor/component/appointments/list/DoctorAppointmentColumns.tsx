@@ -21,7 +21,7 @@ import {
 } from "@/modules/client/shared/components/tables";
 import { Badge } from "@/components/ui/badge";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
-import { CalendarClock, CheckCircle2, ClipboardList, Eye, XCircle, User, Video } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardList, Eye, XCircle, User, Video, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -136,6 +136,8 @@ export interface DoctorAppointmentColumnCallbacks {
   onReschedule: (row: TAppointmentResponse) => void;
   /** Called when the doctor joins the virtual consultation room for a booked appointment. */
   onConsult: (row: TAppointmentResponse) => void;
+  /** Called when the doctor starts an in-person consultation with diarization recording. */
+  onInPersonConsult: (row: TAppointmentResponse) => void;
   /** Called when the doctor opens the post-consultation review page. */
   onReview: (row: TAppointmentResponse) => void;
 }
@@ -322,7 +324,7 @@ export function createDoctorAppointmentColumns(
               <Eye className="size-3 mr-1" />
               View
             </Button>
-            {/* Consult Online — only for booked appointments with a virtual consultation room */}
+            {/* Consult Online — opens the LiveKit virtual consultation room */}
             {isBooked && (
               <Button
                 size="sm"
@@ -332,6 +334,18 @@ export function createDoctorAppointmentColumns(
               >
                 <Video className="size-3 mr-1" />
                 Consult Online
+              </Button>
+            )}
+            {/* In-Person — opens the diarization recording screen for face-to-face visits */}
+            {isBooked && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 px-2 text-xs"
+                onClick={() => callbacks.onInPersonConsult(row.original)}
+              >
+                <Stethoscope className="size-3 mr-1" />
+                In-Person
               </Button>
             )}
             {/* Three-dot menu — always present (Review is always available) */}

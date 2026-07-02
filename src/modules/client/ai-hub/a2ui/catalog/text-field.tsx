@@ -7,6 +7,7 @@ import type { IMessageProcessor } from "../rendering/processor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 interface TextFieldProps {
   processor: IMessageProcessor;
@@ -42,6 +43,7 @@ export function TextField({
     [resolvePrimitive, component.properties.placeholder],
   );
   const textFieldType = component.properties.textFieldType || "shortText";
+  const classNames = component.properties.classNames;
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -51,14 +53,14 @@ export function TextField({
 
   if (textFieldType === "longText") {
     return (
-      <div className="space-y-2" style={{ flex: weight }}>
-        {label && <Label htmlFor={component.id}>{label}</Label>}
+      <div className={cn("space-y-2", classNames?.root)} style={{ flex: weight }}>
+        {label && <Label htmlFor={component.id} className={classNames?.label}>{label}</Label>}
         <Textarea
           id={component.id}
           value={text}
           onChange={handleChange}
           placeholder={placeholder}
-          className="resize-none"
+          className={cn("resize-none", classNames?.input)}
         />
       </div>
     );
@@ -72,14 +74,15 @@ export function TextField({
         : "text";
 
   return (
-    <div className="space-y-2" style={{ flex: weight }}>
-      {label && <Label htmlFor={component.id}>{label}</Label>}
+    <div className={cn("space-y-2", classNames?.root)} style={{ flex: weight }}>
+      {label && <Label htmlFor={component.id} className={classNames?.label}>{label}</Label>}
       <Input
         id={component.id}
         type={inputType}
         value={text}
         onChange={handleChange}
         placeholder={placeholder}
+        className={classNames?.input}
       />
     </div>
   );

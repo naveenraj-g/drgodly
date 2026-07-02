@@ -505,7 +505,7 @@ function Chart(props: ChartProps) {
     weight,
     spec,
     values,
-    width = 600,
+    width = "100%",
     height = 320,
     autoFilter,
     hideActions,
@@ -719,7 +719,7 @@ function Chart(props: ChartProps) {
   const isAdditionalShow = !!onReload || !!onEdit || !!onPin;
 
   return (
-    <div className={`${className}`} style={{ width }}>
+    <div className={`w-full ${className}`} style={{ width }}>
       {isAdditionalShow && (
         <div className="flex justify-between items-center">
           {!!onReload && (
