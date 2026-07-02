@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "record_provenance",
   "name": "Record Provenance",
   "description": "Record a FHIR Provenance entry to document the origin, chain of custody, and activity for any FHIR resource.",
@@ -51,7 +51,7 @@
           "description": "Resolve patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -59,7 +59,7 @@
           "description": "Load practitioners available for booking.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -67,7 +67,7 @@
           "description": "Fetch Provenance activity value set.",
           "context_key": "activity_concepts",
           "tool_name": "get_provenance_activity",
-          "url": "$fhir_server_url/terminology/concepts?resource=Provenance&field=activity",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Provenance&field=activity",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -83,7 +83,7 @@
           "type": "http",
           "purpose": "create_provenance",
           "tool_name": "create_provenance",
-          "url": "$fhir_server_url/provenances/",
+          "url": "$fhir_gql_url/provenances/",
           "method": "POST",
           "validation_schema": "provenance_create_schema",
           "retryable": false,

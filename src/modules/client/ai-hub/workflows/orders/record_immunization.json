@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "record_immunization",
   "name": "Record Immunization",
   "description": "Record a vaccination event for the current patient, including the vaccine code, occurrence date, lot number, injection site, dose quantity, and administering practitioner.",
@@ -65,7 +65,7 @@
           "description": "Resolve the logged-in user's Patient record so patient_id is available automatically.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -73,7 +73,7 @@
           "description": "Fetch allowed status codes for Immunization (completed, entered-in-error, not-done).",
           "context_key": "status_concepts",
           "tool_name": "get_immunization_status",
-          "url": "$fhir_server_url/terminology/concepts?resource=Immunization&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Immunization&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -81,7 +81,7 @@
           "description": "Load practitioners available for booking to populate the performer select.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -97,7 +97,7 @@
           "type": "http",
           "purpose": "record_immunization",
           "tool_name": "record_immunization",
-          "url": "$fhir_server_url/immunizations/",
+          "url": "$fhir_gql_url/immunizations/",
           "method": "POST",
           "validation_schema": "immunization_create_schema",
           "retryable": false,

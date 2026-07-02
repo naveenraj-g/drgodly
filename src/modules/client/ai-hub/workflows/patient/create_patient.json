@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_patient",
   "name": "Create Patient",
   "description": "Create a new Patient resource and optionally append names, identifiers, telecom contact points, addresses, communication languages, emergency contacts, general practitioners, photos, and patient links as part of patient onboarding.",
@@ -61,7 +61,7 @@
           "description": "Fetch administrative-gender value set for the Gender select.",
           "context_key": "gender_concepts",
           "tool_name": "get_gender_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=gender",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=gender",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -69,7 +69,7 @@
           "description": "Fetch marital-status value set for the Marital Status select.",
           "context_key": "marital_status_concepts",
           "tool_name": "get_marital_status_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=maritalStatus",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=maritalStatus",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -85,7 +85,7 @@
           "type": "http",
           "purpose": "create_patient",
           "tool_name": "create_patient",
-          "url": "$fhir_server_url/patients/",
+          "url": "$fhir_gql_url/patients/",
           "method": "POST",
           "validation_schema": "patient_create_schema",
           "retryable": true,
@@ -118,7 +118,7 @@
         {
           "description": "Confirm the Patient still exists before appending names.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_server_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -126,7 +126,7 @@
           "description": "Fetch name-use value set for the Name Use terminology select.",
           "context_key": "name_use_concepts",
           "tool_name": "get_name_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=name.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=name.use",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -142,7 +142,7 @@
           "type": "http",
           "purpose": "add_patient_name",
           "tool_name": "add_patient_name",
-          "url": "$fhir_server_url/patients/$patient_id/names",
+          "url": "$fhir_gql_url/patients/$patient_id/names",
           "method": "POST",
           "iterate_key": "names",
           "validation_schema": "name_create_schema",
@@ -176,7 +176,7 @@
         {
           "description": "Confirm the Patient still exists before appending identifiers.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_server_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -184,7 +184,7 @@
           "description": "Fetch identifier-use value set for the Identifier Use terminology select.",
           "context_key": "identifier_use_concepts",
           "tool_name": "get_identifier_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=identifier.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=identifier.use",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -192,7 +192,7 @@
           "description": "Fetch identifier-type value set for the Identifier Type terminology select.",
           "context_key": "identifier_type_concepts",
           "tool_name": "get_identifier_type_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=identifier.type",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=identifier.type",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -208,7 +208,7 @@
           "type": "http",
           "purpose": "add_patient_identifier",
           "tool_name": "add_patient_identifier",
-          "url": "$fhir_server_url/patients/$patient_id/identifiers",
+          "url": "$fhir_gql_url/patients/$patient_id/identifiers",
           "method": "POST",
           "iterate_key": "identifiers",
           "validation_schema": "identifier_create_schema",
@@ -242,7 +242,7 @@
         {
           "description": "Confirm the Patient still exists before appending telecom.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_server_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -250,7 +250,7 @@
           "description": "Fetch telecom-system value set for the Contact Type terminology select.",
           "context_key": "telecom_system_concepts",
           "tool_name": "get_telecom_system_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=telecom.system",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=telecom.system",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -258,7 +258,7 @@
           "description": "Fetch telecom-use value set for the Use terminology select.",
           "context_key": "telecom_use_concepts",
           "tool_name": "get_telecom_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=telecom.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=telecom.use",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -274,7 +274,7 @@
           "type": "http",
           "purpose": "add_patient_telecom",
           "tool_name": "add_patient_telecom",
-          "url": "$fhir_server_url/patients/$patient_id/telecom",
+          "url": "$fhir_gql_url/patients/$patient_id/telecom",
           "method": "POST",
           "iterate_key": "telecom",
           "validation_schema": "telecom_create_schema",
@@ -308,7 +308,7 @@
         {
           "description": "Confirm the Patient still exists before appending an address.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_server_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -316,7 +316,7 @@
           "description": "Fetch address-use value set for the Address Use terminology select.",
           "context_key": "address_use_concepts",
           "tool_name": "get_address_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=address.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=address.use",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -324,7 +324,7 @@
           "description": "Fetch address-type value set for the Address Type terminology select.",
           "context_key": "address_type_concepts",
           "tool_name": "get_address_type_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=address.type",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=address.type",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -340,7 +340,7 @@
           "type": "http",
           "purpose": "add_patient_address",
           "tool_name": "add_patient_address",
-          "url": "$fhir_server_url/patients/$patient_id/addresses",
+          "url": "$fhir_gql_url/patients/$patient_id/addresses",
           "method": "POST",
           "iterate_key": "addresses",
           "validation_schema": "address_create_schema",
@@ -374,7 +374,7 @@
         {
           "description": "Confirm the Patient still exists before appending communication languages.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_server_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -382,7 +382,7 @@
           "description": "Fetch communication-language value set for the Language terminology select.",
           "context_key": "communication_language_concepts",
           "tool_name": "get_communication_language_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=communication.language",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=communication.language",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -398,7 +398,7 @@
           "type": "http",
           "purpose": "add_patient_communication",
           "tool_name": "add_patient_communication",
-          "url": "$fhir_server_url/patients/$patient_id/communications",
+          "url": "$fhir_gql_url/patients/$patient_id/communications",
           "method": "POST",
           "iterate_key": "communications",
           "validation_schema": "communication_create_schema",
@@ -432,7 +432,7 @@
         {
           "description": "Confirm the Patient still exists before appending a contact.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_server_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -440,7 +440,7 @@
           "description": "Fetch name-use value set for the Name Use select.",
           "context_key": "name_use_concepts",
           "tool_name": "get_name_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=name.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=name.use",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -448,7 +448,7 @@
           "description": "Fetch administrative-gender value set for the Gender select.",
           "context_key": "gender_concepts",
           "tool_name": "get_gender_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=gender",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=gender",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -456,7 +456,7 @@
           "description": "Fetch address-use value set for the Address Use select.",
           "context_key": "address_use_concepts",
           "tool_name": "get_address_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=address.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=address.use",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -464,7 +464,7 @@
           "description": "Fetch address-type value set for the Address Type select.",
           "context_key": "address_type_concepts",
           "tool_name": "get_address_type_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=address.type",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=address.type",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -480,7 +480,7 @@
           "type": "http",
           "purpose": "add_patient_contact",
           "tool_name": "add_patient_contact",
-          "url": "$fhir_server_url/patients/$patient_id/contacts",
+          "url": "$fhir_gql_url/patients/$patient_id/contacts",
           "method": "POST",
           "validation_schema": "contact_create_schema",
           "retryable": true,
@@ -512,7 +512,7 @@
       "context_resolver": {
         "description": "Confirm the Patient still exists before appending general practitioners.",
         "tool_name": "get_patient_by_id",
-        "url": "$fhir_server_url/patients/$patient_id",
+        "url": "$fhir_gql_url/patients/$patient_id",
         "method": "GET",
         "timeout_ms": 10000
       },
@@ -527,7 +527,7 @@
           "type": "http",
           "purpose": "add_patient_general_practitioner",
           "tool_name": "add_patient_general_practitioner",
-          "url": "$fhir_server_url/patients/$patient_id/general-practitioners",
+          "url": "$fhir_gql_url/patients/$patient_id/general-practitioners",
           "method": "POST",
           "iterate_key": "general_practitioners",
           "validation_schema": "gp_create_schema",
@@ -562,7 +562,7 @@
       "context_resolver": {
         "description": "Confirm the Patient still exists before uploading a photo.",
         "tool_name": "get_patient_by_id",
-        "url": "$fhir_server_url/patients/$patient_id",
+        "url": "$fhir_gql_url/patients/$patient_id",
         "method": "GET",
         "timeout_ms": 10000
       },
@@ -577,7 +577,7 @@
           "type": "http",
           "purpose": "add_patient_photo",
           "tool_name": "add_patient_photo",
-          "url": "$fhir_server_url/patients/$patient_id/photos",
+          "url": "$fhir_gql_url/patients/$patient_id/photos",
           "method": "POST",
           "validation_schema": "patient_photo_upload_schema",
           "retryable": false,
@@ -609,7 +609,7 @@
       "context_resolver": {
         "description": "Confirm the Patient still exists before appending links.",
         "tool_name": "get_patient_by_id",
-        "url": "$fhir_server_url/patients/$patient_id",
+        "url": "$fhir_gql_url/patients/$patient_id",
         "method": "GET",
         "timeout_ms": 10000
       },
@@ -624,7 +624,7 @@
           "type": "http",
           "purpose": "add_patient_link",
           "tool_name": "add_patient_link",
-          "url": "$fhir_server_url/patients/$patient_id/links",
+          "url": "$fhir_gql_url/patients/$patient_id/links",
           "method": "POST",
           "iterate_key": "links",
           "validation_schema": "link_create_schema",

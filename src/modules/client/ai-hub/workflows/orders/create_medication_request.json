@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_medication_request",
   "name": "Create Medication Request",
   "description": "Prescribe a medication for the current patient by selecting from the formulary or searching by RxNorm code, specifying dosage instructions, dispensing details, and the requesting practitioner.",
@@ -71,7 +71,7 @@
           "description": "Resolve the logged-in user's Patient record so patient_id is available automatically.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -79,7 +79,7 @@
           "description": "Fetch allowed status codes for MedicationRequest.",
           "context_key": "status_concepts",
           "tool_name": "get_medication_request_status",
-          "url": "$fhir_server_url/terminology/concepts?resource=MedicationRequest&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=MedicationRequest&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -87,7 +87,7 @@
           "description": "Fetch allowed intent codes for MedicationRequest.",
           "context_key": "intent_concepts",
           "tool_name": "get_medication_request_intent",
-          "url": "$fhir_server_url/terminology/concepts?resource=MedicationRequest&field=intent",
+          "url": "$fhir_gql_url/terminology/concepts?resource=MedicationRequest&field=intent",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -95,7 +95,7 @@
           "description": "Load available medications from the organisation's formulary.",
           "context_key": "my_medications",
           "tool_name": "list_medications",
-          "url": "$fhir_server_url/medications/",
+          "url": "$fhir_gql_url/medications/",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -103,7 +103,7 @@
           "description": "Load practitioners available for booking to populate the requester select.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -119,7 +119,7 @@
           "type": "http",
           "purpose": "create_medication_request",
           "tool_name": "create_medication_request",
-          "url": "$fhir_server_url/medication-requests/",
+          "url": "$fhir_gql_url/medication-requests/",
           "method": "POST",
           "validation_schema": "medication_request_create_schema",
           "retryable": false,

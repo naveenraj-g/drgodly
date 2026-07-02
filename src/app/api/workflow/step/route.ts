@@ -92,7 +92,12 @@ export async function POST(req: Request) {
   try {
     const token = await getJWTToken();
     let stepData: Record<string, unknown> = {};
-    let mergedContext = { ...sessionContext };
+    // Re-inject fhir_gql_url so $fhir_gql_url resolves in UI schema strings
+    // (e.g. DynamicSelect source.url) via mapDataToUI on the client.
+    let mergedContext = {
+      ...sessionContext,
+      fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
+    };
 
     if (step.context_resolvers?.length) {
       stepData = await runContextResolvers(step.context_resolvers, mergedContext, token);

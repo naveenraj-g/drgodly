@@ -41,7 +41,7 @@ export function sortedSteps(
  * the session context.
  *
  * Example:
- *   template: "$fhir_server_url/patients/$patient_id/identifiers"
+ *   template: "$fhir_gql_url/patients/$patient_id/identifiers"
  *   context:  { patient_id: 42 }
  *   result:   "https://fhir.example.com/patients/42/identifiers"
  *
@@ -58,7 +58,7 @@ export function resolveUrl(
 ): string {
   const fhirBase = (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, "");
   const merged: Record<string, unknown> = {
-    fhir_server_url: fhirBase,
+    fhir_gql_url: fhirBase,
     ...context,
   };
   const resolved = template.replace(/\$(\w+)/g, (_, key) =>
@@ -66,7 +66,7 @@ export function resolveUrl(
   );
 
   // Workflow definitions may use bare relative paths (e.g. /api/v1/...) without
-  // a $fhir_server_url prefix. Prepend the base URL so fetch gets an absolute URL.
+  // a $fhir_gql_url prefix. Prepend the base URL so fetch gets an absolute URL.
   if (resolved.startsWith("/")) {
     return `${fhirBase}${resolved}`;
   }

@@ -6,7 +6,7 @@
  * Server-side proxy for the DynamicSelect A2UI catalog component. The component
  * runs in the browser and cannot reach the FHIR server directly, so it calls this
  * route instead. The route:
- *   1. Resolves the URL template (e.g. "$fhir_server_url/practitioners/")
+ *   1. Resolves the URL template (e.g. "$fhir_gql_url/practitioners/")
  *      using the FHIR_GQL_URL env var — the same logic used by other workflow routes.
  *   2. Validates the resolved URL against the allowed FHIR origin to prevent SSRF.
  *   3. Appends caller-supplied query params (static context values + live search term).
@@ -14,7 +14,7 @@
  *   5. Extracts the items array from the response using the caller's responsePath,
  *      then returns { items: unknown[] }.
  *
- * Note: Only $fhir_server_url is resolved in the URL template because the session
+ * Note: Only $fhir_gql_url is resolved in the URL template because the session
  * context is client-side. Dynamic path segments (e.g. $patient_id) should be
  * passed via staticParams in the schema instead.
  */
@@ -69,9 +69,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "'url' is required" }, { status: 400 });
   }
 
-  // Resolve $fhir_server_url placeholder; unknown $vars become empty string.
+  // Resolve $fhir_gql_url placeholder; unknown $vars become empty string.
   const resolved = resolveUrl(url, {});
-
+  console.log({ url, resolved });
   // SSRF guard: only proxy requests to the configured FHIR server origin.
   if (FHIR_BASE && !resolved.startsWith(FHIR_BASE)) {
     return Response.json({ error: "URL not allowed" }, { status: 403 });

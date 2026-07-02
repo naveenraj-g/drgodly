@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "view_vitals_table",
   "name": "Vitals Records Table",
   "description": "Displays a full server-side paginated and filterable table of all vitals records for a given patient, with export support.",
@@ -68,7 +68,7 @@
       "context_resolver": {
         "context_key": "vitals",
         "tool_name": "list_vitals",
-        "url": "$fhir_server_url/api/v1/vitals/?patient_id=$patient_id&limit=20&offset=0",
+        "url": "$fhir_gql_url/api/v1/vitals/?patient_id=$patient_id&limit=20&offset=0",
         "method": "GET",
         "timeout_ms": 10000
       },

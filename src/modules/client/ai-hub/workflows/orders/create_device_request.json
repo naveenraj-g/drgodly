@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_device_request",
   "name": "Create Device Request",
   "description": "Place a FHIR DeviceRequest to order or authorise a medical device (e.g. wheelchair, CPAP, blood glucose monitor) for the current patient.",
@@ -65,7 +65,7 @@
           "description": "Resolve the logged-in user's Patient record so patient_id is available automatically.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -73,7 +73,7 @@
           "description": "Fetch allowed status codes for DeviceRequest.",
           "context_key": "status_concepts",
           "tool_name": "get_device_request_status",
-          "url": "$fhir_server_url/terminology/concepts?resource=DeviceRequest&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=DeviceRequest&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -81,7 +81,7 @@
           "description": "Fetch allowed intent codes for DeviceRequest.",
           "context_key": "intent_concepts",
           "tool_name": "get_device_request_intent",
-          "url": "$fhir_server_url/terminology/concepts?resource=DeviceRequest&field=intent",
+          "url": "$fhir_gql_url/terminology/concepts?resource=DeviceRequest&field=intent",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -89,7 +89,7 @@
           "description": "Load practitioners available for booking to populate the requester select.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -105,7 +105,7 @@
           "type": "http",
           "purpose": "create_device_request",
           "tool_name": "create_device_request",
-          "url": "$fhir_server_url/device-requests/",
+          "url": "$fhir_gql_url/device-requests/",
           "method": "POST",
           "validation_schema": "device_request_create_schema",
           "retryable": false,

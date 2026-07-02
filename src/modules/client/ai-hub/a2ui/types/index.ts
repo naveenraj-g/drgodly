@@ -1,4 +1,4 @@
-export interface StringValue {
+﻿export interface StringValue {
   path?: string;
   literalString?: string;
   literal?: string;
@@ -593,9 +593,9 @@ export interface DataSelectEmit {
  */
 export interface DynamicSelectSource {
   /**
-   * URL template for the FHIR endpoint. Supports $fhir_server_url placeholder
+   * URL template for the FHIR endpoint. Supports $fhir_gql_url placeholder
    * (resolved server-side by the proxy). Other path variables should go in staticParams.
-   * Example: "$fhir_server_url/api/v1/organizations/"
+   * Example: "$fhir_gql_url/api/v1/organizations/"
    */
   url: string;
   /**

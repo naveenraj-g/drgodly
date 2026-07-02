@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "record_vitals",
   "name": "Record Vitals",
   "description": "Record a patient's vital signs including heart rate, blood pressure, weight, height, oxygen saturation, respiratory rate, temperature, glucose, and activity metrics.",
@@ -54,7 +54,7 @@
           "description": "Resolve the current patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -70,7 +70,7 @@
           "type": "http",
           "purpose": "create_vitals",
           "tool_name": "create_vitals",
-          "url": "$fhir_server_url/vitals/",
+          "url": "$fhir_gql_url/vitals/",
           "method": "POST",
           "validation_schema": "vitals_create_schema",
           "retryable": false,

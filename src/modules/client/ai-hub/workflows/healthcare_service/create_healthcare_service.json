@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_healthcare_service",
   "name": "Create Healthcare Service",
   "description": "Register a new HealthcareService offered by an organisation at a location, including classification, specialty, and available hours.",
@@ -54,7 +54,7 @@
           "description": "Load the user's organisations for the 'Provided By' select.",
           "context_key": "my_organizations",
           "tool_name": "get_my_organizations",
-          "url": "$fhir_server_url/organizations/me",
+          "url": "$fhir_gql_url/organizations/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -62,7 +62,7 @@
           "description": "Load the user's locations for the Location select.",
           "context_key": "my_locations",
           "tool_name": "get_my_locations",
-          "url": "$fhir_server_url/locations/me",
+          "url": "$fhir_gql_url/locations/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -70,7 +70,7 @@
           "description": "Fetch service-category value set.",
           "context_key": "service_category_concepts",
           "tool_name": "get_service_category_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=HealthcareService&field=category",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=category",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -78,7 +78,7 @@
           "description": "Fetch service-type value set.",
           "context_key": "service_type_concepts",
           "tool_name": "get_service_type_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=HealthcareService&field=type",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=type",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -86,7 +86,7 @@
           "description": "Fetch specialty value set.",
           "context_key": "specialty_concepts",
           "tool_name": "get_specialty_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=HealthcareService&field=specialty",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=specialty",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -102,7 +102,7 @@
           "type": "http",
           "purpose": "create_healthcare_service",
           "tool_name": "create_healthcare_service",
-          "url": "$fhir_server_url/healthcare-services/",
+          "url": "$fhir_gql_url/healthcare-services/",
           "method": "POST",
           "validation_schema": "healthcare_service_create_schema",
           "retryable": false,

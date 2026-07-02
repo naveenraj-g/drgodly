@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_document_reference",
   "name": "Create Document Reference",
   "description": "Create a document reference linking clinical documents (PDFs, notes, reports) to the current patient's record.",
@@ -61,7 +61,7 @@
           "description": "Resolve current patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -69,7 +69,7 @@
           "description": "Fetch document reference status value set.",
           "context_key": "status_concepts",
           "tool_name": "get_document_reference_status_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=DocumentReference&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=DocumentReference&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -77,7 +77,7 @@
           "description": "Fetch document reference doc-status value set.",
           "context_key": "doc_status_concepts",
           "tool_name": "get_document_reference_doc_status_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=DocumentReference&field=docStatus",
+          "url": "$fhir_gql_url/terminology/concepts?resource=DocumentReference&field=docStatus",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -85,7 +85,7 @@
           "description": "Load practitioners available for booking.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners_for_booking",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -101,7 +101,7 @@
           "type": "http",
           "purpose": "create_document_reference",
           "tool_name": "create_document_reference",
-          "url": "$fhir_server_url/document-references/",
+          "url": "$fhir_gql_url/document-references/",
           "method": "POST",
           "validation_schema": "document_reference_create_schema",
           "retryable": false,

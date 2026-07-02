@@ -158,6 +158,9 @@ export async function POST(req: Request) {
       ...(authSession?.session?.activeOrganizationId
         ? { org_id: authSession.session.activeOrganizationId }
         : {}),
+      // Expose FHIR base URL so $fhir_gql_url resolves in UI schema strings
+      // (e.g. DynamicSelect source.url) via mapDataToUI on the client.
+      fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
     };
 
     if (firstStep.context_resolvers?.length) {

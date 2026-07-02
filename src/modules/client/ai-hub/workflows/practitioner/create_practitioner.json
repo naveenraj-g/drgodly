@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_practitioner",
   "name": "Create Practitioner",
   "description": "Register a new Practitioner in 7 steps: core demographics, names, identifiers, telecom, qualifications, communication languages, and finally a PractitionerRole linking them to an organisation, location, and healthcare service.",
@@ -54,7 +54,7 @@
           "description": "Fetch administrative-gender value set.",
           "context_key": "gender_concepts",
           "tool_name": "get_gender_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=gender",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=gender",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -70,7 +70,7 @@
           "type": "http",
           "purpose": "create_practitioner",
           "tool_name": "create_practitioner",
-          "url": "$fhir_server_url/practitioners/",
+          "url": "$fhir_gql_url/practitioners/",
           "method": "POST",
           "validation_schema": "practitioner_create_schema",
           "retryable": false,
@@ -95,7 +95,7 @@
         {
           "description": "Confirm practitioner exists.",
           "tool_name": "get_practitioner_by_id",
-          "url": "$fhir_server_url/practitioners/$practitioner_id",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -103,7 +103,7 @@
           "description": "Fetch name-use value set.",
           "context_key": "name_use_concepts",
           "tool_name": "get_name_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=name.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=name.use",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -119,7 +119,7 @@
           "type": "http",
           "purpose": "add_practitioner_name",
           "tool_name": "add_practitioner_name",
-          "url": "$fhir_server_url/practitioners/$practitioner_id/names",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id/names",
           "method": "POST",
           "iterate_key": "names",
           "validation_schema": "practitioner_name_create_schema",
@@ -145,7 +145,7 @@
         {
           "description": "Confirm practitioner exists.",
           "tool_name": "get_practitioner_by_id",
-          "url": "$fhir_server_url/practitioners/$practitioner_id",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -153,7 +153,7 @@
           "description": "Fetch identifier-use value set.",
           "context_key": "identifier_use_concepts",
           "tool_name": "get_identifier_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=identifier.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=identifier.use",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -161,7 +161,7 @@
           "description": "Fetch identifier-type value set.",
           "context_key": "identifier_type_concepts",
           "tool_name": "get_identifier_type_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=identifier.type",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=identifier.type",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -177,7 +177,7 @@
           "type": "http",
           "purpose": "add_practitioner_identifier",
           "tool_name": "add_practitioner_identifier",
-          "url": "$fhir_server_url/practitioners/$practitioner_id/identifiers",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id/identifiers",
           "method": "POST",
           "iterate_key": "identifiers",
           "validation_schema": "practitioner_identifier_create_schema",
@@ -203,7 +203,7 @@
         {
           "description": "Confirm practitioner exists.",
           "tool_name": "get_practitioner_by_id",
-          "url": "$fhir_server_url/practitioners/$practitioner_id",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -211,7 +211,7 @@
           "description": "Fetch telecom-system value set.",
           "context_key": "telecom_system_concepts",
           "tool_name": "get_telecom_system_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=telecom.system",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=telecom.system",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -219,7 +219,7 @@
           "description": "Fetch telecom-use value set.",
           "context_key": "telecom_use_concepts",
           "tool_name": "get_telecom_use_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=telecom.use",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=telecom.use",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -235,7 +235,7 @@
           "type": "http",
           "purpose": "add_practitioner_telecom",
           "tool_name": "add_practitioner_telecom",
-          "url": "$fhir_server_url/practitioners/$practitioner_id/telecom",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id/telecom",
           "method": "POST",
           "iterate_key": "telecom",
           "validation_schema": "practitioner_telecom_create_schema",
@@ -261,7 +261,7 @@
         {
           "description": "Confirm practitioner exists.",
           "tool_name": "get_practitioner_by_id",
-          "url": "$fhir_server_url/practitioners/$practitioner_id",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -277,7 +277,7 @@
           "type": "http",
           "purpose": "add_practitioner_qualification",
           "tool_name": "add_practitioner_qualification",
-          "url": "$fhir_server_url/practitioners/$practitioner_id/qualifications",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id/qualifications",
           "method": "POST",
           "iterate_key": "qualifications",
           "validation_schema": "practitioner_qualification_create_schema",
@@ -303,7 +303,7 @@
         {
           "description": "Confirm practitioner exists.",
           "tool_name": "get_practitioner_by_id",
-          "url": "$fhir_server_url/practitioners/$practitioner_id",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -311,7 +311,7 @@
           "description": "Fetch communication-language value set.",
           "context_key": "communication_language_concepts",
           "tool_name": "get_communication_language_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Patient&field=communication.language",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=communication.language",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -327,7 +327,7 @@
           "type": "http",
           "purpose": "add_practitioner_communication",
           "tool_name": "add_practitioner_communication",
-          "url": "$fhir_server_url/practitioners/$practitioner_id/communications",
+          "url": "$fhir_gql_url/practitioners/$practitioner_id/communications",
           "method": "POST",
           "iterate_key": "communications",
           "validation_schema": "practitioner_communication_create_schema",
@@ -359,7 +359,7 @@
           "description": "Load organisations for selection.",
           "context_key": "my_organizations",
           "tool_name": "get_my_organizations",
-          "url": "$fhir_server_url/organizations/me",
+          "url": "$fhir_gql_url/organizations/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -367,7 +367,7 @@
           "description": "Load locations for selection.",
           "context_key": "my_locations",
           "tool_name": "get_my_locations",
-          "url": "$fhir_server_url/locations/me",
+          "url": "$fhir_gql_url/locations/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -375,7 +375,7 @@
           "description": "Load healthcare services for selection.",
           "context_key": "my_healthcare_services",
           "tool_name": "get_my_healthcare_services",
-          "url": "$fhir_server_url/healthcare-services/me",
+          "url": "$fhir_gql_url/healthcare-services/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -383,7 +383,7 @@
           "description": "Fetch practitioner role-code value set.",
           "context_key": "role_code_concepts",
           "tool_name": "get_role_code_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=PractitionerRole&field=code",
+          "url": "$fhir_gql_url/terminology/concepts?resource=PractitionerRole&field=code",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -391,7 +391,7 @@
           "description": "Fetch specialty value set.",
           "context_key": "specialty_concepts",
           "tool_name": "get_specialty_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=PractitionerRole&field=specialty",
+          "url": "$fhir_gql_url/terminology/concepts?resource=PractitionerRole&field=specialty",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -407,7 +407,7 @@
           "type": "http",
           "purpose": "create_practitioner_role",
           "tool_name": "create_practitioner_role",
-          "url": "$fhir_server_url/practitioner-roles/",
+          "url": "$fhir_gql_url/practitioner-roles/",
           "method": "POST",
           "validation_schema": "practitioner_role_create_schema",
           "retryable": false,

@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "record_specimen",
   "name": "Record Specimen",
   "description": "Record a biological specimen collected from the current patient, including type, accession identifier, collection details, and body site.",
@@ -66,7 +66,7 @@
           "description": "Resolve current patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -74,7 +74,7 @@
           "description": "Fetch specimen status value set.",
           "context_key": "status_concepts",
           "tool_name": "get_specimen_status_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Specimen&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Specimen&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -82,7 +82,7 @@
           "description": "Load practitioners available for booking.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners_for_booking",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -98,7 +98,7 @@
           "type": "http",
           "purpose": "record_specimen",
           "tool_name": "record_specimen",
-          "url": "$fhir_server_url/specimens/",
+          "url": "$fhir_gql_url/specimens/",
           "method": "POST",
           "validation_schema": "specimen_create_schema",
           "retryable": false,

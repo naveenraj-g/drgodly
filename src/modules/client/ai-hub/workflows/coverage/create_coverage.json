@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_coverage",
   "name": "Create Coverage",
   "description": "Create a health insurance Coverage resource for the current patient, including status, insurer (payor), insurance type, member ID, network, and coverage period.",
@@ -60,7 +60,7 @@
           "description": "Auto-resolve the current patient from the session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -68,7 +68,7 @@
           "description": "Fetch coverage-status value set.",
           "context_key": "status_concepts",
           "tool_name": "get_coverage_status_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Coverage&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Coverage&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -76,7 +76,7 @@
           "description": "Load organisations available as payors.",
           "context_key": "my_organizations",
           "tool_name": "get_my_organizations",
-          "url": "$fhir_server_url/organizations/me",
+          "url": "$fhir_gql_url/organizations/me",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -92,7 +92,7 @@
           "type": "http",
           "purpose": "create_coverage",
           "tool_name": "create_coverage",
-          "url": "$fhir_server_url/coverages/",
+          "url": "$fhir_gql_url/coverages/",
           "method": "POST",
           "validation_schema": "coverage_create_schema",
           "retryable": false,

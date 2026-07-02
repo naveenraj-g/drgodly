@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "record_procedure",
   "name": "Record Procedure",
   "description": "Record a clinical procedure performed on the current patient, including the procedure code, status, performer, location, and outcome.",
@@ -54,7 +54,7 @@
           "description": "Resolve current patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -62,7 +62,7 @@
           "description": "Fetch procedure status value set.",
           "context_key": "status_concepts",
           "tool_name": "get_procedure_status_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Procedure&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Procedure&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -70,7 +70,7 @@
           "description": "Fetch procedure category value set.",
           "context_key": "category_concepts",
           "tool_name": "get_procedure_category_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Procedure&field=category",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Procedure&field=category",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -78,7 +78,7 @@
           "description": "Fetch procedure outcome value set.",
           "context_key": "outcome_concepts",
           "tool_name": "get_procedure_outcome_valueset",
-          "url": "$fhir_server_url/terminology/concepts?resource=Procedure&field=outcome",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Procedure&field=outcome",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -86,7 +86,7 @@
           "description": "Load practitioners available for booking.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners_for_booking",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         },
@@ -94,7 +94,7 @@
           "description": "Load locations for selection.",
           "context_key": "my_locations",
           "tool_name": "get_my_locations",
-          "url": "$fhir_server_url/locations/me",
+          "url": "$fhir_gql_url/locations/me",
           "method": "GET",
           "timeout_ms": 8000
         }
@@ -110,7 +110,7 @@
           "type": "http",
           "purpose": "record_procedure",
           "tool_name": "record_procedure",
-          "url": "$fhir_server_url/procedures/",
+          "url": "$fhir_gql_url/procedures/",
           "method": "POST",
           "validation_schema": "procedure_create_schema",
           "retryable": false,

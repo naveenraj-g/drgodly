@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "create_care_plan_with_task",
   "name": "Create Care Plan with Task",
   "description": "Create a FHIR CarePlan for a patient and attach a follow-up Task in two steps.",
@@ -56,7 +56,7 @@
           "description": "Fetch CarePlan status value set.",
           "context_key": "status_concepts",
           "tool_name": "get_care_plan_status",
-          "url": "$fhir_server_url/terminology/concepts?resource=CarePlan&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=CarePlan&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -64,7 +64,7 @@
           "description": "Fetch CarePlan intent value set.",
           "context_key": "intent_concepts",
           "tool_name": "get_care_plan_intent",
-          "url": "$fhir_server_url/terminology/concepts?resource=CarePlan&field=intent",
+          "url": "$fhir_gql_url/terminology/concepts?resource=CarePlan&field=intent",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -72,7 +72,7 @@
           "description": "Resolve patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -80,7 +80,7 @@
           "description": "Load practitioners available for booking.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -96,7 +96,7 @@
           "type": "http",
           "purpose": "create_care_plan",
           "tool_name": "create_care_plan",
-          "url": "$fhir_server_url/care-plans/",
+          "url": "$fhir_gql_url/care-plans/",
           "method": "POST",
           "validation_schema": "care_plan_create_schema",
           "retryable": false,
@@ -121,7 +121,7 @@
           "description": "Fetch Task status value set.",
           "context_key": "task_status_concepts",
           "tool_name": "get_task_status",
-          "url": "$fhir_server_url/terminology/concepts?resource=Task&field=status",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Task&field=status",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -129,7 +129,7 @@
           "description": "Fetch Task intent value set.",
           "context_key": "task_intent_concepts",
           "tool_name": "get_task_intent",
-          "url": "$fhir_server_url/terminology/concepts?resource=Task&field=intent",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Task&field=intent",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -137,7 +137,7 @@
           "description": "Fetch Task priority value set.",
           "context_key": "priority_concepts",
           "tool_name": "get_task_priority",
-          "url": "$fhir_server_url/terminology/concepts?resource=Task&field=priority",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Task&field=priority",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -145,7 +145,7 @@
           "description": "Resolve patient from session.",
           "context_key": "me_patient",
           "tool_name": "get_my_patient",
-          "url": "$fhir_server_url/patients/me",
+          "url": "$fhir_gql_url/patients/me",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -153,7 +153,7 @@
           "description": "Load practitioners available for booking.",
           "context_key": "booking_practitioners",
           "tool_name": "list_practitioners",
-          "url": "$fhir_server_url/practitioner-roles/booking",
+          "url": "$fhir_gql_url/practitioner-roles/booking",
           "method": "GET",
           "timeout_ms": 10000
         }
@@ -169,7 +169,7 @@
           "type": "http",
           "purpose": "create_task",
           "tool_name": "create_task",
-          "url": "$fhir_server_url/tasks/",
+          "url": "$fhir_gql_url/tasks/",
           "method": "POST",
           "validation_schema": "task_create_schema",
           "retryable": false,

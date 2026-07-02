@@ -1,4 +1,4 @@
-{
+﻿{
   "id": "org-create-root",
   "type": "Card",
   "properties": {
@@ -23,7 +23,9 @@
             "id": "form-subtitle",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Enter the organisation's name, type, contact details, and address. A physical location will be added in the next step." },
+              "text": {
+                "literalString": "Enter the organisation's name, type, contact details, and address. A physical location will be added in the next step."
+              },
               "usageHint": "caption"
             }
           },
@@ -89,32 +91,35 @@
             }
           },
           {
-            "id": "org-partof-row",
-            "type": "Row",
+            "id": "partof_org",
+            "type": "DynamicSelect",
             "properties": {
-              "gap": "medium",
-              "alignment": "stretch",
-              "children": [
-                {
-                  "id": "partof",
-                  "type": "TextField",
-                  "weight": 1,
-                  "properties": {
-                    "label": { "literalString": "Part of (optional)" },
-                    "placeholder": { "literalString": "e.g. Organization/190001" },
-                    "textFieldType": "shortText"
-                  }
+              "label": {
+                "literalString": "Part of — Parent Organisation (optional)"
+              },
+              "placeholder": {
+                "literalString": "Search parent organisations…"
+              },
+              "source": {
+                "url": "$fhir_gql_url/organizations/",
+                "staticParams": {
+                  "org_id": { "path": "org_id" }
                 },
-                {
-                  "id": "partof_display",
-                  "type": "TextField",
-                  "weight": 2,
-                  "properties": {
-                    "label": { "literalString": "Parent Organisation Name (optional)" },
-                    "placeholder": { "literalString": "e.g. Regional Health System" },
-                    "textFieldType": "shortText"
-                  }
-                }
+                "searchParam": "name",
+                "responsePath": "data",
+                "minChars": 0,
+                "debounceMs": 300,
+                "pageSize": 10,
+                "limitParam": "limit",
+                "offsetParam": "offset"
+              },
+              "display": {
+                "label": { "path": "name" },
+                "description": { "template": "Organization/{id}" }
+              },
+              "emits": [
+                { "key": "partof", "template": "Organization/{id}" },
+                { "key": "partof_display", "path": "name" }
               ]
             }
           },

@@ -599,13 +599,13 @@ export function DynamicSelect({
 
       {/*
         Hidden inputs collected by form.tsx collectFormData.
-        Supports both dot-path (raw value) and template (e.g. "Organization/{id}")
-        for composing FHIR reference strings and other derived values.
+        id = emit.key directly so the form data key matches the schema field name exactly.
+        Supports dot-path (raw value) or template (e.g. "Organization/{id}") per emit entry.
       */}
       {emits.map((emit) => (
         <input
           key={emit.key}
-          id={`${fieldId}_${emit.key}`}
+          id={emit.key}
           type="hidden"
           value={selectedItem ? resolveEmitValue(selectedItem, emit) : ""}
         />
