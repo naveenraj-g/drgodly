@@ -2,7 +2,7 @@
  * EMR Chat page — telemedicine admin section.
  *
  * Layer: app / pages
- * Route: /[locale]/telemedicine/admin/emr-chat
+ * Route: /[locale]/bezs/telemedicine/admin/emr-chat
  *
  * Conversational FHIR workflow assistant. Users describe what they need in
  * natural language (e.g. "register a new patient", "book an appointment for
@@ -25,5 +25,11 @@ export default async function EMRChatPage() {
   const userId = session?.user?.id ?? "";
   const orgId = session?.session?.activeOrganizationId ?? null;
 
-  return <EMRChatContainer userId={userId} orgId={orgId} />;
+  return (
+    <EMRChatContainer
+      userId={userId}
+      orgId={orgId}
+      basePath="/bezs/telemedicine/admin/emr-chat"
+    />
+  );
 }

@@ -8,24 +8,21 @@
  *  2. Redirects to /doctor/settings/profile if no FHIR Practitioner record
  *     (via requirePractitionerProfile).
  *
- * Renders EMRChatPanel in "doctor" mode — a two-tab AI workspace:
- *   • "AI Chat"    — conversational FHIR tool-calling session
- *   • "UI Browser" — browsable A2UI schema catalogue
- *
- * No SSR data fetching needed; both tabs load their own data client-side.
+ * Renders the shared EMRChatContainer with the doctor's base path so that
+ * session sidebar navigation routes to /doctor/emr/[sessionId].
  */
 
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
-import { EMRChatPanel } from "@/modules/client/telemedicine/doctor/component/emr/EMRChatPanel";
+import EMRChatContainer from "@/modules/client/emr-chat/components/EMRChatContainer";
 
 /**
  * DoctorEMRPage — server entry point for the doctor EMR workspace.
  *
- * Auth-guards the route, then delegates all rendering to the client-side
- * EMRChatPanel component.
+ * Auth-guards the route, then renders the full EMRChatContainer with session
+ * persistence and history sidebar, scoped to the doctor portal base path.
  */
 export default async function DoctorEMRPage() {
   const session = await getServerSession();
@@ -39,5 +36,14 @@ export default async function DoctorEMRPage() {
   // Ensures the doctor has a FHIR Practitioner record; redirects if missing.
   await requirePractitionerProfile();
 
-  return <EMRChatPanel role="doctor" />;
+  const userId = session.user.id;
+  const orgId = session.session.activeOrganizationId ?? null;
+
+  return (
+    <EMRChatContainer
+      userId={userId}
+      orgId={orgId}
+      basePath="/bezs/telemedicine/doctor/emr"
+    />
+  );
 }

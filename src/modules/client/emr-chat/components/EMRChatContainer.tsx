@@ -49,6 +49,7 @@ import {
 } from "@/modules/client/ai-hub/store/chat-store";
 import { useEmrChatStore } from "../stores/emr-chat.store";
 import { ToolCallDetails } from "@/modules/client/ai-hub/components/ToolCallDetails";
+import { PermissionDeniedMessage } from "@/modules/client/ai-hub/components/PermissionDeniedMessage";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatTopbar } from "./ChatTopbar";
 import { WorkflowProgressBanner } from "./WorkflowProgressBanner";
@@ -133,6 +134,13 @@ interface EMRChatContainerProps {
    * on mount instead of fetching from the DB client-side.
    */
   initialSession?: TEmrChatSessionFull;
+  /**
+   * Base path for session routing (without locale prefix), e.g.
+   * "/bezs/telemedicine/admin/emr-chat" or "/bezs/telemedicine/doctor/emr".
+   * Used to construct new-chat and session URLs so this component works across
+   * multiple portal sections.
+   */
+  basePath: string;
 }
 
 /**
@@ -148,8 +156,8 @@ export default function EMRChatContainer({
   orgId,
   sessionId: urlSessionId,
   initialSession,
+  basePath,
 }: EMRChatContainerProps) {
-  console.log(initialSession);
   // ── Chat message state ────────────────────────────────────────────────────
   const {
     messages,
@@ -229,8 +237,9 @@ export default function EMRChatContainer({
         id: m.id,
         role: m.role.toLowerCase() as "user" | "assistant",
         text: m.role === "USER" ? m.content : undefined,
+        // Skip ui when toolCall metadata is present — ToolCallDetails renders instead.
         ui:
-          m.role === "ASSISTANT" && m.content
+          m.role === "ASSISTANT" && m.content && !m.metadata?.toolCall
             ? buildMarkdownNode(m.content)
             : null,
         toolCall:
@@ -242,7 +251,11 @@ export default function EMRChatContainer({
 
     // For completed/abandoned workflows, inject step-submission summaries chronologically.
     // This covers old sessions created before WORKFLOW_STEP messages were persisted to DB.
-    const persistedWorkflowStepTypes = new Set(["WORKFLOW_STEP", "WORKFLOW_COMPLETE", "WORKFLOW_ABANDONED"]);
+    const persistedWorkflowStepTypes = new Set([
+      "WORKFLOW_STEP",
+      "WORKFLOW_COMPLETE",
+      "WORKFLOW_ABANDONED",
+    ]);
     const hasPersistedStepMessages = initialSession.messages.some(
       (m: TEmrChatMessage) => persistedWorkflowStepTypes.has(m.type ?? ""),
     );
@@ -268,8 +281,11 @@ export default function EMRChatContainer({
         // Inject a status notice at the end of each non-active workflow.
         const wfEndAt = new Date(wf.completedAt ?? wf.updatedAt);
         if (wf.status === "COMPLETED") {
-          const wfDef = wf.workflowDefinition as { completion?: { message?: string } };
-          const completionText = wfDef?.completion?.message ?? `**${wf.workflowName}** completed.`;
+          const wfDef = wf.workflowDefinition as {
+            completion?: { message?: string };
+          };
+          const completionText =
+            wfDef?.completion?.message ?? `**${wf.workflowName}** completed.`;
           timedInjections.push({
             at: wfEndAt,
             msg: {
@@ -280,10 +296,12 @@ export default function EMRChatContainer({
           });
         } else if (wf.status === "ABANDONED" || wf.status === "ERROR") {
           // Find the step name at which the workflow was abandoned.
-          const wfDef = wf.workflowDefinition as { workflow_steps?: Array<{ sequence_number: number; name: string }> };
-          const sortedSteps = (wfDef?.workflow_steps ?? []).slice().sort(
-            (a, b) => a.sequence_number - b.sequence_number,
-          );
+          const wfDef = wf.workflowDefinition as {
+            workflow_steps?: Array<{ sequence_number: number; name: string }>;
+          };
+          const sortedSteps = (wfDef?.workflow_steps ?? [])
+            .slice()
+            .sort((a, b) => a.sequence_number - b.sequence_number);
           const stepAtAbandon = sortedSteps[wf.currentStepIndex];
           const noticeText = stepAtAbandon
             ? `**${wf.workflowName}** was abandoned at step ${wf.currentStepIndex + 1}: ${stepAtAbandon.name}.`
@@ -403,7 +421,7 @@ export default function EMRChatContainer({
       window.history.replaceState(
         null,
         "",
-        `/${locale}/telemedicine/admin/emr-chat/${session.id}`,
+        `/${locale}${basePath}/${session.id}`,
       );
 
       return session.id;
@@ -466,9 +484,9 @@ export default function EMRChatContainer({
       setDbWorkflowStateId(null);
       inputRef.current?.focus();
     } else {
-      router.push(`/${locale}/telemedicine/admin/emr-chat`);
+      router.push(`/${locale}${basePath}`);
     }
-  }, [urlSessionId, locale, router, setActiveSessionId]);
+  }, [urlSessionId, locale, basePath, router, setActiveSessionId]);
 
   // ── Open existing session ─────────────────────────────────────────────────
 
@@ -481,9 +499,9 @@ export default function EMRChatContainer({
    */
   const openSession = useCallback(
     (sid: string) => {
-      router.push(`/${locale}/telemedicine/admin/emr-chat/${sid}`);
+      router.push(`/${locale}${basePath}/${sid}`);
     },
-    [router, locale],
+    [router, locale, basePath],
   );
 
   // ── Delete session ────────────────────────────────────────────────────────
@@ -521,11 +539,24 @@ export default function EMRChatContainer({
         const data = await res.json();
 
         if (data.type === "error") {
-          addMessage({
-            id: crypto.randomUUID(),
-            role: "assistant",
-            ui: buildMarkdownNode(`⚠️ ${data.message}`),
-          });
+          // Surface a permission denied card when the server returns missing_permissions
+          // — gives the user clear, actionable feedback instead of a generic error string.
+          if (Array.isArray(data.missing_permissions)) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              permissionDenied: {
+                message: data.message,
+                missing_permissions: data.missing_permissions,
+              },
+            });
+          } else {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              ui: buildMarkdownNode(`⚠️ ${data.message}`),
+            });
+          }
           return;
         }
 
@@ -554,7 +585,12 @@ export default function EMRChatContainer({
               });
               if (persist) {
                 const sid = emrChatStore.getState().activeSessionId;
-                if (sid) await persistMessage(sid, { role: "ASSISTANT", content: workflow.completion.message, type: "WORKFLOW_COMPLETE" });
+                if (sid)
+                  await persistMessage(sid, {
+                    role: "ASSISTANT",
+                    content: workflow.completion.message,
+                    type: "WORKFLOW_COMPLETE",
+                  });
               }
             }
             clearSession();
@@ -585,7 +621,12 @@ export default function EMRChatContainer({
         // Persist the step label so it appears in the message history on resume.
         if (persist) {
           const sid = emrChatStore.getState().activeSessionId;
-          if (sid) await persistMessage(sid, { role: "ASSISTANT", content: stepLabel, type: "WORKFLOW_STEP" });
+          if (sid)
+            await persistMessage(sid, {
+              role: "ASSISTANT",
+              content: stepLabel,
+              type: "WORKFLOW_STEP",
+            });
         }
 
         setWorkflow(workflow, stepIndex);
@@ -603,7 +644,14 @@ export default function EMRChatContainer({
     },
     // loadWorkflowStep is used inside itself — stable refs required.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [addMessage, setLoading, mergeContext, setWorkflow, clearSession, persistMessage],
+    [
+      addMessage,
+      setLoading,
+      mergeContext,
+      setWorkflow,
+      clearSession,
+      persistMessage,
+    ],
   );
 
   // ── Skip optional step ────────────────────────────────────────────────────
@@ -621,7 +669,12 @@ export default function EMRChatContainer({
       role: "assistant",
       ui: buildMarkdownNode(skipText),
     });
-    if (activeSessionId) await persistMessage(activeSessionId, { role: "ASSISTANT", content: skipText, type: "WORKFLOW_STEP" });
+    if (activeSessionId)
+      await persistMessage(activeSessionId, {
+        role: "ASSISTANT",
+        content: skipText,
+        type: "WORKFLOW_STEP",
+      });
 
     if (nextIndex !== null) {
       setWorkflow(activeWorkflow, nextIndex);
@@ -640,12 +693,18 @@ export default function EMRChatContainer({
           role: "assistant",
           ui: buildMarkdownNode(activeWorkflow.completion.message),
         });
-        await persistMessage(activeSessionId!, { role: "ASSISTANT", content: activeWorkflow.completion.message, type: "WORKFLOW_COMPLETE" });
+        await persistMessage(activeSessionId!, {
+          role: "ASSISTANT",
+          content: activeWorkflow.completion.message,
+          type: "WORKFLOW_COMPLETE",
+        });
       }
       if (dbWorkflowStateId) {
+        // Save the final accumulated context so a completed workflow's full
+        // session context is queryable — not just the second-to-last step's.
         await updateWorkflowStateAction({
           id: dbWorkflowStateId,
-          payload: { status: "COMPLETED" },
+          payload: { status: "COMPLETED", sessionContext },
         });
       }
       clearSession();
@@ -765,6 +824,24 @@ export default function EMRChatContainer({
             },
           });
 
+          // Persist the tool call so the submission bubble survives session reload.
+          const toolSuccessSid = emrChatStore.getState().activeSessionId;
+          if (toolSuccessSid) {
+            await persistMessage(toolSuccessSid, {
+              role: "ASSISTANT",
+              content: `**${actionName}** submitted`,
+              type: "WORKFLOW_STEP",
+              metadata: {
+                toolCall: {
+                  toolName: actionName,
+                  formData: context,
+                  result: data.data,
+                  status: "success",
+                },
+              },
+            });
+          }
+
           if (data.sessionContext) mergeContext(data.sessionContext);
 
           const newCtx = data.sessionContext ?? {};
@@ -797,9 +874,13 @@ export default function EMRChatContainer({
                 },
               });
             } else {
+              // Save final accumulated context so it's queryable after completion.
               await updateWorkflowStateAction({
                 id: wfStateId,
-                payload: { status: "COMPLETED" },
+                payload: {
+                  status: "COMPLETED",
+                  sessionContext: { ...currentCtx, ...newCtx },
+                },
               });
             }
           }
@@ -815,7 +896,12 @@ export default function EMRChatContainer({
                 ui: buildMarkdownNode(currentWorkflow.completion.message),
               });
               const completeSid = emrChatStore.getState().activeSessionId;
-              if (completeSid) await persistMessage(completeSid, { role: "ASSISTANT", content: currentWorkflow.completion.message, type: "WORKFLOW_COMPLETE" });
+              if (completeSid)
+                await persistMessage(completeSid, {
+                  role: "ASSISTANT",
+                  content: currentWorkflow.completion.message,
+                  type: "WORKFLOW_COMPLETE",
+                });
             }
             clearSession();
             setDbWorkflowStateId(null);
@@ -829,16 +915,66 @@ export default function EMRChatContainer({
               error: data.error || "Submission failed",
             },
           });
+
+          // Persist the tool call failure so the bubble survives session reload.
+          const toolErrSid = emrChatStore.getState().activeSessionId;
+          if (toolErrSid) {
+            await persistMessage(toolErrSid, {
+              role: "ASSISTANT",
+              content: `**${actionName}** failed`,
+              type: "WORKFLOW_STEP",
+              metadata: {
+                toolCall: {
+                  toolName: actionName,
+                  formData: context,
+                  status: "error",
+                  error: data.error || "Submission failed",
+                },
+              },
+            });
+          }
+
+          // Surface a permission denied card below the tool call when the server
+          // returns missing_permissions — gives the user clear, actionable feedback.
+          if (Array.isArray(data.missing_permissions)) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              permissionDenied: {
+                message: data.error || "You do not have permission to run this workflow.",
+                missing_permissions: data.missing_permissions,
+              },
+            });
+          }
         }
       } catch (err) {
+        const netErrMsg = err instanceof Error ? err.message : "Network error";
         updateMessage(toolMsgId, {
           toolCall: {
             toolName: actionName,
             formData: context,
             status: "error",
-            error: err instanceof Error ? err.message : "Network error",
+            error: netErrMsg,
           },
         });
+
+        // Persist network failure so the bubble survives session reload.
+        const netErrSid = emrChatStore.getState().activeSessionId;
+        if (netErrSid) {
+          await persistMessage(netErrSid, {
+            role: "ASSISTANT",
+            content: `**${actionName}** failed`,
+            type: "WORKFLOW_STEP",
+            metadata: {
+              toolCall: {
+                toolName: actionName,
+                formData: context,
+                status: "error",
+                error: netErrMsg,
+              },
+            },
+          });
+        }
       }
 
       resolve([]);
@@ -1000,12 +1136,38 @@ export default function EMRChatContainer({
         });
 
         setWorkflow(workflow, stepIndex);
+      } else if (data.type === "error") {
+        if (Array.isArray(data.missing_permissions)) {
+          // Permission denied — show actionable card instead of a generic string.
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            permissionDenied: {
+              message: data.message,
+              missing_permissions: data.missing_permissions,
+            },
+          });
+          await persistMessage(sessionId, {
+            role: "ASSISTANT",
+            content: data.message ?? "Permission denied.",
+            type: "TEXT",
+          });
+        } else {
+          const errText = `⚠️ ${data.message ?? "Something went wrong."}`;
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            ui: buildMarkdownNode(errText),
+          });
+          await persistMessage(sessionId, {
+            role: "ASSISTANT",
+            content: errText,
+            type: "TEXT",
+          });
+        }
       } else {
         const responseText =
-          data.message ??
-          (data.type === "error"
-            ? `⚠️ ${data.message}`
-            : JSON.stringify(data, null, 2));
+          data.message ?? JSON.stringify(data, null, 2);
 
         addMessage({
           id: crypto.randomUUID(),
@@ -1162,6 +1324,15 @@ export default function EMRChatContainer({
                       {msg.toolCall && (
                         <div className="mt-2">
                           <ToolCallDetails toolCall={msg.toolCall} />
+                        </div>
+                      )}
+
+                      {msg.permissionDenied && (
+                        <div className="mt-2">
+                          <PermissionDeniedMessage
+                            message={msg.permissionDenied.message}
+                            missingPermissions={msg.permissionDenied.missing_permissions}
+                          />
                         </div>
                       )}
                     </div>

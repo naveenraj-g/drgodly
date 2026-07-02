@@ -585,6 +585,126 @@ export interface DataSelectEmit {
   path: string;
 }
 
+// ── DynamicSelect types ──────────────────────────────────────────────────────
+
+/**
+ * API source config for DynamicSelect server-side search.
+ * The component POSTs to /api/workflow/dynamic-select which proxies to the FHIR server.
+ */
+export interface DynamicSelectSource {
+  /**
+   * URL template for the FHIR endpoint. Supports $fhir_server_url placeholder
+   * (resolved server-side by the proxy). Other path variables should go in staticParams.
+   * Example: "$fhir_server_url/api/v1/organizations/"
+   */
+  url: string;
+  /**
+   * Key-value pairs always included in every request. Values support StringValue /
+   * NumberValue form so they can reference workflow session context (e.g. org_id).
+   */
+  staticParams?: Record<string, StringValue | NumberValue | string | number>;
+  /** Query param key appended with the live search term. Default: "search". */
+  searchParam?: string;
+  /** Dot-path into the API response JSON to extract the items array. Default: "" (root). */
+  responsePath?: string;
+  /**
+   * Minimum characters before server search fires. Default: 2.
+   * Set to 0 to fetch immediately when the dropdown opens (no typing required).
+   */
+  minChars?: number;
+  /** Debounce delay in ms. Default: 300. */
+  debounceMs?: number;
+  /** Number of items per page — sent as the limit param. Default: 10. */
+  pageSize?: number;
+  /** Query param name for the page size / limit. Default: "limit". */
+  limitParam?: string;
+  /** Query param name for the pagination offset. Default: "offset". */
+  offsetParam?: string;
+}
+
+/** Template or path spec for a single display field within a DynamicSelect row. */
+export interface DynamicSelectDisplayField {
+  /** Dot-path into the item object (e.g. "name.text"). */
+  path?: string;
+  /**
+   * Template string combining multiple fields (e.g. "{first_name} {last_name}").
+   * Takes precedence over path when both are set.
+   */
+  template?: string;
+}
+
+/** Configuration for one badge/tag rendered in a DynamicSelect dropdown row. */
+export interface DynamicSelectTag {
+  /** Dot-path into the item for the tag text. */
+  path?: string;
+  /** Template string for the tag text; takes precedence over path. */
+  template?: string;
+}
+
+/** Controls what is rendered in each DynamicSelect dropdown row. */
+export interface DynamicSelectDisplay {
+  /** Primary bold line shown in the trigger button and as the first row line. Required. */
+  label: DynamicSelectDisplayField;
+  /** Optional secondary muted line shown below the label in each row. */
+  description?: DynamicSelectDisplayField;
+  /** Optional array of small badge chips rendered below the description. */
+  tags?: DynamicSelectTag[];
+}
+
+/**
+ * One emit entry: on selection, writes a hidden input {componentId}_{key} with the
+ * derived value. Use `path` for a raw field value, or `template` to compose a value
+ * from multiple fields (e.g. "Organization/{id}" for FHIR references).
+ */
+export interface DynamicSelectEmit {
+  /** Hidden input key suffix — the full input id is {componentId}_{key}. */
+  key: string;
+  /** Dot-path into the selected item for a raw value (e.g. "id"). */
+  path?: string;
+  /**
+   * Template string combining multiple fields. {field} tokens are resolved against
+   * the selected item. Example: "Organization/{id}" emits "Organization/42".
+   * Takes precedence over path when both are set.
+   */
+  template?: string;
+}
+
+/**
+ * Properties for the DynamicSelect A2UI component.
+ *
+ * Supports three search modes:
+ *   - Client-only: items pre-loaded from context (no source), filtered in the browser.
+ *   - Server-only: source defined, empty items — server search from first keypress.
+ *   - Hybrid: items pre-loaded AND source defined — shows static items initially,
+ *     switches to server results once the user types ≥ minChars.
+ */
+export interface DynamicSelectType {
+  label?: StringValue;
+  placeholder?: StringValue;
+  /** API source config. When present, enables server-side debounced search. */
+  source?: DynamicSelectSource;
+  /** Pre-loaded items from workflow context (resolved via $variable by the A2UI processor). */
+  items?: any;
+  /** Controls what to render in each dropdown row and the trigger button label. */
+  display: DynamicSelectDisplay;
+  /**
+   * Hidden inputs to write on selection. Each entry maps a key to a dot-path in the
+   * selected item. form.tsx collectFormData collects these as {componentId}_{key}.
+   */
+  emits?: DynamicSelectEmit[];
+  /** Named class slots for targeting specific DOM layers. */
+  classNames?: {
+    root?: string;
+    label?: string;
+    trigger?: string;
+  };
+}
+
+export interface DynamicSelectNode extends BaseComponentNode {
+  type: "DynamicSelect";
+  properties: DynamicSelectType;
+}
+
 export interface DataSelectType {
   label?: StringValue;
   placeholder?: StringValue;
@@ -865,6 +985,7 @@ export type AnyComponentNode =
   | TerminologySelectNode
   | RepeatableGroupNode
   | DataSelectNode
+  | DynamicSelectNode
   | SlotPickerNode
   | IconNode
   | ImageNode

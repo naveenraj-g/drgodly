@@ -4,6 +4,7 @@
   "description": "Create a new Organisation resource and add a Location in two steps: first provide core organisation details, then define the physical location linked to the new organisation.",
   "version": "1.0.0",
   "tags": ["fhir", "organization", "location", "create", "crud", "healthcare"],
+  "required_permissions": ["org:create"],
   "llm_hints": {
     "intent_examples": [
       "Create an organisation",

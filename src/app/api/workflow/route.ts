@@ -123,7 +123,7 @@ export async function POST(req: Request) {
 
     // ** Testing **
     const workflow: WorkflowDefinition =
-      create_patient_workflow as unknown as WorkflowDefinition;
+      create_organization as unknown as WorkflowDefinition;
 
     // Enforce permission-based access control. The workflow's required_permissions[]
     // must all be present in the session before we reveal any step data to the client.

@@ -41,6 +41,7 @@ import { DataTable } from "../catalog/data-table";
 import { TerminologySelect } from "../catalog/terminology-select";
 import { RepeatableGroup } from "../catalog/repeatable-group";
 import { DataSelect } from "../catalog/data-select";
+import { DynamicSelect } from "../catalog/dynamic-select";
 import { SlotPicker } from "../catalog/slot-picker";
 import { FileUpload } from "../catalog/FileUpload";
 
@@ -96,6 +97,7 @@ export const DEFAULT_CATALOG: Catalog = {
   TerminologySelect: { component: TerminologySelect },
   RepeatableGroup: { component: RepeatableGroup },
   DataSelect: { component: DataSelect },
+  DynamicSelect: { component: DynamicSelect },
   SlotPicker: { component: SlotPicker },
   FileUpload: { component: FileUpload },
 };
