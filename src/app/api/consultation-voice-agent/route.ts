@@ -23,7 +23,7 @@ function toWsUrl(httpUrl: string): string {
   const url = new URL(httpUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   // Normalise: strip trailing slash then append /audio
-  url.pathname = url.pathname.replace(/\/$/, "") + "/consultaudio";
+  url.pathname = url.pathname.replace(/\/$/, "") + "/ws/consultaudio";
   return url.toString();
 }
 

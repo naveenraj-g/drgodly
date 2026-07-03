@@ -105,25 +105,26 @@ export async function POST(req: Request) {
     // TODO: Replace the hardcoded workflow with the live agent call below once
     //       AGENT_API_URL is configured and the agent is deployed.
     //
-    // const agentRes = await fetch(AGENT_API_URL, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //     Authorization: `Bearer ${token}`,
-    //   },
-    //   body: JSON.stringify({
-    //     query: message,
-    //     session_id:
-    //       (sessionContext.session_id as string | undefined) ?? crypto.randomUUID(),
-    //   }),
-    //   cache: "no-store",
-    // });
-    // if (!agentRes.ok) throw new Error(`Agent API error: ${agentRes.status}`);
-    // const workflow: WorkflowDefinition = await agentRes.json();
+    const agentRes = await fetch(AGENT_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        query: message,
+        session_id:
+          (sessionContext.session_id as string | undefined) ??
+          crypto.randomUUID(),
+      }),
+      cache: "no-store",
+    });
+    if (!agentRes.ok) throw new Error(`Agent API error: ${agentRes.status}`);
+    const workflow: WorkflowDefinition = await agentRes.json();
 
     // ** Testing **
-    const workflow: WorkflowDefinition =
-      create_organization as unknown as WorkflowDefinition;
+    // const workflow: WorkflowDefinition =
+    //   create_organization as unknown as WorkflowDefinition;
 
     // Enforce permission-based access control. The workflow's required_permissions[]
     // must all be present in the session before we reveal any step data to the client.
