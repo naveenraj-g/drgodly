@@ -59,6 +59,13 @@ interface ChatState {
   activeWorkflow: WorkflowDefinition | null;
   currentStepIndex: number | null;
 
+  /**
+   * When set, A2UIChat will trigger this workflow by ID as soon as it mounts.
+   * Used by the WorkflowLauncher: the launcher writes this and switches to the
+   * chat tab; A2UIChat reads and clears it on mount, then starts the workflow.
+   */
+  pendingTrigger: { id: string; name: string } | null;
+
   addMessage: (msg: ChatMessage) => void;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
   setInput: (input: string) => void;
@@ -67,6 +74,7 @@ interface ChatState {
   mergeContext: (data: Record<string, unknown>) => void;
   setWorkflow: (workflow: WorkflowDefinition | null, stepIndex: number | null) => void;
   clearSession: () => void;
+  setPendingTrigger: (trigger: { id: string; name: string } | null) => void;
 
   getSerializableState: () => SerializableConversation;
   loadState: (state: SerializableConversation) => void;
@@ -79,6 +87,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessionContext: {},
   activeWorkflow: null,
   currentStepIndex: null,
+  pendingTrigger: null,
 
   addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
 
@@ -96,6 +105,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setWorkflow: (workflow, stepIndex) => set({ activeWorkflow: workflow, currentStepIndex: stepIndex }),
 
   clearSession: () => set({ sessionContext: {}, activeWorkflow: null, currentStepIndex: null }),
+
+  setPendingTrigger: (trigger) => set({ pendingTrigger: trigger }),
 
   getSerializableState: () => {
     const { messages, sessionContext, activeWorkflow, currentStepIndex } = get();

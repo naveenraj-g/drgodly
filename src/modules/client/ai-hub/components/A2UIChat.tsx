@@ -92,6 +92,7 @@ export default function A2UIChatPage() {
     mergeContext,
     setWorkflow,
     clearSession,
+    setPendingTrigger,
   } = useChatStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -385,6 +386,97 @@ export default function A2UIChatPage() {
   ]);
 
   /**
+   * Shared handler for the server response from POST /api/workflow.
+   * Handles both agent mode (message-triggered) and direct mode (workflow_id).
+   * Extracted so both handleSend and triggerWorkflowById share identical logic.
+   *
+   * @param data - Parsed JSON response body from POST /api/workflow.
+   */
+  const handleWorkflowResponse = useCallback(
+    async (data: Record<string, unknown>) => {
+      if (data.type === "workflow_step") {
+        const workflow = data.workflow as WorkflowDefinition;
+        const step = data.step as WorkflowStepDefinition;
+        const stepIndex = (data.stepIndex as number) ?? 0;
+
+        if (workflow.introduction) {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            ui: buildMarkdownNode(workflow.introduction),
+          });
+        }
+
+        if (data.sessionContext) mergeContext(data.sessionContext as Record<string, unknown>);
+
+        if (step.step_type === "context") {
+          const steps = getSortedSteps(workflow);
+          const nextIndex = stepIndex + 1 < steps.length ? stepIndex + 1 : null;
+          if (nextIndex !== null) {
+            setWorkflow(workflow, nextIndex);
+            await loadWorkflowStep(workflow, nextIndex, (data.sessionContext as Record<string, unknown>) ?? {});
+          }
+          return;
+        }
+
+        const uiSchema = UI_SCHEMA_REGISTRY[step.ui?.schema ?? ""] ?? null;
+        const parsedUi = buildUiFromData(uiSchema, {
+          ...((data.stepData as Record<string, unknown>) ?? {}),
+          ...((data.sessionContext as Record<string, unknown>) ?? {}),
+        });
+
+        addMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          ui:
+            parsedUi ??
+            buildMarkdownNode(
+              `**${step.name}**${step.optional ? " (optional)" : ""} — ${step.description}`,
+            ),
+          workflowSnapshot: {
+            workflowId: workflow.id,
+            stepIndex,
+            stepId: step.id,
+            contextAtStep: (data.sessionContext as Record<string, unknown>) ?? {},
+          },
+        });
+
+        setWorkflow(workflow, stepIndex);
+      } else if (data.type === "text" || data.type === "fallback") {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          ui: buildMarkdownNode(data.message as string),
+        });
+      } else if (data.type === "error") {
+        if (Array.isArray(data.missing_permissions)) {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            permissionDenied: {
+              message: data.message as string,
+              missing_permissions: data.missing_permissions as string[],
+            },
+          });
+        } else {
+          addMessage({
+            id: crypto.randomUUID(),
+            role: "assistant",
+            ui: buildMarkdownNode(`⚠️ ${data.message}`),
+          });
+        }
+      } else {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          ui: buildMarkdownNode(JSON.stringify(data, null, 2)),
+        });
+      }
+    },
+    [addMessage, mergeContext, setWorkflow, loadWorkflowStep],
+  );
+
+  /**
    * Sends the user's message to /api/workflow. The server calls the external
    * agent, selects the appropriate workflow, and returns its first step.
    * On a "workflow_step" response the full WorkflowDefinition is stored in
@@ -405,91 +497,8 @@ export default function A2UIChatPage() {
         body: JSON.stringify({ message: text, sessionContext }),
       });
 
-      const data = await res.json();
-
-      if (data.type === "workflow_step") {
-        const workflow: WorkflowDefinition = data.workflow;
-        const step: WorkflowStepDefinition = data.step;
-        const stepIndex: number = data.stepIndex ?? 0;
-
-        if (workflow.introduction) {
-          addMessage({
-            id: crypto.randomUUID(),
-            role: "assistant",
-            ui: buildMarkdownNode(workflow.introduction),
-          });
-        }
-
-        if (data.sessionContext) mergeContext(data.sessionContext);
-
-        // If the first step is a context step, auto-advance to the next one.
-        if (step.step_type === "context") {
-          const steps = getSortedSteps(workflow);
-          const nextIndex = stepIndex + 1 < steps.length ? stepIndex + 1 : null;
-          if (nextIndex !== null) {
-            setWorkflow(workflow, nextIndex);
-            await loadWorkflowStep(
-              workflow,
-              nextIndex,
-              data.sessionContext ?? {},
-            );
-          }
-          return;
-        }
-
-        const uiSchema = UI_SCHEMA_REGISTRY[step.ui?.schema ?? ""] ?? null;
-        const parsedUi = buildUiFromData(uiSchema, {
-          ...(data.stepData ?? {}),
-          ...(data.sessionContext ?? {}),
-        });
-
-        addMessage({
-          id: crypto.randomUUID(),
-          role: "assistant",
-          ui:
-            parsedUi ??
-            buildMarkdownNode(
-              `**${step.name}**${step.optional ? " (optional)" : ""} — ${step.description}`,
-            ),
-          workflowSnapshot: {
-            workflowId: workflow.id,
-            stepIndex,
-            stepId: step.id,
-            contextAtStep: data.sessionContext ?? {},
-          },
-        });
-
-        setWorkflow(workflow, stepIndex);
-      } else if (data.type === "text" || data.type === "fallback") {
-        addMessage({
-          id: crypto.randomUUID(),
-          role: "assistant",
-          ui: buildMarkdownNode(data.message),
-        });
-      } else if (data.type === "error") {
-        if (Array.isArray(data.missing_permissions)) {
-          addMessage({
-            id: crypto.randomUUID(),
-            role: "assistant",
-            permissionDenied: {
-              message: data.message,
-              missing_permissions: data.missing_permissions,
-            },
-          });
-        } else {
-          addMessage({
-            id: crypto.randomUUID(),
-            role: "assistant",
-            ui: buildMarkdownNode(`⚠️ ${data.message}`),
-          });
-        }
-      } else {
-        addMessage({
-          id: crypto.randomUUID(),
-          role: "assistant",
-          ui: buildMarkdownNode(JSON.stringify(data, null, 2)),
-        });
-      }
+      const data: Record<string, unknown> = await res.json();
+      await handleWorkflowResponse(data);
     } catch (err) {
       addMessage({
         id: crypto.randomUUID(),
@@ -508,9 +517,71 @@ export default function A2UIChatPage() {
     setInput,
     setLoading,
     sessionContext,
-    mergeContext,
-    setWorkflow,
+    handleWorkflowResponse,
   ]);
+
+  /**
+   * Starts a workflow directly by ID, bypassing the AI agent.
+   * Called when the user clicks a card in the WorkflowLauncher — the launcher
+   * writes the workflow ID and name to the chat store, and this effect picks it
+   * up once A2UIChat mounts.
+   *
+   * @param workflowId - The workflow.id to start (sent as workflow_id to POST /api/workflow).
+   * @param workflowName - Display name shown as the user's trigger message in chat.
+   */
+  const triggerWorkflowById = useCallback(
+    async (workflowId: string, workflowName: string) => {
+      if (loading) return;
+
+      // Show a user-side trigger message so the conversation history makes sense.
+      addMessage({
+        id: crypto.randomUUID(),
+        role: "user",
+        text: workflowName,
+      });
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflow_id: workflowId, sessionContext }),
+        });
+
+        const data: Record<string, unknown> = await res.json();
+        await handleWorkflowResponse(data);
+      } catch (err) {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          ui: buildMarkdownNode(
+            `⚠️ Network error: ${err instanceof Error ? err.message : "Unknown error"}`,
+          ),
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, addMessage, setLoading, sessionContext, handleWorkflowResponse],
+  );
+
+  /**
+   * Watches for a pending workflow trigger written by the WorkflowLauncher.
+   * When the user clicks a card, the launcher writes { id, name } to the store
+   * and switches the tab. This effect fires once A2UIChat mounts/remounts and
+   * starts the workflow immediately by clearing the store value first to prevent
+   * double-firing, then calling triggerWorkflowById.
+   */
+  useEffect(() => {
+    const pending = useChatStore.getState().pendingTrigger;
+    if (!pending) return;
+
+    // Clear immediately before the async call to prevent double-firing.
+    setPendingTrigger(null);
+    triggerWorkflowById(pending.id, pending.name);
+    // Only run on mount — the store value is checked once synchronously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });

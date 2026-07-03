@@ -3,9 +3,20 @@
  *
  * Layer: app / api / workflow
  *
- * Entry point for the workflow system. Receives a plain-text user message,
- * forwards it to the external AI agent, and returns the first step of the
- * workflow that the agent selected.
+ * Entry point for the workflow system. Supports two trigger modes:
+ *
+ *   Agent mode   — { message: string }
+ *     Forwards the user's message to the external AI agent, which selects the
+ *     appropriate workflow and returns its definition as JSON. The permitted
+ *     workflow IDs are injected into the request so the agent can only suggest
+ *     workflows the caller is allowed to run.
+ *
+ *   Direct mode  — { workflow_id: string }
+ *     Bypasses the agent entirely. The workflow is looked up by ID in the local
+ *     registry. Used by the launcher UI when the user clicks a workflow card.
+ *
+ * Both modes converge at the same permission check, step resolution, and
+ * context resolver execution before returning the first step to the client.
  *
  * Authorization:
  *   - Requires an authenticated Better Auth session (401 if absent).
@@ -14,22 +25,20 @@
  *
  * Flow:
  *   1. Validate session — reject unauthenticated callers immediately.
- *   2. Obtain a short-lived JWT from Better Auth (forwarding the session cookie).
- *   3. POST the user message to AGENT_API_URL with Bearer auth.
- *      The agent interprets intent and returns a WorkflowDefinition JSON.
+ *   2. Resolve workflow — via agent (message) or registry (workflow_id).
+ *   3. Obtain a short-lived JWT from Better Auth for downstream FHIR calls.
  *   4. Check that the caller holds all required_permissions for the workflow.
  *   5. Sort workflow_steps by sequence_number and take step[0].
  *   6. If the first step declares a context_resolver / context_resolvers, run
  *      them now so the client receives pre-fetched FHIR data with the step.
  *   7. Return the full workflow object + first step to the client.
- *      The client stores the workflow in Zustand and renders the step.
  *
  * No server-side workflow state is kept — the full workflow JSON travels back
  * to the client and is re-sent with each subsequent /step and /submit call.
  *
- * Request body:  { message: string, sessionContext?: Record<string, unknown> }
+ * Request body:  { message?: string, workflow_id?: string, sessionContext?: Record<string, unknown> }
  * Response:      { type: "workflow_step", workflow, stepIndex, step, stepData, sessionContext }
- *             or { type: "error", message: string }
+ *             or { type: "error", message: string, missing_permissions?: string[] }
  */
 
 import type { WorkflowDefinition } from "@/types/workflow";
@@ -42,50 +51,55 @@ import {
 } from "./_lib";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { checkWorkflowPermission } from "@/modules/server/shared/auth/checkWorkflowPermission";
-
-// ** Testing — replace with live agent call when AGENT_API_URL is wired up **
-import create_patient_workflow from "@/modules/client/ai-hub/workflows/patient/create_patient.json";
-import view_vitals_dashboard from "@/modules/client/ai-hub/workflows/vitals/view_vitals_dashboard.json";
-import view_vitals_table from "@/modules/client/ai-hub/workflows/vitals/view_vitals_table.json";
-import book_appointment from "@/modules/client/ai-hub/workflows/appointment/book_appointment.json";
-import create_organization from "@/modules/client/ai-hub/workflows/organization/create_organization.json";
-import create_healthcare_service from "@/modules/client/ai-hub/workflows/healthcare_service/create_healthcare_service.json";
-import create_practitioner from "@/modules/client/ai-hub/workflows/practitioner/create_practitioner.json";
-import create_schedule_with_slots from "@/modules/client/ai-hub/workflows/schedule/create_schedule_with_slots.json";
-import create_service_request from "@/modules/client/ai-hub/workflows/orders/create_service_request.json";
-import upload_practitioner_photo from "@/modules/client/ai-hub/workflows/practitioner/upload_practitioner_photo.json";
-
-// Suppress unused-variable warnings while the agent integration is in development.
-void create_patient_workflow;
-void view_vitals_dashboard;
-void view_vitals_table;
-void book_appointment;
-void create_organization;
-void create_healthcare_service;
-void create_practitioner;
-void create_schedule_with_slots;
-void upload_practitioner_photo;
+import { WORKFLOW_REGISTRY, WORKFLOW_ENTRIES } from "./_registry";
 
 const AGENT_API_URL = process.env.AGENT_API_URL!;
-// Suppress unused warning — will be used once agent integration is live.
-void AGENT_API_URL;
+
+/**
+ * Builds the merged session context seeded with identity values and the FHIR
+ * base URL so workflow steps can interpolate them without asking the user.
+ *
+ * @param base - Caller-supplied sessionContext from the request body.
+ * @param authSession - Authenticated Better Auth session.
+ * @returns Merged context object ready for step data resolution.
+ */
+function buildBaseContext(
+  base: Record<string, unknown>,
+  authSession: NonNullable<Awaited<ReturnType<typeof getServerSession>>>,
+): Record<string, unknown> {
+  return {
+    ...base,
+    ...(authSession.user?.id ? { user_id: authSession.user.id } : {}),
+    ...(authSession.session?.activeOrganizationId
+      ? { org_id: authSession.session.activeOrganizationId }
+      : {}),
+    fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
+  };
+}
 
 /**
  * Starts a new workflow session.
  *
- * @param req - POST request with { message, sessionContext? } body.
- * @returns First workflow step with pre-fetched context data.
+ * @param req - POST request with { message?, workflow_id?, sessionContext? } body.
+ * @returns First workflow step with pre-fetched context data, or an error response.
  */
 export async function POST(req: Request) {
   const {
     message,
+    workflow_id,
     sessionContext = {},
-  }: { message: string; sessionContext?: Record<string, unknown> } =
-    await req.json();
+  }: {
+    message?: string;
+    workflow_id?: string;
+    sessionContext?: Record<string, unknown>;
+  } = await req.json();
 
-  if (!message?.trim()) {
+  const hasMessage = Boolean(message?.trim());
+  const hasWorkflowId = Boolean(workflow_id?.trim());
+
+  if (!hasMessage && !hasWorkflowId) {
     return Response.json(
-      { type: "error", message: "Empty message" },
+      { type: "error", message: "Provide either message or workflow_id" },
       { status: 400 },
     );
   }
@@ -100,34 +114,55 @@ export async function POST(req: Request) {
   }
 
   try {
+    // JWT is needed for agent calls (auth header) and context resolver FHIR
+    // calls — fetch once upfront so both paths share the same token.
     const token = await getJWTToken();
 
-    // TODO: Replace the hardcoded workflow with the live agent call below once
-    //       AGENT_API_URL is configured and the agent is deployed.
-    //
-    const agentRes = await fetch(AGENT_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        query: message,
-        session_id:
-          (sessionContext.session_id as string | undefined) ??
-          crypto.randomUUID(),
-      }),
-      cache: "no-store",
-    });
-    if (!agentRes.ok) throw new Error(`Agent API error: ${agentRes.status}`);
-    const workflow: WorkflowDefinition = await agentRes.json();
+    let workflow: WorkflowDefinition;
 
-    // ** Testing **
-    // const workflow: WorkflowDefinition =
-    //   create_organization as unknown as WorkflowDefinition;
+    if (hasWorkflowId) {
+      // ── Direct mode: look up workflow in local registry ───────────────────
+      const entry = WORKFLOW_REGISTRY.get(workflow_id!.trim());
+      if (!entry) {
+        return Response.json(
+          { type: "error", message: `Unknown workflow: ${workflow_id}` },
+          { status: 404 },
+        );
+      }
+      workflow = entry.workflow;
+    } else {
+      // ── Agent mode: forward message to AI agent ───────────────────────────
+      // Compute the permitted workflow IDs for this caller so the agent can
+      // filter its suggestions to only workflows the user is allowed to run.
+      const permittedIds = WORKFLOW_ENTRIES
+        .filter(({ workflow: w }) => checkWorkflowPermission(authSession, w).allowed)
+        .map(({ workflow: w }) => w.id);
 
-    // Enforce permission-based access control. The workflow's required_permissions[]
-    // must all be present in the session before we reveal any step data to the client.
+      const agentRes = await fetch(AGENT_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: message,
+          session_id:
+            (sessionContext.session_id as string | undefined) ??
+            crypto.randomUUID(),
+          // Permitted workflow IDs injected so the agent only recommends
+          // workflows this user is authorised to run (defense in depth).
+          permitted_workflow_ids: permittedIds,
+        }),
+        cache: "no-store",
+      });
+
+      if (!agentRes.ok) throw new Error(`Agent API error: ${agentRes.status}`);
+      workflow = await agentRes.json();
+    }
+
+    // ── Permission check (both modes) ────────────────────────────────────────
+    // Re-check even in direct mode: the registry lookup above only finds the
+    // workflow; the permission gate ensures the caller holds the required grants.
     const permCheck = checkWorkflowPermission(authSession, workflow);
     if (!permCheck.allowed) {
       return Response.json(
@@ -140,6 +175,9 @@ export async function POST(req: Request) {
       );
     }
 
+    // ── Step resolution ───────────────────────────────────────────────────────
+    const resolverToken = token;
+
     const steps = sortedSteps(workflow.workflow_steps);
     const firstStep = steps[0];
 
@@ -151,24 +189,13 @@ export async function POST(req: Request) {
     }
 
     let stepData: Record<string, unknown> = {};
-    let mergedContext: Record<string, unknown> = {
-      ...sessionContext,
-      // Seed identity values so every workflow step can use $user_id / $org_id in
-      // URLs and validation schemas without asking the user to enter them manually.
-      ...(authSession?.user?.id ? { user_id: authSession.user.id } : {}),
-      ...(authSession?.session?.activeOrganizationId
-        ? { org_id: authSession.session.activeOrganizationId }
-        : {}),
-      // Expose FHIR base URL so $fhir_gql_url resolves in UI schema strings
-      // (e.g. DynamicSelect source.url) via mapDataToUI on the client.
-      fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
-    };
+    let mergedContext = buildBaseContext(sessionContext, authSession);
 
     if (firstStep.context_resolvers?.length) {
       stepData = await runContextResolvers(
         firstStep.context_resolvers,
         mergedContext,
-        token,
+        resolverToken,
       );
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
@@ -178,7 +205,7 @@ export async function POST(req: Request) {
       stepData = await runContextResolver(
         firstStep.context_resolver,
         mergedContext,
-        token,
+        resolverToken,
       );
       const extracted = firstStep.context?.outputs
         ? extractOutputs(firstStep.context.outputs, stepData)
