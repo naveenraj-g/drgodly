@@ -53,11 +53,18 @@ export interface IEmrChatRepository {
   listSessions(query: TListEmrChatSessions): Promise<TEmrChatSessionSummary[]>;
 
   /**
-   * Update the session title (auto-generated from the first user message).
+   * Update the session title (auto-generated or user-renamed).
    * @param id - Session UUID.
    * @param title - New title string.
    */
   updateSessionTitle(id: string, title: string): Promise<void>;
+
+  /**
+   * Toggle the pinned flag on a session.
+   * @param id - Session UUID.
+   * @param pinned - True to pin, false to unpin.
+   */
+  pinSession(id: string, pinned: boolean): Promise<void>;
 
   /**
    * Archive a session (soft delete — not visible in sidebar but data kept).

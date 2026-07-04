@@ -83,86 +83,86 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
     category: "Patient",
     workflow: create_patient as unknown as WorkflowDefinition,
   },
-  {
-    category: "Appointment",
-    workflow: book_appointment as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Encounter",
-    workflow: open_encounter as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Encounter",
-    workflow: close_encounter as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_vitals as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_condition as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_observation as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_procedure as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_allergy_intolerance as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_questionnaire_response as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Clinical",
-    workflow: record_specimen as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Orders",
-    workflow: create_service_request as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Orders",
-    workflow: create_medication_request as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Orders",
-    workflow: create_device_request as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Orders",
-    workflow: record_immunization as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Medication",
-    workflow: create_medication as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Results",
-    workflow: create_diagnostic_report as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Results",
-    workflow: create_document_reference as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Care Plans",
-    workflow: create_care_plan_with_task as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Coverage",
-    workflow: create_coverage as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Billing",
-    workflow: create_billing_cycle as unknown as WorkflowDefinition,
-  },
+  // {
+  //   category: "Appointment",
+  //   workflow: book_appointment as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Encounter",
+  //   workflow: open_encounter as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Encounter",
+  //   workflow: close_encounter as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_vitals as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_condition as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_observation as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_procedure as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_allergy_intolerance as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_questionnaire_response as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Clinical",
+  //   workflow: record_specimen as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Orders",
+  //   workflow: create_service_request as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Orders",
+  //   workflow: create_medication_request as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Orders",
+  //   workflow: create_device_request as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Orders",
+  //   workflow: record_immunization as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Medication",
+  //   workflow: create_medication as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Results",
+  //   workflow: create_diagnostic_report as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Results",
+  //   workflow: create_document_reference as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Care Plans",
+  //   workflow: create_care_plan_with_task as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Coverage",
+  //   workflow: create_coverage as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Billing",
+  //   workflow: create_billing_cycle as unknown as WorkflowDefinition,
+  // },
   {
     category: "Organization",
     workflow: create_organization as unknown as WorkflowDefinition,
@@ -175,30 +175,30 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
     category: "Practitioner",
     workflow: upload_practitioner_photo as unknown as WorkflowDefinition,
   },
-  {
-    category: "Related Person",
-    workflow: create_related_person as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Healthcare Service",
-    workflow: create_healthcare_service as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Schedule",
-    workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Vitals",
-    workflow: view_vitals_dashboard as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Vitals",
-    workflow: view_vitals_table as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Audit",
-    workflow: record_provenance as unknown as WorkflowDefinition,
-  },
+  // {
+  //   category: "Related Person",
+  //   workflow: create_related_person as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Healthcare Service",
+  //   workflow: create_healthcare_service as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Schedule",
+  //   workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Vitals",
+  //   workflow: view_vitals_dashboard as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Vitals",
+  //   workflow: view_vitals_table as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Audit",
+  //   workflow: record_provenance as unknown as WorkflowDefinition,
+  // },
 ];
 
 /**

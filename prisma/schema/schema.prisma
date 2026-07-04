@@ -226,6 +226,7 @@ model EmrChatSession {
   userId    String
   orgId     String?
   title     String?
+  pinned    Boolean              @default(false)
   status    EmrChatSessionStatus @default(ACTIVE)
   createdAt DateTime             @default(now())
   updatedAt DateTime             @updatedAt

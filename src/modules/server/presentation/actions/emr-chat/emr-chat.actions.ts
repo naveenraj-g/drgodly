@@ -12,6 +12,8 @@
  *   listEmrChatSessionsAction    — sidebar session list
  *   getEmrChatSessionAction      — load full session on open
  *   deleteEmrChatSessionAction   — archive a session
+ *   renameEmrChatSessionAction   — update session title from sidebar inline edit
+ *   pinEmrChatSessionAction      — pin / unpin a session so it floats to the top
  *   addEmrChatMessageAction      — persist a chat message
  *   createWorkflowStateAction    — record a new workflow run
  *   updateWorkflowStateAction    — advance step / update context / mark complete
@@ -29,12 +31,16 @@ import {
   GetEmrChatSessionActionSchema,
   ListEmrChatSessionsActionSchema,
   DeleteEmrChatSessionActionSchema,
+  RenameEmrChatSessionActionSchema,
+  PinEmrChatSessionActionSchema,
 } from "@/modules/entities/schemas/emr-chat";
 import {
   createSessionController,
   getSessionController,
   listSessionsController,
   deleteSessionController,
+  renameSessionController,
+  pinSessionController,
   addMessageController,
   createWorkflowStateController,
   updateWorkflowStateController,
@@ -102,6 +108,32 @@ export const deleteEmrChatSessionAction = authenticatedProcedure
   .handler(async ({ input }) => {
     return await runWithTransport<void>(async () => {
       await deleteSessionController(input.id);
+      return { result: undefined };
+    });
+  });
+
+/**
+ * Updates the session title from the sidebar inline edit.
+ */
+export const renameEmrChatSessionAction = authenticatedProcedure
+  .createServerAction()
+  .input(RenameEmrChatSessionActionSchema, { skipInputParsing: true })
+  .handler(async ({ input }) => {
+    return await runWithTransport<void>(async () => {
+      await renameSessionController(input.id, input.title);
+      return { result: undefined };
+    });
+  });
+
+/**
+ * Pins or unpins a session so it floats to the top of the sidebar list.
+ */
+export const pinEmrChatSessionAction = authenticatedProcedure
+  .createServerAction()
+  .input(PinEmrChatSessionActionSchema, { skipInputParsing: true })
+  .handler(async ({ input }) => {
+    return await runWithTransport<void>(async () => {
+      await pinSessionController(input.id, input.pinned);
       return { result: undefined };
     });
   });

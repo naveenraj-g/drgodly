@@ -54,6 +54,22 @@ export type TDeleteEmrChatSessionAction = z.infer<
   typeof DeleteEmrChatSessionActionSchema
 >;
 
+export const RenameEmrChatSessionActionSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1).max(120),
+});
+export type TRenameEmrChatSessionAction = z.infer<
+  typeof RenameEmrChatSessionActionSchema
+>;
+
+export const PinEmrChatSessionActionSchema = z.object({
+  id: z.string().min(1),
+  pinned: z.boolean(),
+});
+export type TPinEmrChatSessionAction = z.infer<
+  typeof PinEmrChatSessionActionSchema
+>;
+
 // ── Message actions ───────────────────────────────────────────────────────────
 
 export const AddEmrChatMessageActionSchema = z.object({

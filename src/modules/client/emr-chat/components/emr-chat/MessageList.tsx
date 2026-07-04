@@ -11,12 +11,13 @@
  *   - A loading skeleton while the AI is responding
  *   - A SessionGreeting with suggestion chips when the conversation is empty
  *
- * The scroll target div (scrollRef) is placed at the bottom of the list so
- * auto-scroll logic in the container can call scrollRef.current?.scrollIntoView.
+ * The containerRef prop is attached to the outer scroll div so the parent can
+ * call el.scrollTo({ top: el.scrollHeight }) without bubbling to the page body.
  */
 
-import { Bot, User } from "lucide-react";
+import { Bot, User, RotateCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Renderer } from "@/modules/client/ai-hub/a2ui/rendering/renderer";
 import type { IMessageProcessor } from "@/modules/client/ai-hub/a2ui/rendering/processor";
@@ -28,8 +29,11 @@ import { PermissionDeniedMessage } from "./PermissionDeniedMessage";
 interface MessageListProps {
   messages: ChatMessage[];
   loading: boolean;
-  /** Ref placed after the last message for auto-scroll. */
-  scrollRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * Ref attached to the outer scrollable container div so the parent can
+   * scroll to bottom via `el.scrollTo(...)` without touching the page body.
+   */
+  containerRef: React.RefObject<HTMLDivElement | null>;
   /** Shared processor instance from the container (singleton per session). */
   processor: IMessageProcessor;
   /**
@@ -55,7 +59,7 @@ interface MessageListProps {
  *
  * @param props.messages           - Current message list from the Zustand store.
  * @param props.loading            - True while waiting for an API response.
- * @param props.scrollRef          - Ref placed at the bottom for auto-scroll.
+ * @param props.containerRef       - Ref for the outer scroll container (used for scroll-to-bottom).
  * @param props.processor          - IMessageProcessor for rendering A2UI components.
  * @param props.onTriggerWorkflow  - Direct workflow trigger from the greeting cards.
  * @param props.onSuggestion       - Injects a suggested prompt into the input.
@@ -63,13 +67,15 @@ interface MessageListProps {
 export function MessageList({
   messages,
   loading,
-  scrollRef,
+  containerRef,
   processor,
   onTriggerWorkflow,
   onSuggestion,
 }: MessageListProps) {
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
+    // overscroll-y-contain prevents scroll chaining to the page body when the
+    // user reaches the top or bottom of the list.
+    <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain">
       <div className="px-4 py-6">
         <div className="max-w-4xl mx-auto">
           {messages.length === 0 ? (
@@ -137,6 +143,26 @@ export function MessageList({
                         />
                       </div>
                     )}
+
+                    {/* Re-run button on workflow completion messages */}
+                    {msg.workflowComplete && (
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs h-7"
+                          onClick={() =>
+                            onTriggerWorkflow(
+                              msg.workflowComplete!.workflowId,
+                              msg.workflowComplete!.workflowName,
+                            )
+                          }
+                        >
+                          <RotateCcw className="size-3" />
+                          Run again
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {msg.role === "user" && (
@@ -161,8 +187,6 @@ export function MessageList({
                 </div>
               )}
 
-              {/* Auto-scroll target */}
-              <div ref={scrollRef} />
             </div>
           )}
         </div>

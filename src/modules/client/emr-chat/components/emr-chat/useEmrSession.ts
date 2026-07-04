@@ -21,6 +21,8 @@ import {
   createEmrChatSessionAction,
   listEmrChatSessionsAction,
   deleteEmrChatSessionAction,
+  renameEmrChatSessionAction,
+  pinEmrChatSessionAction,
   addEmrChatMessageAction,
 } from "@/modules/server/presentation/actions/emr-chat/emr-chat.actions";
 import { titleFromMessage } from "./utils";
@@ -70,6 +72,10 @@ export interface EmrSessionHandlers {
   openSession: (sessionId: string) => void;
   /** Deletes a session from the sidebar and DB; navigates away if it was active. */
   handleDeleteSession: (sessionId: string) => Promise<void>;
+  /** Renames a session title (user-initiated inline edit). */
+  handleRenameSession: (sessionId: string, title: string) => Promise<void>;
+  /** Pins or unpins a session so it floats to the top of the sidebar. */
+  handlePinSession: (sessionId: string, pinned: boolean) => Promise<void>;
 }
 
 /**
@@ -95,6 +101,8 @@ export function useEmrSession({
     setIsLoadingSessions,
     prependSession,
     removeSession,
+    updateSessionTitle,
+    setPinned,
   } = useEmrChatStore();
 
   // Load the session list from the DB whenever the userId changes (mount + org switch).
@@ -215,11 +223,51 @@ export function useEmrSession({
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
       removeSession(sessionId);
-      if (activeSessionId === sessionId) startNewChat();
+      // If the deleted session is the one open in the URL or the active store
+      // session, clear chat state immediately so the redirect lands on a blank
+      // screen rather than briefly flashing the old messages.
+      if (activeSessionId === sessionId || urlSessionId === sessionId) {
+        useChatStore.setState({
+          messages: [],
+          input: "",
+          sessionContext: {},
+          activeWorkflow: null,
+          currentStepIndex: null,
+        });
+        setActiveSessionId(null);
+        setDbWorkflowStateId(null);
+        router.push(`/${locale}${basePath}`);
+      }
       await deleteEmrChatSessionAction({ id: sessionId });
     },
-    [removeSession, activeSessionId, startNewChat],
+    [removeSession, activeSessionId, urlSessionId, locale, basePath, router, setActiveSessionId, setDbWorkflowStateId],
   );
 
-  return { ensureSession, persistMessage, startNewChat, openSession, handleDeleteSession };
+  /** Updates the session title in DB and store. */
+  const handleRenameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      updateSessionTitle(sessionId, title);
+      await renameEmrChatSessionAction({ id: sessionId, title });
+    },
+    [updateSessionTitle],
+  );
+
+  /** Toggles the pinned flag in DB and store. */
+  const handlePinSession = useCallback(
+    async (sessionId: string, pinned: boolean) => {
+      setPinned(sessionId, pinned);
+      await pinEmrChatSessionAction({ id: sessionId, pinned });
+    },
+    [setPinned],
+  );
+
+  return {
+    ensureSession,
+    persistMessage,
+    startNewChat,
+    openSession,
+    handleDeleteSession,
+    handleRenameSession,
+    handlePinSession,
+  };
 }

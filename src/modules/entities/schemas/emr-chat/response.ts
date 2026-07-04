@@ -83,15 +83,29 @@ export const EmrChatMessageSchema = z.object({
 });
 export type TEmrChatMessage = z.infer<typeof EmrChatMessageSchema>;
 
+/** Lean workflow entry shown in the session sidebar history sub-list. */
+export const EmrChatSessionWorkflowSummarySchema = z.object({
+  id: z.string(),
+  workflowId: z.string(),
+  workflowName: z.string(),
+  status: EmrWorkflowStatusSchema,
+});
+export type TEmrChatSessionWorkflowSummary = z.infer<
+  typeof EmrChatSessionWorkflowSummarySchema
+>;
+
 /** Summary row shown in the session sidebar list. */
 export const EmrChatSessionSummarySchema = z.object({
   id: z.string(),
   title: z.string().nullish(),
+  pinned: z.boolean().default(false),
   status: EmrChatSessionStatusSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   messageCount: z.number(),
   hasActiveWorkflow: z.boolean(),
+  /** All workflow runs for this session (IN_PROGRESS + completed + abandoned). */
+  workflows: z.array(EmrChatSessionWorkflowSummarySchema).default([]),
 });
 export type TEmrChatSessionSummary = z.infer<typeof EmrChatSessionSummarySchema>;
 

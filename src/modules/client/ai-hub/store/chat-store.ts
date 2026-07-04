@@ -41,6 +41,11 @@ export interface ChatMessage {
     message: string;
     missing_permissions: string[];
   };
+  /** Set on the completion message so the UI can offer a "Run again" button. */
+  workflowComplete?: {
+    workflowId: string;
+    workflowName: string;
+  };
 }
 
 export interface SerializableConversation {

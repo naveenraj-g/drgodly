@@ -51,6 +51,13 @@ interface IEmrChatStore {
    * @param title - New title string.
    */
   updateSessionTitle: (id: string, title: string) => void;
+
+  /**
+   * Toggle the pinned flag of a session in the local list.
+   * @param id - Session UUID.
+   * @param pinned - New pinned state.
+   */
+  setPinned: (id: string, pinned: boolean) => void;
 }
 
 const _useEmrChatStore = create<IEmrChatStore>((set) => ({
@@ -74,6 +81,11 @@ const _useEmrChatStore = create<IEmrChatStore>((set) => ({
   updateSessionTitle: (id, title) =>
     set((state) => ({
       sessions: state.sessions.map((s) => (s.id === id ? { ...s, title } : s)),
+    })),
+
+  setPinned: (id, pinned) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => (s.id === id ? { ...s, pinned } : s)),
     })),
 }));
 

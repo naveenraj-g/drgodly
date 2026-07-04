@@ -39,6 +39,7 @@ import {
   runContextResolvers,
   extractOutputs,
 } from "../_lib";
+import { WORKFLOW_REGISTRY } from "../_registry";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { checkWorkflowPermission } from "@/modules/server/shared/auth/checkWorkflowPermission";
 
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
   }
 
   const {
-    workflow,
+    workflow: clientWorkflow,
     stepIndex,
     sessionContext = {},
   }: {
@@ -68,8 +69,14 @@ export async function POST(req: Request) {
     sessionContext?: Record<string, unknown>;
   } = await req.json();
 
-  // Re-validate permissions on every step advance — the workflow is re-sent by
-  // the client, so this is the server-side source of truth for access control.
+  // Always prefer the server's current workflow definition over the client's
+  // snapshot. The DB stores the definition at creation time, so any context
+  // resolvers added after a workflow was started would be missing from the
+  // client copy. The registry is the single source of truth.
+  const workflow =
+    WORKFLOW_REGISTRY.get(clientWorkflow.id)?.workflow ?? clientWorkflow;
+
+  // Re-validate permissions on every step advance using the current definition.
   const permCheck = checkWorkflowPermission(authSession, workflow);
   if (!permCheck.allowed) {
     return Response.json(

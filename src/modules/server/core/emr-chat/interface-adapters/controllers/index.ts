@@ -12,6 +12,8 @@ export * from "./createSession.controller";
 export * from "./getSession.controller";
 export * from "./listSessions.controller";
 export * from "./deleteSession.controller";
+export * from "./renameSession.controller";
+export * from "./pinSession.controller";
 export * from "./addMessage.controller";
 export * from "./createWorkflowState.controller";
 export * from "./updateWorkflowState.controller";

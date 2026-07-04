@@ -144,6 +144,7 @@ export function useEmrWorkflow({
                 id: crypto.randomUUID(),
                 role: "assistant",
                 ui: buildMarkdownNode(workflow.completion.message),
+                workflowComplete: { workflowId: workflow.id, workflowName: workflow.name },
               });
               if (persist) {
                 const sid = emrChatStore.getState().activeSessionId;
@@ -152,6 +153,7 @@ export function useEmrWorkflow({
                     role: "ASSISTANT",
                     content: workflow.completion.message,
                     type: "WORKFLOW_COMPLETE",
+                    metadata: { workflowId: workflow.id, workflowName: workflow.name },
                   });
               }
             }
@@ -249,12 +251,14 @@ export function useEmrWorkflow({
           id: crypto.randomUUID(),
           role: "assistant",
           ui: buildMarkdownNode(activeWorkflow.completion.message),
+          workflowComplete: { workflowId: activeWorkflow.id, workflowName: activeWorkflow.name },
         });
         if (activeSessionId)
           await persistMessage(activeSessionId, {
             role: "ASSISTANT",
             content: activeWorkflow.completion.message,
             type: "WORKFLOW_COMPLETE",
+            metadata: { workflowId: activeWorkflow.id, workflowName: activeWorkflow.name },
           });
       }
       if (dbWorkflowStateId)

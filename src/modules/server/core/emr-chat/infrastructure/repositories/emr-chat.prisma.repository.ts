@@ -51,20 +51,28 @@ function pj<T>(v: T): any {
 function toSessionSummary(row: {
   id: string;
   title: string | null;
+  pinned: boolean;
   status: string;
   createdAt: Date;
   updatedAt: Date;
   _count: { messages: number };
-  workflowStates: { status: string }[];
+  workflowStates: { id: string; workflowId: string; workflowName: string; status: string }[];
 }): TEmrChatSessionSummary {
   return {
     id: row.id,
     title: row.title,
+    pinned: row.pinned,
     status: row.status as TEmrChatSessionSummary["status"],
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     messageCount: row._count.messages,
     hasActiveWorkflow: row.workflowStates.some((w) => w.status === "IN_PROGRESS"),
+    workflows: row.workflowStates.map((w) => ({
+      id: w.id,
+      workflowId: w.workflowId,
+      workflowName: w.workflowName,
+      status: w.status as TEmrChatSessionSummary["workflows"][number]["status"],
+    })),
   };
 }
 
@@ -99,7 +107,10 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
         },
         include: {
           _count: { select: { messages: true } },
-          workflowStates: { select: { status: true } },
+          workflowStates: {
+            select: { id: true, workflowId: true, workflowName: true, status: true },
+            orderBy: { startedAt: "asc" },
+          },
         },
       });
 
@@ -258,7 +269,10 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
         take: query.limit ?? 50,
         include: {
           _count: { select: { messages: true } },
-          workflowStates: { select: { status: true } },
+          workflowStates: {
+            select: { id: true, workflowId: true, workflowName: true, status: true },
+            orderBy: { startedAt: "asc" },
+          },
         },
       });
 
@@ -286,10 +300,20 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
    * Updates the session title.
    *
    * @param id - Session UUID.
-   * @param title - New title (auto-generated from first message).
+   * @param title - New title string (auto-generated or user-renamed).
    */
   async updateSessionTitle(id: string, title: string): Promise<void> {
     await prisma.emrChatSession.update({ where: { id }, data: { title } });
+  }
+
+  /**
+   * Toggles the pinned flag on a session.
+   *
+   * @param id - Session UUID.
+   * @param pinned - True to pin, false to unpin.
+   */
+  async pinSession(id: string, pinned: boolean): Promise<void> {
+    await prisma.emrChatSession.update({ where: { id }, data: { pinned } });
   }
 
   /**

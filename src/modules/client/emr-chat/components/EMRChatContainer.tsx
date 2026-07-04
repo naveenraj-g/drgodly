@@ -134,7 +134,9 @@ export default function EMRChatContainer({
   const [view, setView] = useState<EmrChatView>("chat");
 
   // ── Refs & routing ────────────────────────────────────────────────────────
-  const scrollRef = useRef<HTMLDivElement>(null);
+  /** Ref for the MessageList scroll container — scroll via el.scrollTo, NOT scrollIntoView,
+   *  so the page body is never touched. */
+  const messageListRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [, startTransition] = useTransition();
   const initialised = useRef(false);
@@ -149,6 +151,8 @@ export default function EMRChatContainer({
     startNewChat,
     openSession,
     handleDeleteSession,
+    handleRenameSession,
+    handlePinSession,
   } = useEmrSession({
     userId,
     orgId,
@@ -221,6 +225,14 @@ export default function EMRChatContainer({
           m.metadata?.toolCall !== undefined
             ? (m.metadata.toolCall as ChatMessage["toolCall"])
             : undefined,
+        // Restore the re-run metadata for completion messages persisted after this feature.
+        workflowComplete:
+          m.type === "WORKFLOW_COMPLETE" && m.metadata?.workflowId
+            ? {
+                workflowId: m.metadata.workflowId as string,
+                workflowName: m.metadata.workflowName as string,
+              }
+            : undefined,
       }),
     );
 
@@ -264,6 +276,7 @@ export default function EMRChatContainer({
               id: `injected-complete-${wf.id}`,
               role: "assistant",
               ui: buildMarkdownNode(completionText),
+              workflowComplete: { workflowId: wf.workflowId, workflowName: wf.workflowName },
             },
           });
         } else if (wf.status === "ABANDONED" || wf.status === "ERROR") {
@@ -333,8 +346,11 @@ export default function EMRChatContainer({
   }, []);
 
   // ── Auto-scroll on new messages ───────────────────────────────────────────
+  // Scroll only within the MessageList container so the page body is never touched.
+  // scrollIntoView would bubble through all scroll ancestors and move the page too.
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = messageListRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -403,7 +419,7 @@ export default function EMRChatContainer({
         <MessageList
           messages={messages}
           loading={loading}
-          scrollRef={scrollRef}
+          containerRef={messageListRef}
           processor={processor}
           onTriggerWorkflow={(id, name) => {
             setView("chat");
@@ -436,6 +452,8 @@ export default function EMRChatContainer({
         isLoading={isLoadingSessions}
         onSelectSession={openSession}
         onDeleteSession={handleDeleteSession}
+        onRenameSession={handleRenameSession}
+        onPinSession={handlePinSession}
         onNewChat={startNewChat}
       />
     </div>

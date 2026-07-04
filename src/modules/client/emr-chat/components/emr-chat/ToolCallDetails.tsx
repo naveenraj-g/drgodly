@@ -68,7 +68,7 @@ export function ToolCallDetails({ toolCall }: ToolCallDetailsProps) {
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors cursor-pointer group">
+      <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-accent transition-colors cursor-pointer group">
         <Wrench className="h-4 w-4 text-slate-500 dark:text-slate-400 flex-shrink-0" />
         <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
           Tool Call: {toolCall.toolName}
