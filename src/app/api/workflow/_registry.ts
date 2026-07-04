@@ -179,10 +179,10 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   //   category: "Related Person",
   //   workflow: create_related_person as unknown as WorkflowDefinition,
   // },
-  // {
-  //   category: "Healthcare Service",
-  //   workflow: create_healthcare_service as unknown as WorkflowDefinition,
-  // },
+  {
+    category: "Healthcare Service",
+    workflow: create_healthcare_service as unknown as WorkflowDefinition,
+  },
   // {
   //   category: "Schedule",
   //   workflow: create_schedule_with_slots as unknown as WorkflowDefinition,

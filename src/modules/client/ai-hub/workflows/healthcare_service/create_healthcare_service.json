@@ -4,6 +4,7 @@
   "description": "Register a new HealthcareService offered by an organisation at a location, including classification, specialty, and available hours.",
   "version": "1.0.0",
   "tags": ["fhir", "healthcare-service", "create", "crud"],
+  "required_permissions": ["healthcare_service:create"],
   "llm_hints": {
     "intent_examples": [
       "Create a healthcare service",
@@ -51,22 +52,6 @@
       },
       "context_resolvers": [
         {
-          "description": "Load the user's organisations for the 'Provided By' select.",
-          "context_key": "my_organizations",
-          "tool_name": "get_my_organizations",
-          "url": "$fhir_gql_url/organizations/me",
-          "method": "GET",
-          "timeout_ms": 8000
-        },
-        {
-          "description": "Load the user's locations for the Location select.",
-          "context_key": "my_locations",
-          "tool_name": "get_my_locations",
-          "url": "$fhir_gql_url/locations/me",
-          "method": "GET",
-          "timeout_ms": 8000
-        },
-        {
           "description": "Fetch service-category value set.",
           "context_key": "service_category_concepts",
           "tool_name": "get_service_category_valueset",
@@ -87,6 +72,62 @@
           "context_key": "specialty_concepts",
           "tool_name": "get_specialty_valueset",
           "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=specialty",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch service-provision-code value set (free, discounted, cost at clinic).",
+          "context_key": "service_provision_code_concepts",
+          "tool_name": "get_service_provision_code_valueset",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=serviceProvisionCode",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch telecom-system value set for contact details.",
+          "context_key": "telecom_system_concepts",
+          "tool_name": "get_telecom_system_valueset_hs",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=telecom.system",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch telecom-use value set for contact details.",
+          "context_key": "telecom_use_concepts",
+          "tool_name": "get_telecom_use_valueset_hs",
+          "url": "$fhir_gql_url/terminology/concepts?resource=Patient&field=telecom.use",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch program value set (NHS, Medicare, etc.).",
+          "context_key": "program_concepts",
+          "tool_name": "get_program_valueset",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=program",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch communication language value set.",
+          "context_key": "communication_concepts",
+          "tool_name": "get_communication_valueset",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=communication",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch characteristic value set (e.g. wheelchair accessible).",
+          "context_key": "characteristic_concepts",
+          "tool_name": "get_characteristic_valueset",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=characteristic",
+          "method": "GET",
+          "timeout_ms": 8000
+        },
+        {
+          "description": "Fetch referral-method value set (fax, phone, elec, semail, mail).",
+          "context_key": "referral_method_concepts",
+          "tool_name": "get_referral_method_valueset",
+          "url": "$fhir_gql_url/terminology/concepts?resource=HealthcareService&field=referralMethod",
           "method": "GET",
           "timeout_ms": 8000
         }
