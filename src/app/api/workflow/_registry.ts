@@ -38,6 +38,8 @@ import close_encounter from "@/modules/client/ai-hub/workflows/encounter/close_e
 import open_encounter from "@/modules/client/ai-hub/workflows/encounter/open_encounter.json";
 // ── Healthcare Service ────────────────────────────────────────────────────────
 import create_healthcare_service from "@/modules/client/ai-hub/workflows/healthcare_service/create_healthcare_service.json";
+// ── Location ──────────────────────────────────────────────────────────────────
+import create_location from "@/modules/client/ai-hub/workflows/location/create_location.json";
 // ── Medication ────────────────────────────────────────────────────────────────
 import create_medication from "@/modules/client/ai-hub/workflows/medication/create_medication.json";
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -166,6 +168,10 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   {
     category: "Organization",
     workflow: create_organization as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Location",
+    workflow: create_location as unknown as WorkflowDefinition,
   },
   {
     category: "Practitioner",

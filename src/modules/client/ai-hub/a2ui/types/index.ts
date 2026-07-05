@@ -785,6 +785,11 @@ export interface FileUploadType {
    * session-derived value on the server. Supports $variable resolution.
    */
   orgId?: StringValue;
+  /**
+   * When false, selected files are staged locally and an "Upload" button must
+   * be clicked before the upload begins. Default true (upload on selection).
+   */
+  autoUpload?: boolean;
 }
 
 export interface FileUploadNode extends BaseComponentNode {

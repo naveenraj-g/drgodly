@@ -14,19 +14,55 @@
           {
             "id": "form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Create Healthcare Service" }, "usageHint": "h2" }
+            "properties": {
+              "text": { "literalString": "Create Healthcare Service" },
+              "usageHint": "h2"
+            }
           },
           {
             "id": "form-subtitle",
             "type": "Text",
-            "properties": { "text": { "literalString": "Register a service offered by your organisation, including classification, specialty, contact details, and available hours." }, "usageHint": "caption" }
+            "properties": {
+              "text": {
+                "literalString": "Register a clinical service offered by your organisation — including its type, specialty, locations, contact details, and availability."
+              },
+              "usageHint": "caption"
+            }
           },
           { "id": "divider-top", "type": "Divider", "properties": {} },
 
           {
+            "id": "section-photo",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Service Photo" },
+              "usageHint": "h4"
+            }
+          },
+          {
+            "id": "service_photo",
+            "type": "FileUpload",
+            "properties": {
+              "label": { "literalString": "Representative photo (optional)" },
+              "tokenEndpoint": { "literalString": "/api/filenest-token" },
+              "filePath": "healthcare-services/photos",
+              "allowedMimeTypes": ["image/jpeg", "image/png", "image/webp"],
+              "maxFiles": { "literalNumber": 1 },
+              "maxSizeMb": { "literalNumber": 5 },
+              "autoUpload": false,
+              "userId": "$user_id",
+              "orgId": "$org_id"
+            }
+          },
+          { "id": "divider-photo", "type": "Divider", "properties": {} },
+
+          {
             "id": "section-core",
             "type": "Text",
-            "properties": { "text": { "literalString": "Service Details" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Service Details" },
+              "usageHint": "h4"
+            }
           },
           {
             "id": "hcs-name-active-row",
@@ -39,13 +75,22 @@
                   "id": "name",
                   "type": "TextField",
                   "weight": 3,
-                  "properties": { "label": { "literalString": "Service Name" }, "placeholder": { "literalString": "e.g. General Practice Consultation" }, "textFieldType": "shortText" }
+                  "properties": {
+                    "label": { "literalString": "Service Name" },
+                    "placeholder": {
+                      "literalString": "e.g. General Practice Consultation"
+                    },
+                    "textFieldType": "shortText"
+                  }
                 },
                 {
                   "id": "active",
                   "type": "CheckBox",
                   "weight": 1,
-                  "properties": { "label": { "literalString": "Active" }, "value": { "literalBoolean": true } }
+                  "properties": {
+                    "label": { "literalString": "Active" },
+                    "value": { "literalBoolean": true }
+                  }
                 }
               ]
             }
@@ -53,44 +98,163 @@
           {
             "id": "appointment_required",
             "type": "CheckBox",
-            "properties": { "label": { "literalString": "Appointment Required" }, "value": { "literalBoolean": false } }
+            "properties": {
+              "label": { "literalString": "Appointment Required" },
+              "value": { "literalBoolean": false }
+            }
           },
           {
             "id": "comment",
             "type": "TextField",
-            "properties": { "label": { "literalString": "Comment (optional)" }, "placeholder": { "literalString": "e.g. Walk-in and appointment-based service" }, "textFieldType": "longText" }
+            "properties": {
+              "label": { "literalString": "Comment (optional)" },
+              "placeholder": {
+                "literalString": "Short public-facing description of the service"
+              },
+              "textFieldType": "longText"
+            }
           },
           {
             "id": "extra_details",
             "type": "TextField",
-            "properties": { "label": { "literalString": "Extra Details (optional)" }, "placeholder": { "literalString": "Any additional information about this service" }, "textFieldType": "longText" }
+            "properties": {
+              "label": { "literalString": "Extra Details (optional)" },
+              "placeholder": {
+                "literalString": "Internal notes or additional information not shown to patients"
+              },
+              "textFieldType": "longText"
+            }
           },
 
           { "id": "divider-class", "type": "Divider", "properties": {} },
           {
             "id": "section-class",
             "type": "Text",
-            "properties": { "text": { "literalString": "Classification" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Classification" },
+              "usageHint": "h4"
+            }
           },
           {
-            "id": "service_category",
-            "type": "TerminologySelect",
-            "properties": { "label": { "literalString": "Service Category (optional)" }, "placeholder": { "literalString": "Search category…" }, "items": "$service_category_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
-          },
-          {
-            "id": "service_type",
-            "type": "TerminologySelect",
-            "properties": { "label": { "literalString": "Service Type (optional)" }, "placeholder": { "literalString": "Search service type…" }, "items": "$service_type_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
-          },
-          {
-            "id": "specialty",
-            "type": "TerminologySelect",
-            "properties": { "label": { "literalString": "Specialty (optional)" }, "placeholder": { "literalString": "Search specialty…" }, "items": "$specialty_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
-          },
-          {
-            "id": "section-spc",
+            "id": "section-class-desc",
             "type": "Text",
-            "properties": { "text": { "literalString": "Service Provision Codes (optional)" }, "usageHint": "caption" }
+            "properties": {
+              "text": {
+                "literalString": "Classify the service so patients can find it. Add one or more entries per field."
+              },
+              "usageHint": "caption"
+            }
+          },
+
+          {
+            "id": "section-categories-label",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Categories" },
+              "usageHint": "caption"
+            }
+          },
+          {
+            "id": "categories",
+            "type": "RepeatableGroup",
+            "properties": {
+              "addLabel": { "literalString": "Add category" },
+              "defaultCount": 0,
+              "minItems": 0,
+              "template": [
+                {
+                  "id": "category",
+                  "type": "TerminologySelect",
+                  "properties": {
+                    "label": { "literalString": "Category" },
+                    "placeholder": { "literalString": "Search categories…" },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "category",
+                      "minChars": 0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+
+          {
+            "id": "section-service-types-label",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Service Types" },
+              "usageHint": "caption"
+            }
+          },
+          {
+            "id": "service_types",
+            "type": "RepeatableGroup",
+            "properties": {
+              "addLabel": { "literalString": "Add service type" },
+              "defaultCount": 0,
+              "minItems": 0,
+              "template": [
+                {
+                  "id": "service_type",
+                  "type": "TerminologySelect",
+                  "properties": {
+                    "label": { "literalString": "Service Type" },
+                    "placeholder": { "literalString": "Search service types…" },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "type",
+                      "minChars": 0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+
+          {
+            "id": "section-specialties-label",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Specialties" },
+              "usageHint": "caption"
+            }
+          },
+          {
+            "id": "specialties",
+            "type": "RepeatableGroup",
+            "properties": {
+              "addLabel": { "literalString": "Add specialty" },
+              "defaultCount": 0,
+              "minItems": 0,
+              "template": [
+                {
+                  "id": "specialty",
+                  "type": "TerminologySelect",
+                  "properties": {
+                    "label": { "literalString": "Specialty" },
+                    "placeholder": { "literalString": "Search specialties…" },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "specialty",
+                      "minChars": 0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+
+          {
+            "id": "section-spc-label",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Service Provision Codes" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "service_provision_codes",
@@ -103,7 +267,18 @@
                 {
                   "id": "service_provision_code",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Provision Code" }, "placeholder": { "literalString": "e.g. free, cost at clinic…" }, "items": "$service_provision_code_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
+                  "properties": {
+                    "label": { "literalString": "Provision Code" },
+                    "placeholder": {
+                      "literalString": "e.g. free, cost at clinic, discounted…"
+                    },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "serviceProvisionCode",
+                      "minChars": 0
+                    }
+                  }
                 }
               ]
             }
@@ -113,7 +288,10 @@
           {
             "id": "section-links",
             "type": "Text",
-            "properties": { "text": { "literalString": "Organisation & Location" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Organisation & Locations" },
+              "usageHint": "h4"
+            }
           },
           {
             "id": "org",
@@ -123,9 +301,7 @@
               "placeholder": { "literalString": "Search organisations…" },
               "source": {
                 "url": "$fhir_gql_url/organizations/",
-                "staticParams": {
-                  "org_id": { "path": "org_id" }
-                },
+                "staticParams": { "org_id": { "path": "org_id" } },
                 "searchParam": "name",
                 "responsePath": "data",
                 "minChars": 0,
@@ -145,31 +321,51 @@
             }
           },
           {
-            "id": "location",
-            "type": "DynamicSelect",
+            "id": "section-locations-label",
+            "type": "Text",
             "properties": {
-              "label": { "literalString": "Location (optional)" },
-              "placeholder": { "literalString": "Search locations…" },
-              "source": {
-                "url": "$fhir_gql_url/locations/",
-                "staticParams": {
-                  "org_id": { "path": "org_id" }
-                },
-                "searchParam": "name",
-                "responsePath": "data",
-                "minChars": 0,
-                "debounceMs": 300,
-                "pageSize": 20,
-                "limitParam": "limit",
-                "offsetParam": "offset"
-              },
-              "display": {
-                "label": { "path": "name" },
-                "description": { "template": "Location/{id}" }
-              },
-              "emits": [
-                { "key": "location_ref_id", "path": "id" },
-                { "key": "location_display", "path": "name" }
+              "text": { "literalString": "Locations" },
+              "usageHint": "caption"
+            }
+          },
+          {
+            "id": "locations",
+            "type": "RepeatableGroup",
+            "properties": {
+              "addLabel": { "literalString": "Add location" },
+              "defaultCount": 0,
+              "minItems": 0,
+              "template": [
+                {
+                  "id": "location_select",
+                  "type": "DynamicSelect",
+                  "properties": {
+                    "label": { "literalString": "Location" },
+                    "placeholder": { "literalString": "Search locations…" },
+                    "source": {
+                      "url": "$fhir_gql_url/locations/",
+                      "staticParams": { "org_id": { "path": "org_id" } },
+                      "searchParam": "name",
+                      "responsePath": "data",
+                      "minChars": 0,
+                      "debounceMs": 300,
+                      "pageSize": 20,
+                      "limitParam": "limit",
+                      "offsetParam": "offset"
+                    },
+                    "display": {
+                      "label": { "path": "name" },
+                      "description": { "template": "Location/{id}" }
+                    },
+                    "emits": [
+                      {
+                        "key": "location_reference",
+                        "template": "Location/{id}"
+                      },
+                      { "key": "location_display", "path": "name" }
+                    ]
+                  }
+                }
               ]
             }
           },
@@ -178,7 +374,10 @@
           {
             "id": "section-contact",
             "type": "Text",
-            "properties": { "text": { "literalString": "Contact Details (optional)" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Contact Details" },
+              "usageHint": "h4"
+            }
           },
           {
             "id": "telecoms",
@@ -191,22 +390,52 @@
                 {
                   "id": "system",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Type" }, "placeholder": { "literalString": "e.g. phone, email…" }, "items": "$telecom_system_concepts.concepts", "valueType": { "literalString": "code" } }
+                  "properties": {
+                    "label": { "literalString": "Type" },
+                    "placeholder": {
+                      "literalString": "e.g. phone, email, fax…"
+                    },
+                    "valueType": { "literalString": "code" },
+                    "serverSearch": {
+                      "resource": "Patient",
+                      "field": "telecom.system",
+                      "minChars": 0
+                    }
+                  }
                 },
                 {
                   "id": "value",
                   "type": "TextField",
-                  "properties": { "label": { "literalString": "Value" }, "placeholder": { "literalString": "e.g. +1 555 0100" }, "textFieldType": "shortText" }
+                  "properties": {
+                    "label": { "literalString": "Value" },
+                    "placeholder": { "literalString": "e.g. +61 3 9000 0000" },
+                    "textFieldType": "shortText"
+                  }
                 },
                 {
                   "id": "use",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Use (optional)" }, "placeholder": { "literalString": "e.g. work, mobile…" }, "items": "$telecom_use_concepts.concepts", "valueType": { "literalString": "code" } }
+                  "properties": {
+                    "label": { "literalString": "Use (optional)" },
+                    "placeholder": {
+                      "literalString": "e.g. work, home, mobile…"
+                    },
+                    "valueType": { "literalString": "code" },
+                    "serverSearch": {
+                      "resource": "Patient",
+                      "field": "telecom.use",
+                      "minChars": 0
+                    }
+                  }
                 },
                 {
                   "id": "rank",
                   "type": "TextField",
-                  "properties": { "label": { "literalString": "Rank (optional)" }, "placeholder": { "literalString": "1 = highest priority" }, "textFieldType": "shortText" }
+                  "properties": {
+                    "label": { "literalString": "Rank (optional)" },
+                    "placeholder": { "literalString": "1 = highest priority" },
+                    "textFieldType": "shortText"
+                  }
                 }
               ]
             }
@@ -216,12 +445,18 @@
           {
             "id": "section-prog",
             "type": "Text",
-            "properties": { "text": { "literalString": "Programs & Communication" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Programs & Languages" },
+              "usageHint": "h4"
+            }
           },
           {
             "id": "section-programs-label",
             "type": "Text",
-            "properties": { "text": { "literalString": "Programs (optional)" }, "usageHint": "caption" }
+            "properties": {
+              "text": { "literalString": "Programs" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "programs",
@@ -234,7 +469,18 @@
                 {
                   "id": "program",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Program" }, "placeholder": { "literalString": "e.g. NHS, Medicare…" }, "items": "$program_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
+                  "properties": {
+                    "label": { "literalString": "Program" },
+                    "placeholder": {
+                      "literalString": "e.g. NHS, Medicare, NDIS…"
+                    },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "program",
+                      "minChars": 0
+                    }
+                  }
                 }
               ]
             }
@@ -242,7 +488,10 @@
           {
             "id": "section-comms-label",
             "type": "Text",
-            "properties": { "text": { "literalString": "Supported Languages (optional)" }, "usageHint": "caption" }
+            "properties": {
+              "text": { "literalString": "Supported Languages" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "communications",
@@ -255,7 +504,151 @@
                 {
                   "id": "communication",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Language" }, "placeholder": { "literalString": "e.g. English, French…" }, "items": "$communication_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
+                  "properties": {
+                    "label": { "literalString": "Language" },
+                    "placeholder": {
+                      "literalString": "e.g. English, Mandarin, Arabic…"
+                    },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "communication",
+                      "minChars": 0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+
+          { "id": "divider-identifiers", "type": "Divider", "properties": {} },
+          {
+            "id": "section-identifiers",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Identifiers" },
+              "usageHint": "h4"
+            }
+          },
+          {
+            "id": "identifiers",
+            "type": "RepeatableGroup",
+            "properties": {
+              "addLabel": { "literalString": "Add identifier" },
+              "defaultCount": 0,
+              "minItems": 0,
+              "template": [
+                {
+                  "id": "use",
+                  "type": "TerminologySelect",
+                  "properties": {
+                    "label": { "literalString": "Use (optional)" },
+                    "placeholder": {
+                      "literalString": "e.g. official, usual, temp…"
+                    },
+                    "valueType": { "literalString": "code" },
+                    "serverSearch": {
+                      "resource": "Patient",
+                      "field": "identifier.use",
+                      "minChars": 0
+                    }
+                  }
+                },
+                {
+                  "id": "system",
+                  "type": "TextField",
+                  "properties": {
+                    "label": { "literalString": "System URI (optional)" },
+                    "placeholder": {
+                      "literalString": "e.g. https://my-hospital.org/services"
+                    },
+                    "textFieldType": "shortText"
+                  }
+                },
+                {
+                  "id": "value",
+                  "type": "TextField",
+                  "properties": {
+                    "label": { "literalString": "Value" },
+                    "placeholder": { "literalString": "Identifier value" },
+                    "textFieldType": "shortText"
+                  }
+                },
+                {
+                  "id": "assigner",
+                  "type": "TextField",
+                  "properties": {
+                    "label": { "literalString": "Assigner (optional)" },
+                    "placeholder": {
+                      "literalString": "Organisation that issued this identifier"
+                    },
+                    "textFieldType": "shortText"
+                  }
+                },
+                {
+                  "id": "identifier-period-row",
+                  "type": "Row",
+                  "properties": {
+                    "gap": "medium",
+                    "alignment": "stretch",
+                    "children": [
+                      {
+                        "id": "period_start",
+                        "type": "DateTimeInput",
+                        "weight": 1,
+                        "properties": {
+                          "label": { "literalString": "Valid From (optional)" },
+                          "enableDate": true,
+                          "enableTime": false
+                        }
+                      },
+                      {
+                        "id": "period_end",
+                        "type": "DateTimeInput",
+                        "weight": 1,
+                        "properties": {
+                          "label": {
+                            "literalString": "Valid Until (optional)"
+                          },
+                          "enableDate": true,
+                          "enableTime": false
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "type_code",
+                  "type": "TextField",
+                  "properties": {
+                    "label": { "literalString": "Type Code (optional)" },
+                    "placeholder": {
+                      "literalString": "Coding code for identifier type"
+                    },
+                    "textFieldType": "shortText"
+                  }
+                },
+                {
+                  "id": "type_system",
+                  "type": "TextField",
+                  "properties": {
+                    "label": { "literalString": "Type System (optional)" },
+                    "placeholder": {
+                      "literalString": "Coding system URI for identifier type"
+                    },
+                    "textFieldType": "shortText"
+                  }
+                },
+                {
+                  "id": "type_display",
+                  "type": "TextField",
+                  "properties": {
+                    "label": { "literalString": "Type Display (optional)" },
+                    "placeholder": {
+                      "literalString": "Human-readable label for type"
+                    },
+                    "textFieldType": "shortText"
+                  }
                 }
               ]
             }
@@ -265,12 +658,18 @@
           {
             "id": "section-char",
             "type": "Text",
-            "properties": { "text": { "literalString": "Characteristics & Referral" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Characteristics & Referral" },
+              "usageHint": "h4"
+            }
           },
           {
             "id": "section-char-label",
             "type": "Text",
-            "properties": { "text": { "literalString": "Characteristics (optional)" }, "usageHint": "caption" }
+            "properties": {
+              "text": { "literalString": "Characteristics" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "characteristics",
@@ -283,7 +682,18 @@
                 {
                   "id": "characteristic",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Characteristic" }, "placeholder": { "literalString": "e.g. wheelchair accessible…" }, "items": "$characteristic_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
+                  "properties": {
+                    "label": { "literalString": "Characteristic" },
+                    "placeholder": {
+                      "literalString": "e.g. wheelchair accessible, bulk billing…"
+                    },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "characteristic",
+                      "minChars": 0
+                    }
+                  }
                 }
               ]
             }
@@ -291,7 +701,10 @@
           {
             "id": "section-ref-label",
             "type": "Text",
-            "properties": { "text": { "literalString": "Referral Methods (optional)" }, "usageHint": "caption" }
+            "properties": {
+              "text": { "literalString": "Referral Methods" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "referral_methods",
@@ -304,7 +717,18 @@
                 {
                   "id": "referral_method",
                   "type": "TerminologySelect",
-                  "properties": { "label": { "literalString": "Referral Method" }, "placeholder": { "literalString": "e.g. fax, phone, email…" }, "items": "$referral_method_concepts.concepts", "valueType": { "literalString": "CodeableConcept" } }
+                  "properties": {
+                    "label": { "literalString": "Referral Method" },
+                    "placeholder": {
+                      "literalString": "e.g. phone, fax, online portal…"
+                    },
+                    "valueType": { "literalString": "CodeableConcept" },
+                    "serverSearch": {
+                      "resource": "HealthcareService",
+                      "field": "referralMethod",
+                      "minChars": 0
+                    }
+                  }
                 }
               ]
             }
@@ -314,7 +738,18 @@
           {
             "id": "section-avail",
             "type": "Text",
-            "properties": { "text": { "literalString": "Available Hours (optional)" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Availability" },
+              "usageHint": "h4"
+            }
+          },
+          {
+            "id": "section-avail-hours-label",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Regular Hours" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "available_time",
@@ -331,13 +766,41 @@
                     "gap": "medium",
                     "alignment": "stretch",
                     "children": [
-                      { "id": "mon", "type": "CheckBox", "properties": { "label": { "literalString": "Mon" } } },
-                      { "id": "tue", "type": "CheckBox", "properties": { "label": { "literalString": "Tue" } } },
-                      { "id": "wed", "type": "CheckBox", "properties": { "label": { "literalString": "Wed" } } },
-                      { "id": "thu", "type": "CheckBox", "properties": { "label": { "literalString": "Thu" } } },
-                      { "id": "fri", "type": "CheckBox", "properties": { "label": { "literalString": "Fri" } } },
-                      { "id": "sat", "type": "CheckBox", "properties": { "label": { "literalString": "Sat" } } },
-                      { "id": "sun", "type": "CheckBox", "properties": { "label": { "literalString": "Sun" } } }
+                      {
+                        "id": "mon",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Mon" } }
+                      },
+                      {
+                        "id": "tue",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Tue" } }
+                      },
+                      {
+                        "id": "wed",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Wed" } }
+                      },
+                      {
+                        "id": "thu",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Thu" } }
+                      },
+                      {
+                        "id": "fri",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Fri" } }
+                      },
+                      {
+                        "id": "sat",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Sat" } }
+                      },
+                      {
+                        "id": "sun",
+                        "type": "CheckBox",
+                        "properties": { "label": { "literalString": "Sun" } }
+                      }
                     ]
                   }
                 },
@@ -357,13 +820,21 @@
                         "id": "available_start_time",
                         "type": "TextField",
                         "weight": 1,
-                        "properties": { "label": { "literalString": "Opens" }, "placeholder": { "literalString": "HH:mm" }, "textFieldType": "shortText" }
+                        "properties": {
+                          "label": { "literalString": "Opens" },
+                          "placeholder": { "literalString": "09:00" },
+                          "textFieldType": "shortText"
+                        }
                       },
                       {
                         "id": "available_end_time",
                         "type": "TextField",
                         "weight": 1,
-                        "properties": { "label": { "literalString": "Closes" }, "placeholder": { "literalString": "HH:mm" }, "textFieldType": "shortText" }
+                        "properties": {
+                          "label": { "literalString": "Closes" },
+                          "placeholder": { "literalString": "17:00" },
+                          "textFieldType": "shortText"
+                        }
                       }
                     ]
                   }
@@ -372,24 +843,32 @@
             }
           },
 
-          { "id": "divider-notavail", "type": "Divider", "properties": {} },
           {
-            "id": "section-notavail",
+            "id": "section-notavail-label",
             "type": "Text",
-            "properties": { "text": { "literalString": "Not Available (optional)" }, "usageHint": "h4" }
+            "properties": {
+              "text": { "literalString": "Not Available Periods" },
+              "usageHint": "caption"
+            }
           },
           {
             "id": "not_available",
             "type": "RepeatableGroup",
             "properties": {
-              "addLabel": { "literalString": "Add exception" },
+              "addLabel": { "literalString": "Add period" },
               "defaultCount": 0,
               "minItems": 0,
               "template": [
                 {
                   "id": "description",
                   "type": "TextField",
-                  "properties": { "label": { "literalString": "Reason" }, "placeholder": { "literalString": "e.g. Public holiday closure" }, "textFieldType": "shortText" }
+                  "properties": {
+                    "label": { "literalString": "Reason" },
+                    "placeholder": {
+                      "literalString": "e.g. Public holiday closure"
+                    },
+                    "textFieldType": "shortText"
+                  }
                 },
                 {
                   "id": "notavail-dates-row",
@@ -400,15 +879,23 @@
                     "children": [
                       {
                         "id": "during_start",
-                        "type": "TextField",
+                        "type": "DateTimeInput",
                         "weight": 1,
-                        "properties": { "label": { "literalString": "From (optional)" }, "placeholder": { "literalString": "YYYY-MM-DD" }, "textFieldType": "shortText" }
+                        "properties": {
+                          "label": { "literalString": "From" },
+                          "enableDate": true,
+                          "enableTime": false
+                        }
                       },
                       {
                         "id": "during_end",
-                        "type": "TextField",
+                        "type": "DateTimeInput",
                         "weight": 1,
-                        "properties": { "label": { "literalString": "Until (optional)" }, "placeholder": { "literalString": "YYYY-MM-DD" }, "textFieldType": "shortText" }
+                        "properties": {
+                          "label": { "literalString": "Until" },
+                          "enableDate": true,
+                          "enableTime": false
+                        }
                       }
                     ]
                   }
@@ -417,16 +904,18 @@
             }
           },
 
-          { "id": "divider-exceptions", "type": "Divider", "properties": {} },
-          {
-            "id": "section-exceptions",
-            "type": "Text",
-            "properties": { "text": { "literalString": "Availability Exceptions" }, "usageHint": "h4" }
-          },
           {
             "id": "availability_exceptions",
             "type": "TextField",
-            "properties": { "label": { "literalString": "Availability Exceptions (optional)" }, "placeholder": { "literalString": "e.g. Closed on public holidays and the last Friday of each month" }, "textFieldType": "longText" }
+            "properties": {
+              "label": {
+                "literalString": "Availability Exceptions (optional)"
+              },
+              "placeholder": {
+                "literalString": "Describe any irregular availability rules, e.g. closed last Friday of each month"
+              },
+              "textFieldType": "longText"
+            }
           }
         ]
       }

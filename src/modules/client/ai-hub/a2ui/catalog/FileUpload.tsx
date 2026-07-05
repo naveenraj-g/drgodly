@@ -197,6 +197,8 @@ export function FileUpload({
     allowedMimeTypes.length > 0 ? allowedMimeTypes.join(",") : "image/*";
   const multiple = maxFiles > 1;
 
+  const autoUpload = component.properties.autoUpload !== false;
+
   return (
     <FileNestProvider
       projectId={process.env.NEXT_PUBLIC_FILENEST_PROJECT_ID!}
@@ -211,6 +213,7 @@ export function FileUpload({
         allowedMimeTypes={allowedMimeTypes}
         maxFiles={maxFiles}
         multiple={multiple}
+        autoUpload={autoUpload}
         weight={weight}
       />
     </FileNestProvider>
@@ -226,6 +229,8 @@ interface FileUploadInnerProps {
   allowedMimeTypes: string[];
   maxFiles: number;
   multiple: boolean;
+  /** When false, files are staged until the user clicks the Upload button. */
+  autoUpload: boolean;
   weight: string | number;
 }
 
@@ -249,12 +254,15 @@ function FileUploadInner({
   allowedMimeTypes,
   maxFiles,
   multiple,
+  autoUpload,
   weight,
 }: FileUploadInnerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  /** Files selected but not yet uploaded — only populated when autoUpload is false. */
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   /**
    * Map of filename → blob URL for local image preview.
@@ -359,20 +367,50 @@ function FileUploadInner({
     (files: File[]) => {
       if (!files.length) return;
       setError(null);
-      const toUpload =
+      const chosen =
         maxFiles === 1 ? [files[0]] : files.slice(0, maxFiles);
 
-      // Create blob URLs for image files so they're ready when handleComplete fires.
-      for (const file of toUpload) {
-        if (file.type.startsWith("image/")) {
-          pendingPreviewUrls.current[file.name] = URL.createObjectURL(file);
+      if (autoUpload) {
+        // Auto-upload: create preview URLs and upload immediately.
+        for (const file of chosen) {
+          if (file.type.startsWith("image/")) {
+            pendingPreviewUrls.current[file.name] = URL.createObjectURL(file);
+          }
         }
+        upload(chosen);
+      } else {
+        // Manual upload: stage the files — upload fires when the user clicks the button.
+        setPendingFiles((prev) =>
+          maxFiles === 1 ? chosen : [...prev, ...chosen].slice(0, maxFiles),
+        );
       }
-
-      upload(toUpload);
     },
-    [upload, maxFiles],
+    [upload, maxFiles, autoUpload],
   );
+
+  /**
+   * Removes a file from the pending (not-yet-uploaded) staging list.
+   *
+   * @param index - Index of the file to remove from pendingFiles.
+   */
+  const removePendingFile = useCallback((index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  /**
+   * Uploads all staged pending files. Called when the user clicks the Upload button.
+   * Creates preview URLs just before upload so handleComplete can attach them.
+   */
+  const uploadPending = useCallback(() => {
+    if (!pendingFiles.length) return;
+    for (const file of pendingFiles) {
+      if (file.type.startsWith("image/")) {
+        pendingPreviewUrls.current[file.name] = URL.createObjectURL(file);
+      }
+    }
+    upload(pendingFiles);
+    setPendingFiles([]);
+  }, [pendingFiles, upload]);
 
   /** Triggered by the hidden file input. Resets the input so the same file can be re-selected. */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -387,6 +425,23 @@ function FileUploadInner({
     setIsDragging(false);
     handleFiles(Array.from(e.dataTransfer.files));
   };
+
+  /**
+   * Opens the preview dialog for a pending (not-yet-uploaded) file by creating
+   * a temporary blob URL. The URL is revoked when the dialog closes.
+   *
+   * @param file - The staged File object to preview.
+   */
+  const previewPendingFile = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    setPreviewFile({
+      fileId:         `__pending__${file.name}`,
+      filename:       file.name,
+      contentType:    file.type,
+      sizeBytes:      file.size,
+      localObjectUrl: url,
+    });
+  }, []);
 
   /**
    * Removes a file from the list and revokes its blob URL to free memory.
@@ -434,8 +489,8 @@ function FileUploadInner({
         onChange={() => {}} // controlled; value is updated via state, not user input
       />
 
-      {/* Drop zone — hidden once max files are reached or an upload is in progress */}
-      {uploadedFiles.length < maxFiles && !isUploading && (
+      {/* Drop zone — hidden once max files are reached, an upload is in progress, or files are staged */}
+      {uploadedFiles.length + pendingFiles.length < maxFiles && !isUploading && (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -478,6 +533,72 @@ function FileUploadInner({
           <span className="text-xs text-muted-foreground shrink-0">
             {uploadProgress}%
           </span>
+        </div>
+      )}
+
+      {/* Staging list + upload button — only shown in manual mode when files are pending */}
+      {!autoUpload && pendingFiles.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2">
+            {pendingFiles.map((file, index) => (
+              <li
+                key={`${file.name}-${index}`}
+                className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-3 py-2"
+              >
+                <div className="size-8 rounded bg-muted flex items-center justify-center shrink-0">
+                  <File className="size-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {file.type} · {(file.size / 1024).toFixed(1)} KB · Pending
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {file.type.startsWith("image/") && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground hover:text-foreground"
+                          onClick={() => previewPendingFile(file)}
+                          aria-label={`Preview ${file.name}`}
+                        >
+                          <Eye className="size-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Preview</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => removePendingFile(index)}
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={uploadPending}
+            disabled={isUploading}
+            className="w-full"
+          >
+            <Upload className="size-4 mr-2" />
+            {pendingFiles.length === 1
+              ? "Upload file"
+              : `Upload ${pendingFiles.length} files`}
+          </Button>
         </div>
       )}
 
@@ -560,7 +681,15 @@ function FileUploadInner({
       {/* Image preview dialog */}
       <Dialog
         open={previewFile !== null}
-        onOpenChange={(open) => { if (!open) setPreviewFile(null); }}
+        onOpenChange={(open) => {
+          if (!open) {
+            // Revoke blob URLs created on-demand for pending file previews.
+            if (previewFile?.fileId.startsWith("__pending__") && previewFile.localObjectUrl) {
+              URL.revokeObjectURL(previewFile.localObjectUrl);
+            }
+            setPreviewFile(null);
+          }
+        }}
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>

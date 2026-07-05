@@ -13,6 +13,7 @@
  *   CheckBox / Switch → boolean
  *   TerminologySelect (code)            → single string value
  *   TerminologySelect (CodeableConcept) → four flat fields: {id}_code/system/display/text
+ *   TerminologySelect in RepeatableGroup (serverSearch) → same four fields, serialised via toJsonArray
  *   DynamicSelect                        → {id}_ref_id (int) + {id}_display (string)
  *   RepeatableGroup                     → JSON-encoded array via toJsonArray preprocessor
  */
@@ -95,6 +96,36 @@ const telecomRowSchema = z.object({
 });
 
 /**
+ * category row — single TerminologySelect (CodeableConcept), id "category".
+ */
+const categoryRowSchema = z.object({
+  category_code:    z.preprocess(toOptionalStr, z.string().optional()),
+  category_system:  z.preprocess(toOptionalStr, z.string().optional()),
+  category_display: z.preprocess(toOptionalStr, z.string().optional()),
+  category_text:    z.preprocess(toOptionalStr, z.string().optional()),
+});
+
+/**
+ * service_type row — single TerminologySelect (CodeableConcept), id "service_type".
+ */
+const serviceTypeRowSchema = z.object({
+  service_type_code:    z.preprocess(toOptionalStr, z.string().optional()),
+  service_type_system:  z.preprocess(toOptionalStr, z.string().optional()),
+  service_type_display: z.preprocess(toOptionalStr, z.string().optional()),
+  service_type_text:    z.preprocess(toOptionalStr, z.string().optional()),
+});
+
+/**
+ * specialty row — single TerminologySelect (CodeableConcept), id "specialty".
+ */
+const specialtyRowSchema = z.object({
+  specialty_code:    z.preprocess(toOptionalStr, z.string().optional()),
+  specialty_system:  z.preprocess(toOptionalStr, z.string().optional()),
+  specialty_display: z.preprocess(toOptionalStr, z.string().optional()),
+  specialty_text:    z.preprocess(toOptionalStr, z.string().optional()),
+});
+
+/**
  * service_provision_code row — single TerminologySelect (CodeableConcept).
  * TerminologySelect id inside RepeatableGroup is "service_provision_code",
  * so emitted hidden inputs are service_provision_code_code/system/display/text.
@@ -114,6 +145,15 @@ const programRowSchema = z.object({
   program_system:  z.preprocess(toOptionalStr, z.string().optional()),
   program_display: z.preprocess(toOptionalStr, z.string().optional()),
   program_text:    z.preprocess(toOptionalStr, z.string().optional()),
+});
+
+/**
+ * location row — DynamicSelect inside RepeatableGroup, id "location_select".
+ * Emits location_reference (template "Location/{id}") + location_display (name).
+ */
+const locationRowSchema = z.object({
+  location_reference: z.preprocess(toOptionalStr, z.string().optional()),
+  location_display:   z.preprocess(toOptionalStr, z.string().optional()),
 });
 
 /**
@@ -147,6 +187,22 @@ const referralMethodRowSchema = z.object({
 });
 
 /**
+ * identifier row — use (code), type coding, system URI, value (required),
+ * period_start/end, assigner.
+ */
+const identifierRowSchema = z.object({
+  use:          z.preprocess(toOptionalStr, z.string().optional()),
+  system:       z.preprocess(toOptionalStr, z.string().optional()),
+  value:        z.preprocess(toOptionalStr, z.string().optional()),
+  assigner:     z.preprocess(toOptionalStr, z.string().optional()),
+  period_start: z.preprocess(toOptionalStr, z.string().optional()),
+  period_end:   z.preprocess(toOptionalStr, z.string().optional()),
+  type_code:    z.preprocess(toOptionalStr, z.string().optional()),
+  type_system:  z.preprocess(toOptionalStr, z.string().optional()),
+  type_display: z.preprocess(toOptionalStr, z.string().optional()),
+});
+
+/**
  * not_available row — description (required text) + optional date range.
  */
 const notAvailableRowSchema = z.object({
@@ -165,7 +221,18 @@ export const healthcareServiceCreateSchema = z
     user_id: z.preprocess(toOptionalStr, z.string().optional()),
     org_id:  z.preprocess(toOptionalStr, z.string().optional()),
 
-    // ── Service Details ────────────────────────────────────────────────────
+    // ── Photo (FileUpload — optional, single image) ───────────────────────
+    service_photo: z
+      .object({
+        fileId:      z.string(),
+        filename:    z.string(),
+        contentType: z.string(),
+        sizeBytes:   z.number(),
+      })
+      .optional()
+      .nullable(),
+
+    // ── Service Details ───────��────────────────────────────────────────────
     name:                 z.preprocess(toOptionalStr, z.string().min(1, "Service name is required")),
     active:               z.boolean().optional(),
     appointment_required: z.boolean().optional(),
@@ -173,29 +240,20 @@ export const healthcareServiceCreateSchema = z
     extra_details:        z.preprocess(toOptionalStr, z.string().optional()),
     availability_exceptions: z.preprocess(toOptionalStr, z.string().optional()),
 
-    // ── Organisation & Location (DynamicSelect emits) ──────────────────────
-    org_ref_id:       z.preprocess(toOptionalInt, z.number().int().positive().optional()),
-    org_display:      z.preprocess(toOptionalStr, z.string().optional()),
-    location_ref_id:  z.preprocess(toOptionalInt, z.number().int().positive().optional()),
-    location_display: z.preprocess(toOptionalStr, z.string().optional()),
+    // ── Organisation (DynamicSelect emits) ────────────────────────────────
+    org_ref_id:  z.preprocess(toOptionalInt, z.number().int().positive().optional()),
+    org_display: z.preprocess(toOptionalStr, z.string().optional()),
 
-    // ── Classification — single TerminologySelect CodeableConcept each ─────
-    service_category_code:    z.preprocess(toOptionalStr, z.string().optional()),
-    service_category_system:  z.preprocess(toOptionalStr, z.string().optional()),
-    service_category_display: z.preprocess(toOptionalStr, z.string().optional()),
-    service_category_text:    z.preprocess(toOptionalStr, z.string().optional()),
+    // ── Locations (RepeatableGroup + DynamicSelect) ────────────────────────
+    locations: z.preprocess(toJsonArray, z.array(locationRowSchema).optional()),
 
-    service_type_code:    z.preprocess(toOptionalStr, z.string().optional()),
-    service_type_system:  z.preprocess(toOptionalStr, z.string().optional()),
-    service_type_display: z.preprocess(toOptionalStr, z.string().optional()),
-    service_type_text:    z.preprocess(toOptionalStr, z.string().optional()),
-
-    specialty_code:    z.preprocess(toOptionalStr, z.string().optional()),
-    specialty_system:  z.preprocess(toOptionalStr, z.string().optional()),
-    specialty_display: z.preprocess(toOptionalStr, z.string().optional()),
-    specialty_text:    z.preprocess(toOptionalStr, z.string().optional()),
+    // ── Classification — RepeatableGroup arrays ───────────────────────────
+    categories:   z.preprocess(toJsonArray, z.array(categoryRowSchema).optional()),
+    service_types: z.preprocess(toJsonArray, z.array(serviceTypeRowSchema).optional()),
+    specialties:  z.preprocess(toJsonArray, z.array(specialtyRowSchema).optional()),
 
     // ── RepeatableGroup arrays ─────────────────────────────────────────────
+    identifiers:            z.preprocess(toJsonArray, z.array(identifierRowSchema).optional()),
     service_provision_codes: z.preprocess(toJsonArray, z.array(serviceProvisionCodeRowSchema).optional()),
     telecoms:               z.preprocess(toJsonArray, z.array(telecomRowSchema).optional()),
     programs:               z.preprocess(toJsonArray, z.array(programRowSchema).optional()),
@@ -239,6 +297,58 @@ export const healthcareServiceCreateSchema = z
         rank:   row.rank,
       }))
       .filter((row) => row.system || row.value);
+
+    // ── Identifiers ───────────────────────────────────────────────────────
+    const identifiers = d.identifiers
+      ?.map((row) => ({
+        use:          row.use          || undefined,
+        system:       row.system       || undefined,
+        value:        row.value,
+        assigner:     row.assigner     || undefined,
+        period_start: row.period_start || undefined,
+        period_end:   row.period_end   || undefined,
+        type_system:  row.type_system  || undefined,
+        type_code:    row.type_code    || undefined,
+        type_display: row.type_display || undefined,
+      }))
+      .filter((r) => r.value);
+
+    // ── Location array ────────────────────────────────────────────────────
+    const locations = d.locations
+      ?.map((row) => ({
+        reference:         row.location_reference,
+        reference_display: row.location_display || undefined,
+      }))
+      .filter((r) => r.reference);
+
+    // ── Classification arrays ──────────────────────────────────────────────
+
+    const categories = d.categories
+      ?.map((row) => ({
+        coding_system:  row.category_system,
+        coding_code:    row.category_code,
+        coding_display: row.category_display,
+        text:           row.category_text,
+      }))
+      .filter((r) => r.coding_code);
+
+    const serviceTypes = d.service_types
+      ?.map((row) => ({
+        coding_system:  row.service_type_system,
+        coding_code:    row.service_type_code,
+        coding_display: row.service_type_display,
+        text:           row.service_type_text,
+      }))
+      .filter((r) => r.coding_code);
+
+    const specialties = d.specialties
+      ?.map((row) => ({
+        coding_system:  row.specialty_system,
+        coding_code:    row.specialty_code,
+        coding_display: row.specialty_display,
+        text:           row.specialty_text,
+      }))
+      .filter((r) => r.coding_code);
 
     // ── CodeableConcept array builders ────────────────────────────────────
 
@@ -291,6 +401,13 @@ export const healthcareServiceCreateSchema = z
       user_id: d.user_id,
       org_id:  d.org_id,
 
+      // Photo (FHIR Attachment flattened)
+      photo_url:          d.service_photo?.fileId      || undefined,
+      photo_content_type: d.service_photo?.contentType || undefined,
+      photo_title:        d.service_photo?.filename    || undefined,
+      photo_size:         d.service_photo?.sizeBytes   ?? undefined,
+      photo_creation:     d.service_photo              ? new Date().toISOString() : undefined,
+
       // Scalars
       name:                    d.name,
       active:                  d.active ?? true,
@@ -303,25 +420,16 @@ export const healthcareServiceCreateSchema = z
       provided_by:         d.org_ref_id ? `Organization/${d.org_ref_id}` : undefined,
       provided_by_display: d.org_display || undefined,
 
-      // Classification — single-item arrays (backend expects array even for one)
-      category: d.service_category_code
-        ? [{ coding_system: d.service_category_system, coding_code: d.service_category_code, coding_display: d.service_category_display, text: d.service_category_text }]
-        : undefined,
-
-      type: d.service_type_code
-        ? [{ coding_system: d.service_type_system, coding_code: d.service_type_code, coding_display: d.service_type_display, text: d.service_type_text }]
-        : undefined,
-
-      specialty: d.specialty_code
-        ? [{ coding_system: d.specialty_system, coding_code: d.specialty_code, coding_display: d.specialty_display, text: d.specialty_text }]
-        : undefined,
+      // Classification arrays
+      category:  categories?.length  ? categories  : undefined,
+      type:      serviceTypes?.length ? serviceTypes : undefined,
+      specialty: specialties?.length  ? specialties  : undefined,
 
       // Location reference array
-      location: d.location_ref_id
-        ? [{ reference: `Location/${d.location_ref_id}`, reference_display: d.location_display || undefined }]
-        : undefined,
+      location: locations?.length ? locations : undefined,
 
       // Arrays from RepeatableGroups
+      identifier:             identifiers?.length            ? identifiers            : undefined,
       service_provision_code: serviceProvisionCodes?.length ? serviceProvisionCodes : undefined,
       telecom:                telecoms?.length                ? telecoms              : undefined,
       program:                programs?.length                ? programs              : undefined,

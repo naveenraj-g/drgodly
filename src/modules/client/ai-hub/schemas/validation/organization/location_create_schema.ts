@@ -113,14 +113,18 @@ export const locationCreateSchema = z
       z.string().min(1, "Organisation session not found"),
     ),
 
-    // From step 1 context.outputs → sessionContext
-    organization_id: z.preprocess(
-      toPositiveInt,
-      z
-        .number()
-        .int()
-        .positive("Organisation ID is missing — complete step 1 first"),
+    // DynamicSelect id="managing_org" emits managing_org_ref_id + managing_org_display
+    managing_org_ref_id: z.preprocess(
+      (v) => {
+        if (v === undefined || v === null) return undefined;
+        const s = String(v);
+        if (s === "" || s === "undefined" || s === "null") return undefined;
+        const n = Number(s);
+        return isNaN(n) ? undefined : Math.floor(n);
+      },
+      z.number().int().positive().optional(),
     ),
+    managing_org_display: z.preprocess(toOptionalStr, z.string().optional()),
 
     // Core
     name: z.preprocess(
@@ -250,9 +254,11 @@ export const locationCreateSchema = z
       // Filter out empty rows (user added a row but filled nothing)
       types: d.types?.filter((t) => t.coding_code || t.text) || undefined,
 
-      // Link to the organisation created in step 1
-      managing_organization: `Organization/${d.organization_id}`,
-      managing_organization_display: undefined,
+      // Managing organisation from DynamicSelect
+      managing_organization: d.managing_org_ref_id
+        ? `Organization/${d.managing_org_ref_id}`
+        : undefined,
+      managing_organization_display: d.managing_org_display || undefined,
 
       address_use: d.address_use || undefined,
       address_type: d.address_type || undefined,

@@ -17,6 +17,7 @@ import appointmentPickSlotForm from "./appointment_pick_slot_form.json";
 import appointmentConfirmBookingForm from "./appointment_confirm_booking_form.json";
 import orgCreateForm from "./org_create_form.json";
 import orgLocationCreateForm from "./org_location_create_form.json";
+import locationCreateForm from "./location_create_form.json";
 import healthcareServiceCreateForm from "./healthcare_service_create_form.json";
 import practitionerCreateForm from "./practitioner_create_form.json";
 import practitionerNameForm from "./practitioner_name_form.json";
@@ -76,6 +77,7 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   appointment_confirm_booking_form: appointmentConfirmBookingForm,
   org_create_form: orgCreateForm,
   org_location_create_form: orgLocationCreateForm,
+  location_create_form: locationCreateForm,
   healthcare_service_create_form: healthcareServiceCreateForm,
   practitioner_create_form: practitionerCreateForm,
   practitioner_name_form: practitionerNameForm,
