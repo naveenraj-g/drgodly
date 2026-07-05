@@ -10,6 +10,8 @@ import { AppLauncher } from "./AppLauncher";
 import { NavUser } from "../NavUser";
 import LocaleSwitcher from "../LocaleSwitcher";
 import { ThemeSwitcher } from "@/theme/ThemeSwitcher";
+import BreadCrumb from "@/modules/client/shared/components/BreadCrumb";
+import { useRouteConfig } from "@/modules/client/shared/hooks/useRouteConfig";
 
 type TUser = {
   name: string;
@@ -21,6 +23,7 @@ type TUser = {
 const AppNavbar = ({ user, apps }: { user: TUser; apps: unknown[] }) => {
   const [scrolled, setScrolled] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  const { navbarBreadcrumbs } = useRouteConfig();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,6 +50,12 @@ const AppNavbar = ({ user, apps }: { user: TUser; apps: unknown[] }) => {
           />
           <Separator orientation="vertical" className="h-6!" />
           <CommandSearch apps={apps} user={user} />
+          {navbarBreadcrumbs && (
+            <>
+              <Separator orientation="vertical" className="h-6!" />
+              <BreadCrumb className="[&_ol]:gap-1.5 [&_a]:text-sm [&_.text-primary]:text-sm" />
+            </>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <LocaleSwitcher />

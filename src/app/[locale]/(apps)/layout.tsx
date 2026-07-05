@@ -1,6 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getServerSession } from "@/modules/server/auth/get-session";
-import BreadCrumb from "@/modules/client/shared/components/BreadCrumb";
+import LayoutBreadCrumb from "@/modules/client/shared/components/LayoutBreadCrumb";
 import AppNavbar from "@/modules/client/shared/components/navbar/AppNavbar";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
@@ -36,7 +36,7 @@ const AppsLayout = async ({ children }: { children: React.ReactNode }) => {
       <SidebarInset className="min-w-0 h-dvh overflow-hidden">
         <AppNavbar user={user} apps={apps} />
         <main className="flex-1 min-h-0 overflow-y-auto mx-auto px-4 py-4 pb-6 max-w-[110rem] space-y-6 w-full">
-          <BreadCrumb />
+          <LayoutBreadCrumb />
           <div className="w-full">{children}</div>
         </main>
       </SidebarInset>

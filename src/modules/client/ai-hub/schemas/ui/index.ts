@@ -1,4 +1,5 @@
 import patientCreateForm from "./patient_create_form.json";
+import adminPatientCreateForm from "./admin_patient_create_form.json";
 import patientNameForm from "./patient_name_form.json";
 import patientIdentifierForm from "./patient_identifier_form.json";
 import patientTelecomForm from "./patient_telecom_form.json";
@@ -20,6 +21,7 @@ import orgLocationCreateForm from "./org_location_create_form.json";
 import locationCreateForm from "./location_create_form.json";
 import healthcareServiceCreateForm from "./healthcare_service_create_form.json";
 import practitionerCreateForm from "./practitioner_create_form.json";
+import adminPractitionerCreateForm from "./admin_practitioner_create_form.json";
 import practitionerNameForm from "./practitioner_name_form.json";
 import practitionerIdentifierForm from "./practitioner_identifier_form.json";
 import practitionerTelecomForm from "./practitioner_telecom_form.json";
@@ -59,6 +61,7 @@ import provenanceCreateForm from "./provenance_create_form.json";
 /** Maps the workflow step's ui.schema name to the component tree JSON. */
 export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   patient_create_form: patientCreateForm,
+  admin_patient_create_form: adminPatientCreateForm,
   patient_name_form: patientNameForm,
   patient_identifier_form: patientIdentifierForm,
   patient_telecom_form: patientTelecomForm,
@@ -80,6 +83,7 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   location_create_form: locationCreateForm,
   healthcare_service_create_form: healthcareServiceCreateForm,
   practitioner_create_form: practitionerCreateForm,
+  admin_practitioner_create_form: adminPractitionerCreateForm,
   practitioner_name_form: practitionerNameForm,
   practitioner_identifier_form: practitionerIdentifierForm,
   practitioner_telecom_form: practitionerTelecomForm,

@@ -1,9 +1,10 @@
 {
   "id": "create_schedule_with_slots",
   "name": "Create Schedule with Slots",
-  "description": "Set up a practitioner's availability schedule and add individual bookable time slots in two steps.",
+  "description": "Set up an availability schedule with practitioner roles, locations, and healthcare services as actors, then add individual bookable time slots in two steps.",
   "version": "1.0.0",
   "tags": ["fhir", "schedule", "slot", "create", "scheduling"],
+  "required_permissions": ["schedule:create", "slot:create"],
   "llm_hints": {
     "intent_examples": [
       "Create a schedule",
@@ -39,7 +40,7 @@
       "id": "create_schedule_resource",
       "name": "Create Schedule",
       "step_type": "form",
-      "description": "Define the planning horizon and link to a practitioner role.",
+      "description": "Define the planning horizon and assign actor resources (practitioner roles, locations, healthcare services).",
       "context": {
         "inputs": {},
         "outputs": {
@@ -50,32 +51,7 @@
           }
         }
       },
-      "context_resolvers": [
-        {
-          "description": "Load practitioners available for booking.",
-          "context_key": "booking_practitioners",
-          "tool_name": "list_practitioners_for_booking",
-          "url": "$fhir_gql_url/practitioner-roles/booking",
-          "method": "GET",
-          "timeout_ms": 10000
-        },
-        {
-          "description": "Fetch specialty value set.",
-          "context_key": "specialty_concepts",
-          "tool_name": "get_specialty_valueset",
-          "url": "$fhir_gql_url/terminology/concepts?resource=Schedule&field=specialty",
-          "method": "GET",
-          "timeout_ms": 8000
-        },
-        {
-          "description": "Fetch service-type value set.",
-          "context_key": "service_type_concepts",
-          "tool_name": "get_service_type_valueset",
-          "url": "$fhir_gql_url/terminology/concepts?resource=Schedule&field=serviceType",
-          "method": "GET",
-          "timeout_ms": 8000
-        }
-      ],
+      "context_resolvers": [],
       "ui": {
         "schema": "schedule_create_form",
         "mode": "create",

@@ -207,3 +207,113 @@ Source: `http://terminology.hl7.org/CodeSystem/v2-0276`
 | Schedule | `actor[]` → PractitionerRole / Location / Device / HealthcareService / Practitioner |
 | Slot | `schedule` → Schedule |
 | Appointment | `slot[]` → Slot, `participant[].actor` → Patient / Practitioner / Location / HealthcareService |
+
+---
+
+## Real-World Patient Flow (Location-First)
+
+In practice a patient doesn't start at an Organization — they start at a **nearby location**.
+The flow is geo-first:
+
+```
+Step 1 — Fetch nearby Locations
+  Query: Location where address/GPS matches patient's area
+  Returns: [Location/10, Location/11, ...]
+
+Step 2 — Patient selects a service
+  Query: HealthcareService where
+    location includes Location/10
+  Returns: HealthcareService/100 (General Practice Consultation)
+
+Step 3 — Find Schedules
+  Query: Schedule where
+    actor includes HealthcareService/100
+    actor includes Location/10
+  Returns: [Schedule/400, Schedule/401]
+
+Step 4 — Find free Slots
+  Query: Slot where
+    schedule in [Schedule/400, Schedule/401]
+    status = free
+    start >= today
+  Returns: all bookable slots across matched schedules
+
+Step 5 — Patient picks a Slot → Appointment created → Slot.status = busy
+```
+
+---
+
+## The Organization Gap
+
+**Schedule and Slot have no direct Organization or HealthcareService field.**
+You cannot query "all free slots for Organization X" in one step.
+
+The ownership chain must always be traversed indirectly:
+
+```
+Organization
+  └── Location          (Location.managingOrganization    → Organization)
+  └── HealthcareService (HealthcareService.providedBy     → Organization)
+                         (HealthcareService.location       → Location)
+  └── PractitionerRole  (PractitionerRole.organization    → Organization)
+                         (PractitionerRole.location        → Location)
+                         (PractitionerRole.healthcareService → HealthcareService)
+        └── Schedule    (Schedule.actor[] → PractitionerRole + Location + HealthcareService)
+              └── Slot  (Slot.schedule → Schedule)
+```
+
+**Without HealthcareService + Location as Schedule actors:**
+```
+Patient selects HealthcareService/100
+  → query PractitionerRoles where healthcareService = HealthcareService/100   ← round trip 1
+  → query Schedules where actor includes those PractitionerRoles               ← round trip 2
+  → query free Slots                                                           ← round trip 3
+```
+
+**With HealthcareService + Location as Schedule actors:**
+```
+Patient selects HealthcareService/100 + Location/10
+  → query Schedules where actor includes HealthcareService/100 AND Location/10 ← 1 query
+  → query free Slots                                                            ← 1 query
+```
+
+Including HealthcareService and Location as actors on the Schedule is therefore
+not just an optimization — it is what makes the geo-first query chain **possible
+without extra round trips**.
+
+> **Note:** HealthcareService in `actor[]` acts as a lookup tag only — it has no
+> availability state of its own and does not restrict when slots are generated.
+> Only PractitionerRole and Location are real availability constraints.
+
+---
+
+## One PractitionerRole → One Schedule (Appointment Booking Rule)
+
+In an appointment booking scenario, each PractitionerRole has its own Schedule
+per planning period and location.
+
+```
+PractitionerRole/300  (Dr. A — works at Location/10 and Location/11)
+  → Schedule/400   actor: [PractitionerRole/300, Location/10, HealthcareService/100]
+  → Schedule/401   actor: [PractitionerRole/300, Location/11, HealthcareService/100]
+
+PractitionerRole/301  (Dr. B — works at Location/10 only)
+  → Schedule/402   actor: [PractitionerRole/301, Location/10, HealthcareService/100]
+```
+
+**Why not one Schedule for two PractitionerRoles?**
+
+`actor[]` is an **AND condition** — every actor must be free simultaneously for a slot
+to be generated. Two PractitionerRoles on the same Schedule would mean both doctors
+must be available at the same time and place. This almost never holds in practice,
+so slots would rarely (or never) be created.
+
+| Actor combination | AND constraint valid? |
+|---|---|
+| `PractitionerRole` + `Location` | Yes — doctor AND room must both be free |
+| `PractitionerRole` + `HealthcareService` | HealthcareService is a tag, not an availability constraint |
+| `PractitionerRole/300` + `PractitionerRole/301` | No — two independent doctors need separate Schedules |
+
+At booking time the UI merges free Slots from all relevant Schedules into a single
+calendar view. The "choosing between doctors" logic happens at the query level,
+not inside a shared Schedule.

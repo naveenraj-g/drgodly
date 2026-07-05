@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
 import { capitalizeString } from "@/modules/shared/helper";
-
 const isProbablyId = (segment: string) => /^[0-9a-fA-F-]{6,}$/.test(segment);
 
 export default function BreadCrumb({ className = "" }: { className?: string }) {

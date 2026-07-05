@@ -57,6 +57,7 @@ import { MessageList } from "./emr-chat/MessageList";
 import { ChatInput } from "./emr-chat/ChatInput";
 import { WorkflowLauncher } from "./emr-chat/WorkflowLauncher";
 import { buildMarkdownNode, getSortedSteps } from "./emr-chat/utils";
+import { useRouteConfig } from "@/modules/client/shared/hooks/useRouteConfig";
 
 // ── Singleton processor (one per chat session in memory) ─────────────────────
 const processor = createMessageProcessor();
@@ -122,6 +123,14 @@ export default function EMRChatContainer({
     openHistory,
     closeHistory,
   } = useEmrChatStore();
+
+  // When breadcrumbs are hidden in the main area (e.g. EMR chat, which shows
+  // them in the navbar instead), the available height is larger — use a smaller
+  // offset so the chat fills the viewport correctly.
+  const { breadcrumbs } = useRouteConfig();
+  const containerHeight = breadcrumbs
+    ? "h-[calc(100dvh-160px)]"
+    : "h-[calc(100dvh-108px)]";
 
   // ── Local state ───────────────────────────────────────────────────────────
 
@@ -276,7 +285,10 @@ export default function EMRChatContainer({
               id: `injected-complete-${wf.id}`,
               role: "assistant",
               ui: buildMarkdownNode(completionText),
-              workflowComplete: { workflowId: wf.workflowId, workflowName: wf.workflowName },
+              workflowComplete: {
+                workflowId: wf.workflowId,
+                workflowName: wf.workflowName,
+              },
             },
           });
         } else if (wf.status === "ABANDONED" || wf.status === "ERROR") {
@@ -328,8 +340,7 @@ export default function EMRChatContainer({
         ? (initialSession.activeWorkflow
             .workflowDefinition as unknown as WorkflowDefinition)
         : null,
-      currentStepIndex:
-        initialSession.activeWorkflow?.currentStepIndex ?? null,
+      currentStepIndex: initialSession.activeWorkflow?.currentStepIndex ?? null,
     });
 
     if (initialSession.activeWorkflow) {
@@ -372,7 +383,12 @@ export default function EMRChatContainer({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-160px)] overflow-hidden rounded-lg border border-border bg-background">
+    <div
+      className={cn(
+        "flex flex-col overflow-hidden rounded-lg border border-border bg-background",
+        containerHeight,
+      )}
+    >
       {/* Top bar — includes the Chat / Workflows / UI Schemas tab toggle */}
       <ChatTopbar
         title={activeSessionTitle}

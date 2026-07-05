@@ -51,8 +51,11 @@ import record_immunization from "@/modules/client/ai-hub/workflows/orders/record
 import create_organization from "@/modules/client/ai-hub/workflows/organization/create_organization.json";
 // ── Patient ───────────────────────────────────────────────────────────────────
 import create_patient from "@/modules/client/ai-hub/workflows/patient/create_patient.json";
+import admin_create_patient from "@/modules/client/ai-hub/workflows/patient/admin_create_patient.json";
 // ── Practitioner ──────────────────────────────────────────────────────────────
 import create_practitioner from "@/modules/client/ai-hub/workflows/practitioner/create_practitioner.json";
+import admin_create_practitioner from "@/modules/client/ai-hub/workflows/practitioner/admin_create_practitioner.json";
+import create_practitioner_role from "@/modules/client/ai-hub/workflows/practitioner/create_practitioner_role.json";
 import upload_practitioner_photo from "@/modules/client/ai-hub/workflows/practitioner/upload_practitioner_photo.json";
 // ── Related Person ────────────────────────────────────────────────────────────
 import create_related_person from "@/modules/client/ai-hub/workflows/related_person/create_related_person.json";
@@ -84,6 +87,10 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   {
     category: "Patient",
     workflow: create_patient as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Patient",
+    workflow: admin_create_patient as unknown as WorkflowDefinition,
   },
   // {
   //   category: "Appointment",
@@ -179,6 +186,14 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   },
   {
     category: "Practitioner",
+    workflow: admin_create_practitioner as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Practitioner",
+    workflow: create_practitioner_role as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Practitioner",
     workflow: upload_practitioner_photo as unknown as WorkflowDefinition,
   },
   // {
@@ -189,10 +204,10 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
     category: "Healthcare Service",
     workflow: create_healthcare_service as unknown as WorkflowDefinition,
   },
-  // {
-  //   category: "Schedule",
-  //   workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
-  // },
+  {
+    category: "Schedule",
+    workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
+  },
   // {
   //   category: "Vitals",
   //   workflow: view_vitals_dashboard as unknown as WorkflowDefinition,
