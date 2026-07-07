@@ -108,6 +108,119 @@ export interface Slider {
   maxValue?: number;
 }
 
+export interface DatePicker {
+  /**
+   * Selection mode.
+   * - "single"   → one date; outputs one hidden input with id = component.id
+   * - "range"    → start + end; outputs two inputs: {id}_from and {id}_to
+   * - "multiple" → arbitrary dates; outputs one hidden input as a JSON array
+   * Default: "single"
+   */
+  mode?: "single" | "range" | "multiple";
+
+  /** Label displayed above the trigger button. */
+  label?: StringValue;
+
+  /** Placeholder text shown in the trigger when no date is selected. */
+  placeholder?: StringValue;
+
+  /**
+   * Pre-filled date value (parsed as ISO YYYY-MM-DD or any valid Date string).
+   * In "range" mode this seeds the start / from date.
+   * Supports context path references: { path: "$schedule_start" }
+   */
+  value?: StringValue;
+
+  /**
+   * Pre-filled range end date.
+   * Only consumed when mode="range".
+   * Supports context path references: { path: "$schedule_end" }
+   */
+  valueTo?: StringValue;
+
+  /**
+   * date-fns format token string written to the hidden input(s) — this is what
+   * the backend receives. Default: "yyyy-MM-dd"
+   * Examples: "yyyy-MM-dd", "yyyy-MM-dd'T'HH:mm:ss", "MM/dd/yyyy"
+   */
+  outputFormat?: string;
+
+  /**
+   * date-fns format token string displayed inside the trigger button.
+   * Default: "PPP" (e.g., "Jul 7, 2025")
+   * Examples: "PPP", "dd MMM yyyy", "EEE, MMM d"
+   */
+  displayFormat?: string;
+
+  /**
+   * Minimum selectable date — days before this are greyed out and unclickable.
+   * Supports context path: { path: "$schedule_horizon_start" }
+   * Navigation is also clamped so the calendar cannot go before this month.
+   */
+  fromDate?: StringValue;
+
+  /**
+   * Maximum selectable date — days after this are greyed out and unclickable.
+   * Supports context path: { path: "$schedule_horizon_end" }
+   * Navigation is clamped so the calendar cannot go past this month.
+   */
+  toDate?: StringValue;
+
+  /**
+   * Caption layout style for the month/year header.
+   * - "label"           → plain text (default)
+   * - "dropdown"        → dropdowns for both month and year
+   * - "dropdown-months" → month dropdown, year as text
+   * - "dropdown-years"  → year dropdown, month as text
+   */
+  captionLayout?: "label" | "dropdown" | "dropdown-months" | "dropdown-years";
+
+  /**
+   * Number of calendar months rendered side by side.
+   * Default: 1 for "single"/"multiple" mode, 2 for "range" mode.
+   */
+  numberOfMonths?: number;
+
+  /**
+   * Show days from the previous/next months in the current month grid.
+   * Default: true
+   */
+  showOutsideDays?: boolean;
+
+  /**
+   * First day of the week: 0 = Sunday, 1 = Monday, …, 6 = Saturday.
+   * Default: 1 (Monday — ISO standard)
+   */
+  weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+  /**
+   * Disable the entire picker (trigger becomes non-interactive).
+   * Supports BooleanValue: true | false | { literalBoolean: true } | { path: "..." }
+   * Default: false
+   */
+  disabled?: boolean | BooleanValue;
+
+  /**
+   * Render a required indicator (*) next to the label.
+   * Default: false
+   */
+  required?: boolean;
+
+  /** Named class slots for targeting specific DOM layers of this component. */
+  classNames?: {
+    /** Outer wrapper div (space-y-2 + flex). */
+    root?: string;
+    /** The <Label> element above the trigger. */
+    label?: string;
+    /** The Popover trigger <Button>. */
+    trigger?: string;
+    /** The PopoverContent panel wrapper. */
+    content?: string;
+    /** The <Calendar> component root. */
+    calendar?: string;
+  };
+}
+
 export interface DateTimeInput {
   label?: StringValue;
   value?: StringValue;
@@ -547,6 +660,11 @@ export interface CheckboxNode extends BaseComponentNode {
 export interface TextFieldNode extends BaseComponentNode {
   type: "TextField";
   properties: TextField;
+}
+
+export interface DatePickerNode extends BaseComponentNode {
+  type: "DatePicker";
+  properties: DatePicker;
 }
 
 export interface DateTimeInputNode extends BaseComponentNode {
@@ -1006,6 +1124,7 @@ export type AnyComponentNode =
   | ButtonNode
   | CheckboxNode
   | TextFieldNode
+  | DatePickerNode
   | DateTimeInputNode
   | MultipleChoiceNode
   | SliderNode

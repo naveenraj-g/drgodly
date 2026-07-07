@@ -10,6 +10,7 @@ import { Modal } from "../catalog/modal";
 import { Checkbox } from "../catalog/checkbox";
 import { TextField } from "../catalog/text-field";
 import { DateTimeInput } from "../catalog/datetime-input";
+import { DatePicker } from "../catalog/DatePicker";
 import { Slider } from "../catalog/slider";
 import { MultipleChoice } from "../catalog/multiple-choice";
 import { List } from "../catalog/list";
@@ -66,6 +67,7 @@ export const DEFAULT_CATALOG: Catalog = {
   CheckBox: { component: Checkbox },
   TextField: { component: TextField },
   DateTimeInput: { component: DateTimeInput },
+  DatePicker: { component: DatePicker },
   Slider: { component: Slider },
   MultipleChoice: { component: MultipleChoice },
   List: { component: List },
