@@ -64,8 +64,8 @@
                     "label": { "literalString": "Start Date" },
                     "placeholder": { "literalString": "Pick start date…" },
                     "mode": "single",
-                    "fromDate": { "path": "planning_horizon_start" },
-                    "toDate": { "path": "planning_horizon_end" },
+                    "fromDate": "$planning_horizon_start",
+                    "toDate": "$planning_horizon_end",
                     "captionLayout": "dropdown",
                     "outputFormat": "yyyy-MM-dd",
                     "required": true
@@ -79,8 +79,8 @@
                     "label": { "literalString": "End Date" },
                     "placeholder": { "literalString": "Pick end date…" },
                     "mode": "single",
-                    "fromDate": { "path": "planning_horizon_start" },
-                    "toDate": { "path": "planning_horizon_end" },
+                    "fromDate": "$planning_horizon_start",
+                    "toDate": "$planning_horizon_end",
                     "captionLayout": "dropdown",
                     "outputFormat": "yyyy-MM-dd",
                     "required": true
