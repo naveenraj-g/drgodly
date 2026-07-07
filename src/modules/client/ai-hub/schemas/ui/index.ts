@@ -31,6 +31,8 @@ import practitionerPhotoUploadForm from "./practitioner_photo_upload_form.json";
 import practitionerRoleCreateForm from "./practitioner_role_create_form.json";
 import scheduleCreateForm from "./schedule_create_form.json";
 import slotCreateForm from "./slot_create_form.json";
+import selectScheduleForm from "./select_schedule_form.json";
+import generateSlotsForm from "./generate_slots_form.json";
 import relatedPersonCreateForm from "./related_person_create_form.json";
 import coverageCreateForm from "./coverage_create_form.json";
 import medicationCreateForm from "./medication_create_form.json";
@@ -93,6 +95,8 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   practitioner_role_create_form: practitionerRoleCreateForm,
   schedule_create_form: scheduleCreateForm,
   slot_create_form: slotCreateForm,
+  select_schedule_form: selectScheduleForm,
+  generate_slots_form: generateSlotsForm,
   related_person_create_form: relatedPersonCreateForm,
   coverage_create_form: coverageCreateForm,
   medication_create_form: medicationCreateForm,

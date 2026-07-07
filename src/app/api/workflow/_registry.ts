@@ -64,6 +64,7 @@ import create_diagnostic_report from "@/modules/client/ai-hub/workflows/results/
 import create_document_reference from "@/modules/client/ai-hub/workflows/results/create_document_reference.json";
 // ── Schedule ──────────────────────────────────────────────────────────────────
 import create_schedule_with_slots from "@/modules/client/ai-hub/workflows/schedule/create_schedule_with_slots.json";
+import generate_slots from "@/modules/client/ai-hub/workflows/schedule/generate_slots.json";
 // ── Vitals ────────────────────────────────────────────────────────────────────
 import view_vitals_dashboard from "@/modules/client/ai-hub/workflows/vitals/view_vitals_dashboard.json";
 import view_vitals_table from "@/modules/client/ai-hub/workflows/vitals/view_vitals_table.json";
@@ -207,6 +208,10 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   {
     category: "Schedule",
     workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Schedule",
+    workflow: generate_slots as unknown as WorkflowDefinition,
   },
   // {
   //   category: "Vitals",
