@@ -48,6 +48,16 @@
             "type": "integer",
             "resource": "Schedule",
             "field": "id"
+          },
+          "planning_horizon_start": {
+            "type": "string",
+            "resource": "Schedule",
+            "field": "planning_horizon_start"
+          },
+          "planning_horizon_end": {
+            "type": "string",
+            "resource": "Schedule",
+            "field": "planning_horizon_end"
           }
         }
       },
@@ -79,37 +89,15 @@
       "description": "Add individual bookable time slots for this schedule.",
       "context": {
         "inputs": {
-          "schedule_id": { "type": "integer", "source": "workflow" }
+          "schedule_id": { "type": "integer", "source": "workflow" },
+          "planning_horizon_start": { "type": "string", "source": "workflow" },
+          "planning_horizon_end": { "type": "string", "source": "workflow" }
         },
         "outputs": {}
       },
-      "context_resolvers": [
-        {
-          "description": "Confirm the schedule exists.",
-          "tool_name": "get_schedule_by_id",
-          "url": "$fhir_gql_url/schedules/$schedule_id",
-          "method": "GET",
-          "timeout_ms": 10000
-        },
-        {
-          "description": "Fetch slot-status value set.",
-          "context_key": "slot_status_concepts",
-          "tool_name": "get_slot_status_valueset",
-          "url": "$fhir_gql_url/terminology/concepts?resource=Slot&field=status",
-          "method": "GET",
-          "timeout_ms": 8000
-        },
-        {
-          "description": "Fetch appointment-type value set for slot classification.",
-          "context_key": "appointment_type_concepts",
-          "tool_name": "get_appointment_type_valueset",
-          "url": "$fhir_gql_url/terminology/concepts?resource=Slot&field=appointmentType",
-          "method": "GET",
-          "timeout_ms": 8000
-        }
-      ],
+      "context_resolvers": [],
       "ui": {
-        "schema": "slot_create_form",
+        "schema": "generate_slots_form",
         "mode": "create",
         "prefill": false,
         "editable": true
@@ -117,14 +105,13 @@
       "actions": [
         {
           "type": "http",
-          "purpose": "create_slot",
-          "tool_name": "create_slot",
-          "url": "$fhir_gql_url/slots/",
+          "purpose": "generate_slots",
+          "tool_name": "generate_slots",
+          "url": "$fhir_gql_url/slots/generate",
           "method": "POST",
-          "iterate_key": "slots",
-          "validation_schema": "slot_create_schema",
+          "validation_schema": "generate_slots_schema",
           "retryable": false,
-          "timeout_ms": 10000
+          "timeout_ms": 30000
         }
       ]
     }

@@ -24,7 +24,7 @@
             "type": "Text",
             "properties": {
               "text": {
-                "literalString": "Generating slots for Schedule/$schedule_id. Pick the date range within the planning horizon, then set a slot duration. One free slot is created per interval."
+                "literalString": "Pick the date range within the planning horizon, then set a slot duration. One free slot is created per interval."
               },
               "usageHint": "caption"
             }

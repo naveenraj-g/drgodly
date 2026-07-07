@@ -170,10 +170,11 @@ export default function A2UIChatPage() {
         }
 
         const uiSchema = UI_SCHEMA_REGISTRY[step.ui?.schema ?? ""] ?? null;
-        const parsedUi = buildUiFromData(uiSchema, {
+        const mergedStepData = {
           ...(data.stepData ?? {}),
           ...(data.sessionContext ?? {}),
-        });
+        };
+        const parsedUi = buildUiFromData(uiSchema, mergedStepData);
 
         addMessage({
           id: crypto.randomUUID(),

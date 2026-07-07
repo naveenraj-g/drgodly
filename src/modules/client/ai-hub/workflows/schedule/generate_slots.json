@@ -45,6 +45,11 @@
       "context": {
         "inputs": {},
         "outputs": {
+          "schedule_id": {
+            "type": "integer",
+            "resource": "Schedule",
+            "field": "id"
+          },
           "planning_horizon_start": {
             "type": "string",
             "resource": "Schedule",
