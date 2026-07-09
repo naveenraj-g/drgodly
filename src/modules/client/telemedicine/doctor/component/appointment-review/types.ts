@@ -216,20 +216,6 @@ export const CONDITION_VERIFICATION_STATUS = [
   { code: "entered-in-error", display: "Entered in Error" },
 ];
 
-/** SNOMED CT severity codes for Condition.severity. */
-export const CONDITION_SEVERITY = [
-  { code: "255604002", display: "Mild" },
-  { code: "6736007", display: "Moderate" },
-  { code: "24484000", display: "Severe" },
-];
-
-/** HL7 condition-category codes. */
-export const CONDITION_CATEGORY = [
-  { code: "encounter-diagnosis", display: "Encounter Diagnosis" },
-  { code: "problem-list-item", display: "Problem List Item" },
-  { code: "health-concern", display: "Health Concern" },
-];
-
 export const OBSERVATION_STATUS = [
   { code: "registered", display: "Registered" },
   { code: "preliminary", display: "Preliminary" },
@@ -239,29 +225,6 @@ export const OBSERVATION_STATUS = [
   { code: "cancelled", display: "Cancelled" },
   { code: "entered-in-error", display: "Entered in Error" },
   { code: "unknown", display: "Unknown" },
-];
-
-/** HL7 observation-category codes. */
-export const OBSERVATION_CATEGORY = [
-  { code: "vital-signs", display: "Vital Signs" },
-  { code: "laboratory", display: "Laboratory" },
-  { code: "imaging", display: "Imaging" },
-  { code: "procedure", display: "Procedure" },
-  { code: "survey", display: "Survey" },
-  { code: "exam", display: "Exam" },
-  { code: "therapy", display: "Therapy" },
-  { code: "social-history", display: "Social History" },
-];
-
-/** HL7 v3 ObservationInterpretation codes. */
-export const OBSERVATION_INTERPRETATION = [
-  { code: "N", display: "Normal" },
-  { code: "H", display: "High" },
-  { code: "L", display: "Low" },
-  { code: "A", display: "Abnormal" },
-  { code: "HH", display: "Critical High" },
-  { code: "LL", display: "Critical Low" },
-  { code: "IND", display: "Indeterminate" },
 ];
 
 export const MEDICATION_REQUEST_STATUS = [
@@ -283,21 +246,6 @@ export const MEDICATION_REQUEST_INTENT = [
   { code: "reflex-order", display: "Reflex Order" },
   { code: "instance-order", display: "Instance Order" },
   { code: "option", display: "Option" },
-];
-
-/** Request priority — shared by MedicationRequest and ServiceRequest. */
-export const MEDICATION_REQUEST_PRIORITY = [
-  { code: "routine", display: "Routine" },
-  { code: "urgent", display: "Urgent" },
-  { code: "asap", display: "ASAP" },
-  { code: "stat", display: "Stat" },
-];
-
-/** HL7 medicationrequest-course-of-therapy codes. */
-export const MEDICATION_COURSE_OF_THERAPY = [
-  { code: "acute", display: "Acute (Short-term)" },
-  { code: "continuous", display: "Continuous / Chronic" },
-  { code: "seasonal", display: "Seasonal" },
 ];
 
 export const SERVICE_REQUEST_STATUS = [
@@ -327,13 +275,3 @@ export const SERVICE_REQUEST_PRIORITY = [
   { code: "stat", display: "Stat" },
 ];
 
-/** Common service request categories (SNOMED-backed codes). */
-export const SERVICE_REQUEST_CATEGORY = [
-  { code: "108252007", display: "Laboratory" },
-  { code: "363679005", display: "Imaging" },
-  { code: "409063005", display: "Counseling" },
-  { code: "409073007", display: "Education" },
-  { code: "387713003", display: "Surgical Procedure" },
-  { code: "386053000", display: "Assessment / Evaluation" },
-  { code: "103693007", display: "Diagnostic Procedure" },
-];

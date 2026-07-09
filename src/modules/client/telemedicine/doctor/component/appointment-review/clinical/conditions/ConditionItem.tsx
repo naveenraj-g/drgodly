@@ -26,8 +26,6 @@ import {
   TERMINOLOGY_SYSTEM_URL,
   CONDITION_CLINICAL_STATUS,
   CONDITION_VERIFICATION_STATUS,
-  CONDITION_SEVERITY,
-  CONDITION_CATEGORY,
   type ConditionFormItem,
 } from "../../types";
 
@@ -133,7 +131,6 @@ export function ConditionItem({ item, onChange, onRemove }: ConditionItemProps) 
               value={item.severity}
               onChange={(code) => onChange({ ...item, severity: code })}
               placeholder="Select severity"
-              fallback={CONDITION_SEVERITY}
             />
           </div>
           <div className="space-y-1.5">
@@ -149,7 +146,6 @@ export function ConditionItem({ item, onChange, onRemove }: ConditionItemProps) 
               value={item.category}
               onChange={(code) => onChange({ ...item, category: code })}
               placeholder="Select category"
-              fallback={CONDITION_CATEGORY}
             />
           </div>
         </div>

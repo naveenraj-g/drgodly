@@ -25,8 +25,6 @@ import { ConceptSelect } from "../../shared/ConceptSelect";
 import {
   TERMINOLOGY_SYSTEM_URL,
   OBSERVATION_STATUS,
-  OBSERVATION_CATEGORY,
-  OBSERVATION_INTERPRETATION,
   type ObservationFormItem,
 } from "../../types";
 
@@ -144,7 +142,6 @@ export function ObservationItem({ item, onChange, onRemove }: ObservationItemPro
               value={item.category}
               onChange={(code) => onChange({ ...item, category: code })}
               placeholder="Select category"
-              fallback={OBSERVATION_CATEGORY}
             />
           </div>
         </div>
@@ -179,7 +176,6 @@ export function ObservationItem({ item, onChange, onRemove }: ObservationItemPro
               value={item.interpretation}
               onChange={(code) => onChange({ ...item, interpretation: code })}
               placeholder="Normal / High / Low…"
-              fallback={OBSERVATION_INTERPRETATION}
             />
           </div>
         </div>

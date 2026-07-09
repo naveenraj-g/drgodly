@@ -28,7 +28,6 @@ import {
   SERVICE_REQUEST_STATUS,
   SERVICE_REQUEST_INTENT,
   SERVICE_REQUEST_PRIORITY,
-  SERVICE_REQUEST_CATEGORY,
   type ServiceRequestFormItem,
 } from "../../types";
 
@@ -154,7 +153,6 @@ export function ServiceRequestItem({
               value={item.category}
               onChange={(code) => onChange({ ...item, category: code })}
               placeholder="Lab / Imaging…"
-              fallback={SERVICE_REQUEST_CATEGORY}
             />
           </div>
           <div className="space-y-1.5">

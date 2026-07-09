@@ -28,8 +28,6 @@ import {
   TERMINOLOGY_SYSTEM_URL,
   MEDICATION_REQUEST_STATUS,
   MEDICATION_REQUEST_INTENT,
-  MEDICATION_REQUEST_PRIORITY,
-  MEDICATION_COURSE_OF_THERAPY,
   type MedicationFormItem,
 } from "../../types";
 
@@ -176,7 +174,6 @@ export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps
               value={item.priority}
               onChange={(code) => onChange({ ...item, priority: code })}
               placeholder="Select priority"
-              fallback={MEDICATION_REQUEST_PRIORITY}
             />
           </div>
           <div className="space-y-1.5">
@@ -187,7 +184,6 @@ export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps
               value={item.courseOfTherapyType}
               onChange={(code) => onChange({ ...item, courseOfTherapyType: code })}
               placeholder="Acute / Chronic…"
-              fallback={MEDICATION_COURSE_OF_THERAPY}
             />
           </div>
         </div>
