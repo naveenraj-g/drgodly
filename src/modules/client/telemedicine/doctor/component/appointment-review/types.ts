@@ -90,6 +90,16 @@ export interface ConditionFormItem extends AiCondition {
   resolved?: ResolvedConcept;
   clinicalStatus?: string;
   verificationStatus?: string;
+  /** SNOMED severity code — mild (255604002) / moderate (6736007) / severe (24484000). */
+  severity?: string;
+  /** Condition category code e.g. "encounter-diagnosis". Immutable child array — CREATE only. */
+  category?: string;
+  /** ISO date string for onset_datetime. */
+  onsetDatetime?: string;
+  /** ISO date string for abatement_datetime. */
+  abatementDatetime?: string;
+  /** Free-text note (note[0].text). Immutable child array — CREATE only. */
+  note?: string;
 }
 
 /** Observation form item — AI suggestion plus doctor-edited value/unit and resolved code. */
@@ -101,6 +111,20 @@ export interface ObservationFormItem extends AiObservation {
   status?: string;
   editedValue?: string;
   editedUnit?: string;
+  /** Observation category code e.g. "vital-signs". Immutable child array — CREATE only. */
+  category?: string;
+  /** ISO datetime for effective_date_time. Updatable on existing records. */
+  effectiveDatetime?: string;
+  /** Interpretation code — N / H / L / A / HH / LL. Immutable child array — CREATE only. */
+  interpretation?: string;
+  /** Reference range low value (string for input binding). Immutable child array — CREATE only. */
+  refRangeLow?: string;
+  /** Reference range high value. Immutable child array — CREATE only. */
+  refRangeHigh?: string;
+  /** Unit for both low and high bounds of the reference range. CREATE only. */
+  refRangeUnit?: string;
+  /** Free-text note (note[0].text). Immutable child array — CREATE only. */
+  note?: string;
 }
 
 /** Medication form item — AI suggestion plus doctor-edited dosage fields and resolved code. */
@@ -115,6 +139,24 @@ export interface MedicationFormItem extends AiMedicationRequest {
   editedFrequency?: string;
   editedDuration?: string;
   editedRoute?: string;
+  /** Request priority — routine / urgent / asap / stat. Updatable. */
+  priority?: string;
+  /** Course of therapy type code — acute / continuous / seasonal. Updatable. */
+  courseOfTherapyType?: string;
+  /** Clinical indication for the prescription (reason_code[0].text). CREATE only. */
+  reasonCode?: string;
+  /** Patient-facing dosage directions (dosage_instruction[0].patient_instruction). CREATE only. */
+  patientInstruction?: string;
+  /** Number of refills permitted (dispense_number_of_repeats_allowed). Updatable. */
+  dispenseRepeatsAllowed?: number;
+  /** Dispense quantity value as string for input binding. Updatable. */
+  dispenseQuantityValue?: string;
+  /** Dispense quantity unit (e.g. "tablets"). Updatable. */
+  dispenseQuantityUnit?: string;
+  /** Whether generic substitution is allowed. Updatable. */
+  substitutionAllowed?: boolean;
+  /** Free-text note (note[0].text). Immutable child array — CREATE only. */
+  note?: string;
 }
 
 /** Service request form item — AI suggestion plus doctor-selected status/intent/priority. */
@@ -126,6 +168,18 @@ export interface ServiceRequestFormItem extends AiServiceRequest {
   status?: string;
   intent?: string;
   priority?: string;
+  /** Service category code e.g. "108252007" (Laboratory). Immutable child array — CREATE only. */
+  category?: string;
+  /** ISO datetime for when the order should be performed. Updatable. */
+  occurrenceDatetime?: string;
+  /** Clinical indication / reason for ordering (reason_code[0].text). CREATE only. */
+  reasonCode?: string;
+  /** Instructions for the patient e.g. fasting (patient_instruction). Updatable. */
+  patientInstruction?: string;
+  /** Whether the order is PRN / as needed. Updatable. */
+  asNeeded?: boolean;
+  /** Free-text note (note[0].text). Immutable child array — CREATE only. */
+  note?: string;
 }
 
 // ── Full staging report ────────────────────────────────────────────────────────
@@ -162,6 +216,20 @@ export const CONDITION_VERIFICATION_STATUS = [
   { code: "entered-in-error", display: "Entered in Error" },
 ];
 
+/** SNOMED CT severity codes for Condition.severity. */
+export const CONDITION_SEVERITY = [
+  { code: "255604002", display: "Mild" },
+  { code: "6736007", display: "Moderate" },
+  { code: "24484000", display: "Severe" },
+];
+
+/** HL7 condition-category codes. */
+export const CONDITION_CATEGORY = [
+  { code: "encounter-diagnosis", display: "Encounter Diagnosis" },
+  { code: "problem-list-item", display: "Problem List Item" },
+  { code: "health-concern", display: "Health Concern" },
+];
+
 export const OBSERVATION_STATUS = [
   { code: "registered", display: "Registered" },
   { code: "preliminary", display: "Preliminary" },
@@ -171,6 +239,29 @@ export const OBSERVATION_STATUS = [
   { code: "cancelled", display: "Cancelled" },
   { code: "entered-in-error", display: "Entered in Error" },
   { code: "unknown", display: "Unknown" },
+];
+
+/** HL7 observation-category codes. */
+export const OBSERVATION_CATEGORY = [
+  { code: "vital-signs", display: "Vital Signs" },
+  { code: "laboratory", display: "Laboratory" },
+  { code: "imaging", display: "Imaging" },
+  { code: "procedure", display: "Procedure" },
+  { code: "survey", display: "Survey" },
+  { code: "exam", display: "Exam" },
+  { code: "therapy", display: "Therapy" },
+  { code: "social-history", display: "Social History" },
+];
+
+/** HL7 v3 ObservationInterpretation codes. */
+export const OBSERVATION_INTERPRETATION = [
+  { code: "N", display: "Normal" },
+  { code: "H", display: "High" },
+  { code: "L", display: "Low" },
+  { code: "A", display: "Abnormal" },
+  { code: "HH", display: "Critical High" },
+  { code: "LL", display: "Critical Low" },
+  { code: "IND", display: "Indeterminate" },
 ];
 
 export const MEDICATION_REQUEST_STATUS = [
@@ -192,6 +283,21 @@ export const MEDICATION_REQUEST_INTENT = [
   { code: "reflex-order", display: "Reflex Order" },
   { code: "instance-order", display: "Instance Order" },
   { code: "option", display: "Option" },
+];
+
+/** Request priority — shared by MedicationRequest and ServiceRequest. */
+export const MEDICATION_REQUEST_PRIORITY = [
+  { code: "routine", display: "Routine" },
+  { code: "urgent", display: "Urgent" },
+  { code: "asap", display: "ASAP" },
+  { code: "stat", display: "Stat" },
+];
+
+/** HL7 medicationrequest-course-of-therapy codes. */
+export const MEDICATION_COURSE_OF_THERAPY = [
+  { code: "acute", display: "Acute (Short-term)" },
+  { code: "continuous", display: "Continuous / Chronic" },
+  { code: "seasonal", display: "Seasonal" },
 ];
 
 export const SERVICE_REQUEST_STATUS = [
@@ -219,4 +325,15 @@ export const SERVICE_REQUEST_PRIORITY = [
   { code: "urgent", display: "Urgent" },
   { code: "asap", display: "ASAP" },
   { code: "stat", display: "Stat" },
+];
+
+/** Common service request categories (SNOMED-backed codes). */
+export const SERVICE_REQUEST_CATEGORY = [
+  { code: "108252007", display: "Laboratory" },
+  { code: "363679005", display: "Imaging" },
+  { code: "409063005", display: "Counseling" },
+  { code: "409073007", display: "Education" },
+  { code: "387713003", display: "Surgical Procedure" },
+  { code: "386053000", display: "Assessment / Evaluation" },
+  { code: "103693007", display: "Diagnostic Procedure" },
 ];

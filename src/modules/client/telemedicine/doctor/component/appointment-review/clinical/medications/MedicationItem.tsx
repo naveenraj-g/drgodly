@@ -3,8 +3,13 @@
  *
  * Layer: client / telemedicine / doctor / component / appointment-review / clinical / medications
  *
- * Shows AI badge, terminology combobox (RxNorm), dose/route/frequency/duration
- * inputs (pre-filled from AI), and status/intent selects.
+ * Shows AI badge, terminology combobox (RxNorm), the full dosage grid
+ * (dose / route / frequency / duration), status / intent / priority / course-of-therapy
+ * selects, clinical indication, patient instructions, dispense details
+ * (refills + quantity + unit), substitution toggle, and a free-text note.
+ *
+ * Fields marked "CREATE only" can only be set when creating a new record. Once a
+ * FHIR resource has a fhirId, those child-array fields are immutable.
  */
 
 "use client";
@@ -12,6 +17,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
@@ -21,6 +28,8 @@ import {
   TERMINOLOGY_SYSTEM_URL,
   MEDICATION_REQUEST_STATUS,
   MEDICATION_REQUEST_INTENT,
+  MEDICATION_REQUEST_PRIORITY,
+  MEDICATION_COURSE_OF_THERAPY,
   type MedicationFormItem,
 } from "../../types";
 
@@ -39,7 +48,7 @@ interface MedicationItemProps {
 
 /**
  * Card-based editor for a single FHIR MedicationRequest.
- * Shows AI badge, terminology search, dosage grid, and status/intent selects.
+ * Covers dosage, clinical intent, dispense details, and substitution.
  *
  * @param item - Medication form item (AI-suggested + optional doctor edits).
  * @param onChange - Setter receiving the full updated item.
@@ -91,7 +100,7 @@ export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps
           />
         </div>
 
-        {/* Dosage grid */}
+        {/* Dosage grid — dose / route / frequency / duration */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Dose</Label>
@@ -155,6 +164,148 @@ export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps
               fallback={MEDICATION_REQUEST_INTENT}
             />
           </div>
+        </div>
+
+        {/* Priority + Course of therapy */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Priority</Label>
+            <ConceptSelect
+              resource="MedicationRequest"
+              field="priority"
+              value={item.priority}
+              onChange={(code) => onChange({ ...item, priority: code })}
+              placeholder="Select priority"
+              fallback={MEDICATION_REQUEST_PRIORITY}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Course of Therapy</Label>
+            <ConceptSelect
+              resource="MedicationRequest"
+              field="courseOfTherapyType"
+              value={item.courseOfTherapyType}
+              onChange={(code) => onChange({ ...item, courseOfTherapyType: code })}
+              placeholder="Acute / Chronic…"
+              fallback={MEDICATION_COURSE_OF_THERAPY}
+            />
+          </div>
+        </div>
+
+        {/* Reason / Indication */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Reason / Indication
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Input
+            value={item.reasonCode ?? ""}
+            onChange={(e) => onChange({ ...item, reasonCode: e.target.value || undefined })}
+            placeholder="e.g. Hypertension"
+            className="text-sm h-9"
+          />
+        </div>
+
+        {/* Patient instructions */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Patient Instructions
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Textarea
+            value={item.patientInstruction ?? ""}
+            onChange={(e) =>
+              onChange({ ...item, patientInstruction: e.target.value || undefined })
+            }
+            placeholder="e.g. Take with food. Avoid alcohol."
+            className="text-sm resize-none"
+            rows={2}
+          />
+        </div>
+
+        {/* Dispense details — Refills / Quantity / Unit */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Dispense</Label>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground/70">Refills</p>
+              <Input
+                type="number"
+                min={0}
+                value={item.dispenseRepeatsAllowed ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...item,
+                    dispenseRepeatsAllowed: e.target.value
+                      ? parseInt(e.target.value, 10)
+                      : undefined,
+                  })
+                }
+                placeholder="0"
+                className="text-sm h-9"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground/70">Qty</p>
+              <Input
+                value={item.dispenseQuantityValue ?? ""}
+                onChange={(e) =>
+                  onChange({ ...item, dispenseQuantityValue: e.target.value || undefined })
+                }
+                placeholder="e.g. 30"
+                className="text-sm h-9"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground/70">Unit</p>
+              <Input
+                value={item.dispenseQuantityUnit ?? ""}
+                onChange={(e) =>
+                  onChange({ ...item, dispenseQuantityUnit: e.target.value || undefined })
+                }
+                placeholder="tablets"
+                className="text-sm h-9"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Substitution allowed */}
+        <div className="flex items-center gap-2 pt-0.5">
+          <Checkbox
+            id={`substitution-${item.id}`}
+            checked={item.substitutionAllowed ?? false}
+            onCheckedChange={(checked) =>
+              onChange({ ...item, substitutionAllowed: checked === true })
+            }
+          />
+          <Label
+            htmlFor={`substitution-${item.id}`}
+            className="text-xs text-muted-foreground cursor-pointer"
+          >
+            Allow generic substitution
+          </Label>
+        </div>
+
+        {/* Notes */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Notes
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Textarea
+            value={item.note ?? ""}
+            onChange={(e) => onChange({ ...item, note: e.target.value || undefined })}
+            placeholder="Additional notes..."
+            className="text-sm resize-none"
+            rows={2}
+          />
         </div>
       </CardContent>
     </Card>

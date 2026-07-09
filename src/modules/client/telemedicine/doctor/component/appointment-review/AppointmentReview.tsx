@@ -65,6 +65,35 @@ function systemName(url: string | null | undefined): string {
 // ── FHIR record → FormItem converters ────────────────────────────────────────
 
 /**
+ * Parses a free-text duration string (e.g. "7 days", "2 weeks") into a numeric
+ * value + UCUM unit string for dosage_instruction.timing_repeat_duration.
+ *
+ * @param s - Free-text duration from the form.
+ * @returns Parsed duration object or null if the string cannot be parsed.
+ */
+function parseDuration(
+  s: string | null | undefined,
+): { value: number; unit: string } | null {
+  if (!s) return null;
+  const m = s
+    .trim()
+    .match(/^(\d+(?:\.\d+)?)\s*(day|days|week|weeks|month|months|hour|hours|min|mins|minute|minutes)$/i);
+  if (!m) return null;
+  const value = parseFloat(m[1]);
+  const raw = m[2].toLowerCase();
+  const unit = raw.startsWith("day")
+    ? "d"
+    : raw.startsWith("week")
+      ? "wk"
+      : raw.startsWith("month")
+        ? "mo"
+        : raw.startsWith("hour")
+          ? "h"
+          : "min";
+  return { value, unit };
+}
+
+/**
  * Converts a saved FHIR Condition response to a ConditionFormItem.
  * Sets fhirId so the diff-sync knows to UPDATE rather than CREATE.
  *
@@ -86,6 +115,11 @@ function conditionFromFhir(c: TConditionResponse): ConditionFormItem {
       : undefined,
     clinicalStatus: c.clinical_status_code ?? undefined,
     verificationStatus: c.verification_status_code ?? undefined,
+    severity: c.severity_code ?? undefined,
+    category: c.category?.[0]?.coding_code ?? undefined,
+    onsetDatetime: c.onset_datetime ?? undefined,
+    abatementDatetime: c.abatement_datetime ?? undefined,
+    note: c.note?.[0]?.text ?? undefined,
   };
 }
 
@@ -113,6 +147,21 @@ function observationFromFhir(o: TObservationResponse): ObservationFormItem {
         }
       : undefined,
     status: o.status ?? undefined,
+    effectiveDatetime: o.effective_date_time ?? undefined,
+    /* category / interpretation / reference_range are child arrays — not updatable,
+       but rehydrate for display so the doctor can see what was saved. */
+    category: o.category?.[0]?.coding_code ?? undefined,
+    interpretation: o.interpretation?.[0]?.coding_code ?? undefined,
+    refRangeLow:
+      o.reference_range?.[0]?.low_value != null
+        ? String(o.reference_range[0].low_value)
+        : undefined,
+    refRangeHigh:
+      o.reference_range?.[0]?.high_value != null
+        ? String(o.reference_range[0].high_value)
+        : undefined,
+    refRangeUnit: o.reference_range?.[0]?.low_unit ?? undefined,
+    note: o.note?.[0]?.text ?? undefined,
   };
 }
 
@@ -126,6 +175,14 @@ function observationFromFhir(o: TObservationResponse): ObservationFormItem {
  */
 function medicationFromFhir(m: TMedicationRequestResponse): MedicationFormItem {
   const dosage = m.dosage_instruction?.[0];
+  /* Reconstruct duration string from timing_repeat_duration + unit if present. */
+  const durValue = dosage?.timing_repeat_duration;
+  const durUnit = dosage?.timing_repeat_duration_unit;
+  const duration =
+    durValue != null && durUnit
+      ? `${durValue} ${durUnit}`
+      : null;
+
   return {
     id: String(m.id),
     fhirId: m.id,
@@ -133,7 +190,7 @@ function medicationFromFhir(m: TMedicationRequestResponse): MedicationFormItem {
     terminologySystem: systemName(m.medication_code_system),
     dose: dosage?.text ?? null,
     frequency: dosage?.timing_code_display ?? null,
-    duration: null,
+    duration,
     route: dosage?.route_display ?? dosage?.route_text ?? null,
     resolved: m.medication_code_code
       ? {
@@ -145,6 +202,17 @@ function medicationFromFhir(m: TMedicationRequestResponse): MedicationFormItem {
       : undefined,
     status: m.status ?? undefined,
     intent: m.intent ?? undefined,
+    priority: m.priority ?? undefined,
+    courseOfTherapyType: m.course_of_therapy_type_code ?? undefined,
+    /* reason_code / note are child arrays — rehydrate first entry for display. */
+    reasonCode: m.reason_code?.[0]?.text ?? m.reason_code?.[0]?.coding_display ?? undefined,
+    patientInstruction: dosage?.patient_instruction ?? undefined,
+    dispenseRepeatsAllowed: m.dispense_number_of_repeats_allowed ?? undefined,
+    dispenseQuantityValue:
+      m.dispense_quantity_value != null ? String(m.dispense_quantity_value) : undefined,
+    dispenseQuantityUnit: m.dispense_quantity_unit ?? undefined,
+    substitutionAllowed: m.substitution_allowed_boolean ?? undefined,
+    note: m.note?.[0]?.text ?? undefined,
   };
 }
 
@@ -171,6 +239,13 @@ function serviceRequestFromFhir(s: TServiceRequestResponse): ServiceRequestFormI
     status: s.status ?? undefined,
     intent: s.intent ?? undefined,
     priority: s.priority ?? undefined,
+    category: s.category?.[0]?.coding_code ?? undefined,
+    occurrenceDatetime: s.occurrence_datetime ?? undefined,
+    patientInstruction: s.patient_instruction ?? undefined,
+    asNeeded: s.as_needed_boolean ?? undefined,
+    /* reason_code / note are child arrays — rehydrate first entry for display. */
+    reasonCode: s.reason_code?.[0]?.text ?? s.reason_code?.[0]?.coding_display ?? undefined,
+    note: s.note?.[0]?.text ?? undefined,
   };
 }
 
@@ -415,7 +490,7 @@ export function AppointmentReview({
             deleteConditionAction({ payload: { id } }),
           ),
 
-          /* UPDATE existing conditions (code + status fields) */
+          /* UPDATE existing conditions — scalar fields only; child arrays are immutable */
           ...conditions
             .filter((c) => c.fhirId)
             .map((c) =>
@@ -428,11 +503,14 @@ export function AppointmentReview({
                   code_text: c.display,
                   clinical_status_code: c.clinicalStatus ?? "active",
                   verification_status_code: c.verificationStatus ?? "confirmed",
+                  severity_code: c.severity ?? undefined,
+                  onset_datetime: c.onsetDatetime ?? undefined,
+                  abatement_datetime: c.abatementDatetime ?? undefined,
                 },
               }),
             ),
 
-          /* CREATE new conditions */
+          /* CREATE new conditions — include child arrays (category, note) */
           ...conditions
             .filter((c) => !c.fhirId)
             .map((c) =>
@@ -440,12 +518,19 @@ export function AppointmentReview({
                 payload: {
                   clinical_status_code: c.clinicalStatus ?? "active",
                   verification_status_code: c.verificationStatus ?? "confirmed",
+                  severity_code: c.severity ?? undefined,
                   code_code: c.resolved?.code,
                   code_system: c.resolved?.system,
                   code_display: c.resolved?.display ?? c.display,
                   code_text: c.display,
                   subject,
                   encounter_id: encounterId,
+                  onset_datetime: c.onsetDatetime ?? undefined,
+                  abatement_datetime: c.abatementDatetime ?? undefined,
+                  ...(c.category
+                    ? { category: [{ coding_code: c.category }] }
+                    : {}),
+                  ...(c.note ? { note: [{ text: c.note }] } : {}),
                 },
               }),
             ),
@@ -457,7 +542,7 @@ export function AppointmentReview({
             deleteObservationAction({ payload: { id } }),
           ),
 
-          /* UPDATE existing observations */
+          /* UPDATE existing observations — child arrays (category/interpretation/ref_range/note) are immutable */
           ...observations
             .filter((o) => o.fhirId)
             .map((o) => {
@@ -472,6 +557,7 @@ export function AppointmentReview({
                   code_system: o.resolved?.system,
                   code_display: o.resolved?.display ?? o.display,
                   code_text: o.display,
+                  effective_date_time: o.effectiveDatetime ?? undefined,
                   ...(isNumeric
                     ? {
                         value_quantity_value: numericValue,
@@ -484,13 +570,20 @@ export function AppointmentReview({
               });
             }),
 
-          /* CREATE new observations */
+          /* CREATE new observations — include all child arrays */
           ...observations
             .filter((o) => !o.fhirId)
             .map((o) => {
               const rawValue = o.editedValue ?? o.value ?? null;
               const numericValue = rawValue !== null ? parseFloat(rawValue) : undefined;
               const isNumeric = numericValue !== undefined && !isNaN(numericValue);
+
+              const refRangeLowNum = o.refRangeLow ? parseFloat(o.refRangeLow) : undefined;
+              const refRangeHighNum = o.refRangeHigh ? parseFloat(o.refRangeHigh) : undefined;
+              const hasRefRange =
+                (refRangeLowNum !== undefined && !isNaN(refRangeLowNum)) ||
+                (refRangeHighNum !== undefined && !isNaN(refRangeHighNum));
+
               return createObservationAction({
                 payload: {
                   status: o.status ?? "final",
@@ -498,6 +591,7 @@ export function AppointmentReview({
                   code_system: o.resolved?.system,
                   code_display: o.resolved?.display ?? o.display,
                   code_text: o.display,
+                  effective_date_time: o.effectiveDatetime ?? undefined,
                   ...(isNumeric
                     ? {
                         value_quantity_value: numericValue,
@@ -508,6 +602,27 @@ export function AppointmentReview({
                       }),
                   subject,
                   encounter_id: encounterId,
+                  ...(o.category
+                    ? { category: [{ coding_code: o.category }] }
+                    : {}),
+                  ...(o.interpretation
+                    ? { interpretation: [{ coding_code: o.interpretation }] }
+                    : {}),
+                  ...(hasRefRange
+                    ? {
+                        reference_range: [
+                          {
+                            ...(refRangeLowNum !== undefined && !isNaN(refRangeLowNum)
+                              ? { low_value: refRangeLowNum, low_unit: o.refRangeUnit }
+                              : {}),
+                            ...(refRangeHighNum !== undefined && !isNaN(refRangeHighNum)
+                              ? { high_value: refRangeHighNum, high_unit: o.refRangeUnit }
+                              : {}),
+                          },
+                        ],
+                      }
+                    : {}),
+                  ...(o.note ? { note: [{ text: o.note }] } : {}),
                 },
               });
             }),
@@ -519,7 +634,7 @@ export function AppointmentReview({
             deleteMedicationRequestAction({ payload: { id } }),
           ),
 
-          /* UPDATE existing medications (scalar fields; dosage children are immutable) */
+          /* UPDATE existing medications — scalar + dispense fields; dosage_instruction children are immutable */
           ...medications
             .filter((m) => m.fhirId)
             .map((m) =>
@@ -532,15 +647,26 @@ export function AppointmentReview({
                   medication_code_system: m.resolved?.system,
                   medication_code_display: m.resolved?.display ?? m.display,
                   medication_code_text: m.display,
+                  priority: m.priority ?? undefined,
+                  course_of_therapy_type_code: m.courseOfTherapyType ?? undefined,
+                  dispense_number_of_repeats_allowed:
+                    m.dispenseRepeatsAllowed ?? undefined,
+                  dispense_quantity_value: m.dispenseQuantityValue
+                    ? parseFloat(m.dispenseQuantityValue)
+                    : undefined,
+                  dispense_quantity_unit: m.dispenseQuantityUnit ?? undefined,
+                  substitution_allowed_boolean: m.substitutionAllowed ?? undefined,
                 },
               }),
             ),
 
-          /* CREATE new medications */
+          /* CREATE new medications — include dosage_instruction + child arrays */
           ...medications
             .filter((m) => !m.fhirId)
-            .map((m) =>
-              createMedicationRequestAction({
+            .map((m) => {
+              const durStr = m.editedDuration ?? m.duration;
+              const parsedDur = parseDuration(durStr);
+              return createMedicationRequestAction({
                 payload: {
                   status: m.status ?? "active",
                   intent: m.intent ?? "order",
@@ -550,17 +676,37 @@ export function AppointmentReview({
                   medication_code_text: m.display,
                   subject,
                   encounter_id: encounterId,
+                  priority: m.priority ?? undefined,
+                  course_of_therapy_type_code: m.courseOfTherapyType ?? undefined,
+                  dispense_number_of_repeats_allowed:
+                    m.dispenseRepeatsAllowed ?? undefined,
+                  dispense_quantity_value: m.dispenseQuantityValue
+                    ? parseFloat(m.dispenseQuantityValue)
+                    : undefined,
+                  dispense_quantity_unit: m.dispenseQuantityUnit ?? undefined,
+                  substitution_allowed_boolean: m.substitutionAllowed ?? undefined,
                   dosage_instruction: [
                     {
                       text: m.editedDose ?? m.dose ?? undefined,
                       route_display: m.editedRoute ?? m.route ?? undefined,
                       timing_code_display:
                         m.editedFrequency ?? m.frequency ?? undefined,
+                      patient_instruction: m.patientInstruction ?? undefined,
+                      ...(parsedDur
+                        ? {
+                            timing_repeat_duration: parsedDur.value,
+                            timing_repeat_duration_unit: parsedDur.unit,
+                          }
+                        : {}),
                     },
                   ],
+                  ...(m.reasonCode
+                    ? { reason_code: [{ text: m.reasonCode }] }
+                    : {}),
+                  ...(m.note ? { note: [{ text: m.note }] } : {}),
                 },
-              }),
-            ),
+              });
+            }),
 
           /* ══ Service requests ════════════════════════════════════════════════════ */
 
@@ -569,7 +715,7 @@ export function AppointmentReview({
             deleteServiceRequestAction({ payload: { id } }),
           ),
 
-          /* UPDATE existing service requests */
+          /* UPDATE existing service requests — scalar fields; child arrays are immutable */
           ...serviceRequests
             .filter((s) => s.fhirId)
             .map((s) =>
@@ -583,11 +729,14 @@ export function AppointmentReview({
                   code_display: s.resolved?.display ?? s.display,
                   code_text: s.display,
                   priority: s.priority ?? undefined,
+                  occurrence_datetime: s.occurrenceDatetime ?? undefined,
+                  patient_instruction: s.patientInstruction ?? undefined,
+                  as_needed_boolean: s.asNeeded ?? undefined,
                 },
               }),
             ),
 
-          /* CREATE new service requests */
+          /* CREATE new service requests — include child arrays (category, reason_code, note) */
           ...serviceRequests
             .filter((s) => !s.fhirId)
             .map((s) =>
@@ -602,6 +751,23 @@ export function AppointmentReview({
                   priority: s.priority ?? undefined,
                   subject,
                   encounter_id: encounterId,
+                  occurrence_datetime: s.occurrenceDatetime ?? undefined,
+                  patient_instruction: s.patientInstruction ?? undefined,
+                  as_needed_boolean: s.asNeeded ?? undefined,
+                  ...(s.category
+                    ? {
+                        category: [
+                          {
+                            coding_system: "http://snomed.info/sct",
+                            coding_code: s.category,
+                          },
+                        ],
+                      }
+                    : {}),
+                  ...(s.reasonCode
+                    ? { reason_code: [{ text: s.reasonCode }] }
+                    : {}),
+                  ...(s.note ? { note: [{ text: s.note }] } : {}),
                 },
               }),
             ),

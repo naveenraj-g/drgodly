@@ -158,10 +158,18 @@ export default async function DoctorAppointmentReviewPage({
     [medicationsPage],
     [serviceRequestsPage],
   ] = await Promise.all([
-    listConditionsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
-    listObservationsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
-    listMedicationRequestsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
-    listServiceRequestsAction({ payload: { encounter_id: encounter.id, limit: 200 } }),
+    listConditionsAction({
+      payload: { encounter_id: encounter.id, limit: 200 },
+    }),
+    listObservationsAction({
+      payload: { encounter_id: encounter.id, limit: 200 },
+    }),
+    listMedicationRequestsAction({
+      payload: { encounter_id: encounter.id, limit: 200 },
+    }),
+    listServiceRequestsAction({
+      payload: { encounter_id: encounter.id, limit: 200 },
+    }),
   ]);
 
   const savedConditions =
@@ -171,7 +179,8 @@ export default async function DoctorAppointmentReviewPage({
   const savedMedications =
     (medicationsPage as TPaginatedMedicationRequestResponse | null)?.data ?? [];
   const savedServiceRequests =
-    (serviceRequestsPage as TPaginatedServiceRequestResponse | null)?.data ?? [];
+    (serviceRequestsPage as TPaginatedServiceRequestResponse | null)?.data ??
+    [];
 
   return (
     <AppointmentReview

@@ -4,14 +4,19 @@
  * Layer: client / telemedicine / doctor / component / appointment-review / clinical / conditions
  *
  * Shows the AI-extracted display name and system badge, a TerminologyCombobox to
- * resolve to a FHIR code, and ConceptSelect dropdowns for clinical status and
- * verification status. Doctors edit then remove if incorrect.
+ * resolve to a FHIR code, and editable fields for clinical status, verification
+ * status, severity, category, onset/abatement dates, and a free-text note.
+ *
+ * Fields marked "CREATE only" are sent to the API on first save but cannot be
+ * changed via PATCH once the FHIR resource exists (child arrays are immutable).
  */
 
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
@@ -21,6 +26,8 @@ import {
   TERMINOLOGY_SYSTEM_URL,
   CONDITION_CLINICAL_STATUS,
   CONDITION_VERIFICATION_STATUS,
+  CONDITION_SEVERITY,
+  CONDITION_CATEGORY,
   type ConditionFormItem,
 } from "../../types";
 
@@ -39,7 +46,6 @@ interface ConditionItemProps {
 
 /**
  * Card-based editor for a single FHIR Condition.
- * Shows AI badge, terminology search, clinical status, and verification status.
  *
  * @param item - Condition form item (AI-suggested + optional doctor edits).
  * @param onChange - Setter receiving the full updated item.
@@ -91,7 +97,7 @@ export function ConditionItem({ item, onChange, onRemove }: ConditionItemProps) 
           />
         </div>
 
-        {/* Clinical status + verification status */}
+        {/* Clinical status + Verification status */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Clinical Status</Label>
@@ -115,6 +121,80 @@ export function ConditionItem({ item, onChange, onRemove }: ConditionItemProps) 
               fallback={CONDITION_VERIFICATION_STATUS}
             />
           </div>
+        </div>
+
+        {/* Severity + Category */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Severity</Label>
+            <ConceptSelect
+              resource="Condition"
+              field="severity"
+              value={item.severity}
+              onChange={(code) => onChange({ ...item, severity: code })}
+              placeholder="Select severity"
+              fallback={CONDITION_SEVERITY}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Category
+              {item.fhirId && (
+                <span className="ml-1 text-muted-foreground/60">(read-only)</span>
+              )}
+            </Label>
+            <ConceptSelect
+              resource="Condition"
+              field="category"
+              value={item.category}
+              onChange={(code) => onChange({ ...item, category: code })}
+              placeholder="Select category"
+              fallback={CONDITION_CATEGORY}
+            />
+          </div>
+        </div>
+
+        {/* Onset + Abatement dates */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Onset Date</Label>
+            <Input
+              type="date"
+              value={item.onsetDatetime?.substring(0, 10) ?? ""}
+              onChange={(e) =>
+                onChange({ ...item, onsetDatetime: e.target.value || undefined })
+              }
+              className="text-sm h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Abatement Date</Label>
+            <Input
+              type="date"
+              value={item.abatementDatetime?.substring(0, 10) ?? ""}
+              onChange={(e) =>
+                onChange({ ...item, abatementDatetime: e.target.value || undefined })
+              }
+              className="text-sm h-9"
+            />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Notes
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Textarea
+            value={item.note ?? ""}
+            onChange={(e) => onChange({ ...item, note: e.target.value || undefined })}
+            placeholder="Clinical notes..."
+            className="text-sm resize-none"
+            rows={2}
+          />
         </div>
       </CardContent>
     </Card>

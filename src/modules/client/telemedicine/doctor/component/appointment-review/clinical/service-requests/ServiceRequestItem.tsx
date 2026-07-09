@@ -3,13 +3,21 @@
  *
  * Layer: client / telemedicine / doctor / component / appointment-review / clinical / service-requests
  *
- * Shows AI badge, terminology combobox (LOINC), and status/intent/priority selects.
+ * Shows AI badge, terminology combobox (LOINC), status / intent / priority selects,
+ * and additional clinical fields: category, occurrence date, reason/indication,
+ * patient instructions, as-needed toggle, and a free-text note.
+ *
+ * Fields marked "CREATE only" can only be set when creating a new record. Once a
+ * FHIR resource has a fhirId, those child-array fields are immutable.
  */
 
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
@@ -20,6 +28,7 @@ import {
   SERVICE_REQUEST_STATUS,
   SERVICE_REQUEST_INTENT,
   SERVICE_REQUEST_PRIORITY,
+  SERVICE_REQUEST_CATEGORY,
   type ServiceRequestFormItem,
 } from "../../types";
 
@@ -38,7 +47,6 @@ interface ServiceRequestItemProps {
 
 /**
  * Card-based editor for a single FHIR ServiceRequest (lab order, imaging, etc.).
- * Shows AI badge, terminology search, and status/intent/priority selects.
  *
  * @param item - Service request form item (AI-suggested + optional doctor edits).
  * @param onChange - Setter receiving the full updated item.
@@ -129,6 +137,105 @@ export function ServiceRequestItem({
               fallback={SERVICE_REQUEST_PRIORITY}
             />
           </div>
+        </div>
+
+        {/* Category + Occurrence date */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Category
+              {item.fhirId && (
+                <span className="ml-1 text-muted-foreground/60">(read-only)</span>
+              )}
+            </Label>
+            <ConceptSelect
+              resource="ServiceRequest"
+              field="category"
+              value={item.category}
+              onChange={(code) => onChange({ ...item, category: code })}
+              placeholder="Lab / Imaging…"
+              fallback={SERVICE_REQUEST_CATEGORY}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Occurrence Date</Label>
+            <Input
+              type="datetime-local"
+              value={
+                item.occurrenceDatetime
+                  ? item.occurrenceDatetime.substring(0, 16)
+                  : ""
+              }
+              onChange={(e) =>
+                onChange({ ...item, occurrenceDatetime: e.target.value || undefined })
+              }
+              className="text-sm h-9"
+            />
+          </div>
+        </div>
+
+        {/* Reason / Indication */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Reason / Indication
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Input
+            value={item.reasonCode ?? ""}
+            onChange={(e) => onChange({ ...item, reasonCode: e.target.value || undefined })}
+            placeholder="e.g. Rule out infection"
+            className="text-sm h-9"
+          />
+        </div>
+
+        {/* Patient instructions */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Patient Instructions</Label>
+          <Textarea
+            value={item.patientInstruction ?? ""}
+            onChange={(e) =>
+              onChange({ ...item, patientInstruction: e.target.value || undefined })
+            }
+            placeholder="e.g. Fast for 8 hours before the test."
+            className="text-sm resize-none"
+            rows={2}
+          />
+        </div>
+
+        {/* As Needed (PRN) */}
+        <div className="flex items-center gap-2 pt-0.5">
+          <Checkbox
+            id={`as-needed-${item.id}`}
+            checked={item.asNeeded ?? false}
+            onCheckedChange={(checked) =>
+              onChange({ ...item, asNeeded: checked === true })
+            }
+          />
+          <Label
+            htmlFor={`as-needed-${item.id}`}
+            className="text-xs text-muted-foreground cursor-pointer"
+          >
+            As needed (PRN)
+          </Label>
+        </div>
+
+        {/* Notes */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Notes
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Textarea
+            value={item.note ?? ""}
+            onChange={(e) => onChange({ ...item, note: e.target.value || undefined })}
+            placeholder="Additional notes..."
+            className="text-sm resize-none"
+            rows={2}
+          />
         </div>
       </CardContent>
     </Card>

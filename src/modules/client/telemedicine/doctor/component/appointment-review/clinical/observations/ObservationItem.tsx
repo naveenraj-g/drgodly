@@ -3,8 +3,12 @@
  *
  * Layer: client / telemedicine / doctor / component / appointment-review / clinical / observations
  *
- * Shows AI badge, terminology combobox, editable value/unit inputs, and status select.
- * Doctors can correct the AI-extracted value, unit, and FHIR code.
+ * Shows AI badge, terminology combobox, editable value/unit inputs, status select,
+ * and additional clinical fields: category, effective date/time, interpretation,
+ * reference range (low / high / unit), and a free-text note.
+ *
+ * Fields marked "CREATE only" are sent on first save but cannot be changed via
+ * PATCH once the FHIR resource exists (child arrays are immutable).
  */
 
 "use client";
@@ -12,6 +16,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
@@ -20,6 +25,8 @@ import { ConceptSelect } from "../../shared/ConceptSelect";
 import {
   TERMINOLOGY_SYSTEM_URL,
   OBSERVATION_STATUS,
+  OBSERVATION_CATEGORY,
+  OBSERVATION_INTERPRETATION,
   type ObservationFormItem,
 } from "../../types";
 
@@ -38,7 +45,6 @@ interface ObservationItemProps {
 
 /**
  * Card-based editor for a single FHIR Observation.
- * Shows AI badge, terminology search, value/unit inputs, and status select.
  *
  * @param item - Observation form item (AI-suggested + optional doctor edits).
  * @param onChange - Setter receiving the full updated item.
@@ -106,22 +112,128 @@ export function ObservationItem({ item, onChange, onRemove }: ObservationItemPro
             <Input
               value={item.editedUnit ?? item.unit ?? ""}
               onChange={(e) => onChange({ ...item, editedUnit: e.target.value })}
-              placeholder="e.g. F"
+              placeholder="e.g. mmHg"
               className="text-sm h-9"
             />
           </div>
         </div>
 
-        {/* Status */}
+        {/* Status + Category */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Status</Label>
+            <ConceptSelect
+              resource="Observation"
+              field="status"
+              value={item.status}
+              onChange={(code) => onChange({ ...item, status: code })}
+              placeholder="Select status"
+              fallback={OBSERVATION_STATUS}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Category
+              {item.fhirId && (
+                <span className="ml-1 text-muted-foreground/60">(read-only)</span>
+              )}
+            </Label>
+            <ConceptSelect
+              resource="Observation"
+              field="category"
+              value={item.category}
+              onChange={(code) => onChange({ ...item, category: code })}
+              placeholder="Select category"
+              fallback={OBSERVATION_CATEGORY}
+            />
+          </div>
+        </div>
+
+        {/* Effective date/time + Interpretation */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Effective Date/Time</Label>
+            <Input
+              type="datetime-local"
+              value={
+                item.effectiveDatetime
+                  ? item.effectiveDatetime.substring(0, 16)
+                  : ""
+              }
+              onChange={(e) =>
+                onChange({ ...item, effectiveDatetime: e.target.value || undefined })
+              }
+              className="text-sm h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Interpretation
+              {item.fhirId && (
+                <span className="ml-1 text-muted-foreground/60">(read-only)</span>
+              )}
+            </Label>
+            <ConceptSelect
+              resource="Observation"
+              field="interpretation"
+              value={item.interpretation}
+              onChange={(code) => onChange({ ...item, interpretation: code })}
+              placeholder="Normal / High / Low…"
+              fallback={OBSERVATION_INTERPRETATION}
+            />
+          </div>
+        </div>
+
+        {/* Reference range — Low / High / Unit */}
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Status</Label>
-          <ConceptSelect
-            resource="Observation"
-            field="status"
-            value={item.status}
-            onChange={(code) => onChange({ ...item, status: code })}
-            placeholder="Select status"
-            fallback={OBSERVATION_STATUS}
+          <Label className="text-xs text-muted-foreground">
+            Reference Range
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <div className="grid grid-cols-3 gap-2">
+            <Input
+              value={item.refRangeLow ?? ""}
+              onChange={(e) =>
+                onChange({ ...item, refRangeLow: e.target.value || undefined })
+              }
+              placeholder="Low"
+              className="text-sm h-9"
+            />
+            <Input
+              value={item.refRangeHigh ?? ""}
+              onChange={(e) =>
+                onChange({ ...item, refRangeHigh: e.target.value || undefined })
+              }
+              placeholder="High"
+              className="text-sm h-9"
+            />
+            <Input
+              value={item.refRangeUnit ?? ""}
+              onChange={(e) =>
+                onChange({ ...item, refRangeUnit: e.target.value || undefined })
+              }
+              placeholder="Unit"
+              className="text-sm h-9"
+            />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Notes
+            {item.fhirId && (
+              <span className="ml-1 text-muted-foreground/60">(read-only on saved records)</span>
+            )}
+          </Label>
+          <Textarea
+            value={item.note ?? ""}
+            onChange={(e) => onChange({ ...item, note: e.target.value || undefined })}
+            placeholder="Clinical notes..."
+            className="text-sm resize-none"
+            rows={2}
           />
         </div>
       </CardContent>
