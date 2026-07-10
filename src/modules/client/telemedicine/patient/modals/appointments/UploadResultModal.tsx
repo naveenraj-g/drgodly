@@ -335,9 +335,9 @@ function UploadResultContent({
     listDiagnosticReportsAction({
       payload: { patient_id: patientFhirId, limit: 100 },
     })
-      .then(([page]) => {
+      .then((result) => {
         if (!current) return;
-        const typed = page as TPaginatedDiagnosticReportResponse | null;
+        const typed = (result as [TPaginatedDiagnosticReportResponse | null, unknown])[0];
         if (typed?.data) {
           const filtered = typed.data.filter((dr: TDiagnosticReportResponse) =>
             dr.based_on?.some(
