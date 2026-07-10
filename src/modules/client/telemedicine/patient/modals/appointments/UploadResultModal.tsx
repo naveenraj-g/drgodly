@@ -11,10 +11,10 @@
  *   2. New Upload — patient stages files locally, reviews the list, then clicks Upload.
  *      Per-file status chips (pending → uploading → done / error) update as FileNest processes.
  *
- * FHIR records created per upload session (on Upload button click):
+ * FHIR records created per upload session (when the Upload button is clicked):
  *   • ONE DiagnosticReport  — basedOn: ServiceRequest, presentedForm[]: one entry per file.
- *   • ONE DocumentReference — per file, content[0].attachment.url = fileId,
- *                             context.related: [DiagnosticReport, ServiceRequest].
+ *   • ONE DocumentReference per file — content[0].attachment.url = fileId,
+ *                                      context.related: [DiagnosticReport, ServiceRequest].
  *
  * Must be mounted once inside PatientModalProvider.
  */
@@ -55,7 +55,10 @@ import {
 } from "@/modules/server/presentation/actions/diagnostic-report";
 import { createDocumentReferenceAction } from "@/modules/server/presentation/actions/document-reference";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
-import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
+import type {
+  TDiagnosticReportResponse,
+  TPaginatedDiagnosticReportResponse,
+} from "@/modules/entities/schemas/diagnostic-report";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,7 +67,7 @@ type FileStatus = "staged" | "uploading" | "done" | "error";
 
 /** A locally staged file plus its current upload status. */
 interface StagedEntry {
-  /** Unique ID — avoids key collisions for same-named files. */
+  /** Unique ID — avoids key collisions for same-named files selected in different batches. */
   id: string;
   file: File;
   status: FileStatus;
@@ -73,9 +76,8 @@ interface StagedEntry {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Formats a byte count as a human-readable string (B / KB / MB).
- *
- * @param bytes - Raw byte count.
+ * Formats a byte count as a human-readable string.
+ * @param bytes - Raw byte count from the file or FHIR record.
  */
 function formatBytes(bytes: number | null | undefined): string {
   if (!bytes) return "";
@@ -86,14 +88,10 @@ function formatBytes(bytes: number | null | undefined): string {
 
 /**
  * Derives a short uppercase extension label from filename or MIME type.
- *
  * @param title       - Filename, e.g. "blood-test.pdf".
  * @param contentType - MIME type, e.g. "application/pdf".
  */
-function getFileExt(
-  title?: string | null,
-  contentType?: string | null,
-): string {
+function getFileExt(title?: string | null, contentType?: string | null): string {
   if (title) {
     const ext = title.split(".").pop();
     if (ext && ext.length <= 5) return ext.toUpperCase();
@@ -107,11 +105,9 @@ function getFileExt(
 }
 
 /**
- * Reads sizeBytes from a FileRecord — handles the SDK snake_case / camelCase mismatch.
- * The SDK's final file-record fetch uses raw fetch, so runtime keys are snake_case
+ * Reads sizeBytes from a FileRecord.
+ * The FilNest SDK's final record fetch uses raw fetch, so runtime keys are snake_case
  * despite the TS type declaring camelCase.
- *
- * @param record - FileRecord from @filenest/react.
  */
 function getSizeBytes(record: FileRecord): number {
   const raw = record as unknown as Record<string, unknown>;
@@ -119,26 +115,23 @@ function getSizeBytes(record: FileRecord): number {
 }
 
 /**
- * Reads contentType from a FileRecord — handles the SDK snake_case / camelCase mismatch.
- *
- * @param record - FileRecord from @filenest/react.
+ * Reads contentType from a FileRecord (same snake_case / camelCase caveat).
  */
 function getContentType(record: FileRecord): string {
   const raw = record as unknown as Record<string, unknown>;
   return (record.contentType ?? raw["content_type"] ?? "") as string;
 }
 
-// ── FileRow — single row in the staging / upload-progress list ────────────────
+// ── FileRow — one entry in the staged / uploading list ───────────────────────
 
 interface FileRowProps {
   entry: StagedEntry;
-  /** Remove callback — only shown for staged (not yet uploading) entries. */
+  /** Remove callback — only shown while the file is still staged (not yet uploading). */
   onRemove?: () => void;
 }
 
 /**
- * One row in the staged-files list showing name, size, and status icon.
- *
+ * Renders one row in the staging list: extension badge, filename, size, and status icon.
  * @param entry    - Staged file entry with current status.
  * @param onRemove - Called when the × button is clicked (staged entries only).
  */
@@ -148,23 +141,15 @@ function FileRow({ entry, onRemove }: FileRowProps) {
 
   return (
     <div className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2.5">
-      {/* Extension badge */}
-      <Badge
-        variant="secondary"
-        className="text-[10px] font-mono shrink-0 min-w-[3.25rem] justify-center"
-      >
+      <Badge variant="secondary" className="text-[10px] font-mono shrink-0 min-w-13 justify-center">
         {ext}
       </Badge>
 
-      {/* Filename + size */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate leading-tight">{entry.file.name}</p>
-        {size && (
-          <p className="text-xs text-muted-foreground mt-0.5">{size}</p>
-        )}
+        {size && <p className="text-xs text-muted-foreground mt-0.5">{size}</p>}
       </div>
 
-      {/* Status indicator */}
       {entry.status === "staged" && onRemove && (
         <button
           type="button"
@@ -191,31 +176,26 @@ function FileRow({ entry, onRemove }: FileRowProps) {
 // ── ExistingUploads — previously uploaded files fetched from FHIR ─────────────
 
 interface ExistingUploadsProps {
-  /** DiagnosticReports filtered to this ServiceRequest. */
+  /** DiagnosticReports already filtered to this ServiceRequest. */
   reports: TDiagnosticReportResponse[];
   isLoading: boolean;
   /**
-   * Called when the patient clicks Download on a file.
+   * Opens a presigned download URL for the given FilNest fileId.
    * @param fileId - FilNest file ID stored as presented_form[].url.
-   * @param title  - Original filename for the download prompt.
+   * @param title  - Filename for the download prompt.
    */
   onDownload: (fileId: string, title?: string | null) => void;
 }
 
 /**
- * Lists previously uploaded result files grouped from DiagnosticReport.presentedForm[].
- * Shows filename, size, upload date, and a per-file Download button.
- *
- * @param reports    - DiagnosticReports for this ServiceRequest.
- * @param isLoading  - True while FHIR data is being fetched.
- * @param onDownload - Download handler.
+ * Lists previously uploaded result files flattened from DiagnosticReport.presentedForm[].
+ * Newest DiagnosticReports first. Each row shows extension, filename, size, date, and
+ * a Download button.
  */
 function ExistingUploads({ reports, isLoading, onDownload }: ExistingUploadsProps) {
-  /** Flatten presentedForm entries from all DiagnosticReports, newest first. */
+  /** Flatten presentedForm across all DRs, newest DR first. */
   const allFiles = [...reports]
-    .sort((a, b) =>
-      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-    )
+    .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
     .flatMap((dr) =>
       (dr.presented_form ?? []).map((pf) => ({
         ...pf,
@@ -258,15 +238,13 @@ function ExistingUploads({ reports, isLoading, onDownload }: ExistingUploadsProp
               key={pf.id ?? i}
               className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2.5"
             >
-              {/* Extension badge */}
               <Badge
                 variant="secondary"
-                className="text-[10px] font-mono shrink-0 min-w-[3.25rem] justify-center"
+                className="text-[10px] font-mono shrink-0 min-w-13 justify-center"
               >
                 {ext}
               </Badge>
 
-              {/* File info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate leading-tight">
                   {pf.title ?? "Untitled"}
@@ -276,7 +254,6 @@ function ExistingUploads({ reports, isLoading, onDownload }: ExistingUploadsProp
                 </p>
               </div>
 
-              {/* Download button */}
               {pf.url && (
                 <Button
                   type="button"
@@ -303,85 +280,90 @@ interface UploadResultContentProps {
   serviceRequestId: number;
   patientFhirId?: number;
   serviceRequestCode?: string;
-  onClose: () => void;
 }
 
 /**
- * Inner content component rendered inside FileNestProvider.
- * Manages file staging, upload coordination, and FHIR record creation.
+ * Inner content rendered inside FileNestProvider.
+ * Manages staging, upload coordination, FHIR batch creation, and history display.
  *
- * @param serviceRequestId   - FHIR ServiceRequest.id to link results to.
- * @param patientFhirId      - FHIR Patient.id — used for subject and history fetch.
- * @param serviceRequestCode - Human-readable order name shown in the UI.
- * @param onClose            - Closes the parent modal.
+ * @param serviceRequestId   - FHIR ServiceRequest.id.
+ * @param patientFhirId      - FHIR Patient.id — used for subject refs and history fetch.
+ * @param serviceRequestCode - Human-readable order name shown in the dialog description.
  */
 function UploadResultContent({
   serviceRequestId,
   patientFhirId,
-  onClose,
 }: UploadResultContentProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Staged file list state ──────────────────────────────────────────────────
-
+  // ── Staged file list ────────────────────────────────────────────────────────
   const [stagedFiles, setStagedFiles] = useState<StagedEntry[]>([]);
 
-  // ── Upload coordination refs (mutated inside callbacks, no re-render needed) ─
-
-  /** FileNest records collected as onComplete fires per file. */
+  // ── Upload coordination refs ────────────────────────────────────────────────
+  /** FileNest records collected as onComplete fires sequentially per file. */
   const completedRecordsRef = useRef<FileRecord[]>([]);
   /** Total files in the current upload batch. */
   const uploadTotalRef = useRef(0);
-  /** How many files have called back (done or error) so far. */
+  /** How many files have called back (success or error) so far. */
   const uploadCompletedRef = useRef(0);
 
-  // ── FHIR state ─────────────────────────────────────────────────────────────
-
+  // ── FHIR state ──────────────────────────────────────────────────────────────
   const [isSaving, setIsSaving] = useState(false);
   const [existingReports, setExistingReports] = useState<TDiagnosticReportResponse[]>([]);
-  const [isLoadingReports, setIsLoadingReports] = useState(false);
-
-  // ── Fetch existing DiagnosticReports for this ServiceRequest ─────────────────
-
   /**
-   * Fetches DiagnosticReports filtered by patient_id, then filters client-side by
-   * based_on[].reference_id === serviceRequestId. This is necessary because the
-   * fhir-server list endpoint does not support a based_on filter.
+   * Incrementing this key re-triggers the fetch effect.
+   * Increment after a successful FHIR write to refresh the history section.
    */
-  const fetchExistingReports = useCallback(async () => {
-    if (!patientFhirId || !serviceRequestId) return;
-    setIsLoadingReports(true);
-    try {
-      const [page] = await listDiagnosticReportsAction({
-        payload: { patient_id: patientFhirId, limit: 100 },
-      });
-      if (page?.data) {
-        const filtered = page.data.filter((dr) =>
-          dr.based_on?.some(
-            (b) =>
-              b.reference_type === "ServiceRequest" &&
-              b.reference_id === serviceRequestId,
-          ),
-        );
-        setExistingReports(filtered);
-      }
-    } finally {
-      setIsLoadingReports(false);
-    }
-  }, [patientFhirId, serviceRequestId]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  /** True while the initial (or refresh) fetch is in flight. */
+  const [isLoadingReports, setIsLoadingReports] = useState(
+    patientFhirId != null && serviceRequestId != null,
+  );
 
-  /** Fetch on mount (UploadResultContent mounts only when the modal is open). */
+  // ── Fetch existing DiagnosticReports ────────────────────────────────────────
+  /**
+   * Fetches DiagnosticReports by patient_id, then filters client-side to those
+   * whose based_on[] references this ServiceRequest.
+   * This pattern avoids calling setState synchronously in the effect body — all
+   * state mutations happen inside promise callbacks (async, not synchronous).
+   */
   useEffect(() => {
-    void fetchExistingReports();
-  }, [fetchExistingReports]);
+    if (!patientFhirId || !serviceRequestId) return;
+
+    let current = true;
+
+    listDiagnosticReportsAction({
+      payload: { patient_id: patientFhirId, limit: 100 },
+    })
+      .then(([page]) => {
+        if (!current) return;
+        const typed = page as TPaginatedDiagnosticReportResponse | null;
+        if (typed?.data) {
+          const filtered = typed.data.filter((dr: TDiagnosticReportResponse) =>
+            dr.based_on?.some(
+              (b: { reference_type?: string | null; reference_id?: number | null }) =>
+                b.reference_type === "ServiceRequest" &&
+                b.reference_id === serviceRequestId,
+            ),
+          );
+          setExistingReports(filtered);
+        }
+        setIsLoadingReports(false);
+      })
+      .catch(() => {
+        if (current) setIsLoadingReports(false);
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [patientFhirId, serviceRequestId, refreshKey]);
 
   // ── Download handler ────────────────────────────────────────────────────────
-
   /**
-   * Fetches a short-lived presigned URL for a FilNest file and opens it in a new tab.
-   *
+   * Fetches a short-lived presigned download URL for a FilNest fileId and opens it.
    * @param fileId - FilNest file ID stored as presented_form[].url.
-   * @param title  - Original filename (used as download filename hint).
+   * @param title  - Filename hint for the browser download dialog.
    */
   const handleDownload = useCallback(
     async (fileId: string, title?: string | null) => {
@@ -407,11 +389,11 @@ function UploadResultContent({
   );
 
   // ── FHIR batch creation ─────────────────────────────────────────────────────
-
   /**
-   * After all files are uploaded to FilNest, creates:
+   * Creates FHIR records for a completed upload batch:
    *   • ONE DiagnosticReport with all files in presented_form[].
-   *   • ONE DocumentReference per file (linked to the DiagnosticReport + ServiceRequest).
+   *   • ONE DocumentReference per file linked to the DiagnosticReport + ServiceRequest.
+   * Increments refreshKey to trigger a history refresh after saving.
    *
    * @param records - All completed FileRecords from the upload batch.
    */
@@ -423,7 +405,7 @@ function UploadResultContent({
           patientFhirId != null ? `Patient/${patientFhirId}` : undefined;
         const creation = new Date().toISOString();
 
-        // ── 1. One DiagnosticReport with all files in presented_form[] ─────────
+        // ── 1. One DiagnosticReport (all files in presented_form[]) ──────────
         const [drData, drErr] = await createDiagnosticReportAction({
           payload: {
             status: "preliminary",
@@ -485,7 +467,7 @@ function UploadResultContent({
 
         if (failCount > 0) {
           toast.warning(
-            `${records.length - failCount}/${records.length} document references saved. Some failed — check your connection and try again.`,
+            `${records.length - failCount}/${records.length} document references saved. Some failed.`,
           );
         } else {
           toast.success(
@@ -493,24 +475,22 @@ function UploadResultContent({
           );
         }
 
-        // Refresh the previous-uploads section and clear the staging list.
-        await fetchExistingReports();
+        // Trigger a history refresh and clear the staging list.
+        setRefreshKey((k) => k + 1);
+        setIsLoadingReports(true);
         setStagedFiles([]);
         completedRecordsRef.current = [];
       } finally {
         setIsSaving(false);
       }
     },
-    [serviceRequestId, patientFhirId, fetchExistingReports],
+    [serviceRequestId, patientFhirId],
   );
 
   // ── FileNest upload callbacks ───────────────────────────────────────────────
-
   /**
    * Called by useUpload once per completed file.
-   * When all files in the batch have completed, triggers FHIR record creation.
-   *
-   * @param fileRecord - Completed FileRecord from FilNest.
+   * When all files in the batch complete, triggers FHIR batch creation.
    */
   const handleComplete = useCallback(
     async (fileRecord: FileRecord) => {
@@ -518,7 +498,6 @@ function UploadResultContent({
       uploadCompletedRef.current++;
 
       if (uploadCompletedRef.current === uploadTotalRef.current) {
-        // All files uploaded — mark done and create FHIR records.
         setStagedFiles((prev) =>
           prev.map((f) =>
             f.status === "uploading" ? { ...f, status: "done" } : f,
@@ -531,17 +510,15 @@ function UploadResultContent({
   );
 
   /**
-   * Called by useUpload when a file fails to upload.
-   * Marks the file as errored; if some files succeeded, still creates FHIR records for them.
-   *
-   * @param error - The upload error.
+   * Called by useUpload when a file fails.
+   * Marks one uploading entry as errored. If some files already completed,
+   * still creates FHIR records for the successful subset.
    */
   const handleError = useCallback(
     async (error: Error) => {
       toast.error(`Upload failed: ${error.message}`);
       uploadCompletedRef.current++;
 
-      // Mark one uploading entry as error (FIFO — first uploading entry found).
       setStagedFiles((prev) => {
         let marked = false;
         return prev.map((f) => {
@@ -553,7 +530,6 @@ function UploadResultContent({
         });
       });
 
-      // If some files already completed successfully, still save those to FHIR.
       if (
         uploadCompletedRef.current === uploadTotalRef.current &&
         completedRecordsRef.current.length > 0
@@ -569,14 +545,10 @@ function UploadResultContent({
     onError: handleError,
   });
 
-  // ── File input handler ──────────────────────────────────────────────────────
-
+  // ── File input & upload ─────────────────────────────────────────────────────
   /**
    * Appends newly selected files to the staging list.
-   * Files with "uploading" or "done" status are preserved — the patient can
-   * add more files before the current batch finishes only while staged.
-   *
-   * @param e - Change event from the hidden file input.
+   * Already-uploading entries are preserved.
    */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -592,11 +564,9 @@ function UploadResultContent({
     ]);
   };
 
-  // ── Upload button handler ───────────────────────────────────────────────────
-
   /**
-   * Starts uploading all staged (not yet uploading) files.
-   * Resets upload tracking refs before calling upload().
+   * Starts uploading all currently staged files.
+   * Resets upload tracking refs, marks entries as "uploading", then calls upload().
    */
   const handleUploadClick = () => {
     const toUpload = stagedFiles.filter((f) => f.status === "staged");
@@ -615,14 +585,12 @@ function UploadResultContent({
   };
 
   // ── Derived state ───────────────────────────────────────────────────────────
-
   const stagedCount = stagedFiles.filter((f) => f.status === "staged").length;
   const isLoading = isUploading || isSaving;
   const hasExisting = existingReports.length > 0;
   const showStagingList = stagedFiles.length > 0;
 
   // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
     <div className="space-y-4">
       {/* ── Previously uploaded results ──────────────────────────────────── */}
@@ -632,7 +600,6 @@ function UploadResultContent({
         onDownload={handleDownload}
       />
 
-      {/* Divider between existing and new upload sections */}
       {(hasExisting || isLoadingReports) && <Separator />}
 
       {/* ── New upload section ────────────────────────────────────────────── */}
@@ -641,7 +608,7 @@ function UploadResultContent({
           Upload New Files
         </p>
 
-        {/* Add files trigger */}
+        {/* Add-files trigger */}
         <button
           type="button"
           onClick={() => !isLoading && inputRef.current?.click()}
@@ -651,12 +618,10 @@ function UploadResultContent({
         >
           <Plus className="size-4 shrink-0" />
           <span>Add files</span>
-          <span className="ml-auto text-xs text-muted-foreground/60">
-            Any type · max 50 MB each
-          </span>
+          <span className="ml-auto text-xs opacity-50">Any type · max 50 MB each</span>
         </button>
 
-        {/* Staged / in-progress file list */}
+        {/* Staged / uploading file list */}
         {showStagingList && (
           <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
             {stagedFiles.map((entry) => (
@@ -676,18 +641,16 @@ function UploadResultContent({
           </div>
         )}
 
-        {/* Empty state when nothing is staged yet and no existing */}
+        {/* Empty state — nothing staged and no previous uploads */}
         {!showStagingList && !hasExisting && !isLoadingReports && (
           <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
             <FileText className="size-8 opacity-40" />
             <p className="text-sm">No results uploaded yet.</p>
-            <p className="text-xs opacity-70">
-              Add files above and click Upload.
-            </p>
+            <p className="text-xs opacity-60">Add files above, then click Upload.</p>
           </div>
         )}
 
-        {/* Upload button — shown only when staged files exist */}
+        {/* Upload button — visible only while staged files exist and not actively uploading */}
         {stagedCount > 0 && !isLoading && (
           <Button
             type="button"
@@ -699,7 +662,7 @@ function UploadResultContent({
           </Button>
         )}
 
-        {/* Saving indicator — shown while creating FHIR records */}
+        {/* Saving indicator */}
         {isSaving && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
@@ -708,7 +671,7 @@ function UploadResultContent({
         )}
       </div>
 
-      {/* Hidden multi-file input — no accept restriction */}
+      {/* Hidden multi-file input — no type restriction */}
       <input
         ref={inputRef}
         type="file"
@@ -728,8 +691,8 @@ function UploadResultContent({
  * Mounted once in PatientModalProvider.
  *
  * FileNestProvider is conditionally mounted only while the modal is open and
- * serviceRequestId is known — the token endpoint is never called just by having
- * the provider exist in the layout.
+ * serviceRequestId is known — no token request fires just from the modal existing
+ * in the layout tree.
  */
 export function UploadResultModal() {
   const isOpen = usePatientStore((s) => s.isOpen);
@@ -738,7 +701,6 @@ export function UploadResultModal() {
   const onClose = usePatientStore((s) => s.onClose);
   const queryClient = useQueryClient();
 
-  /** Only active when this specific modal type is set. */
   const open = isOpen && type === "uploadResult";
 
   const serviceRequestId = data?.serviceRequestId;
@@ -746,8 +708,8 @@ export function UploadResultModal() {
   const serviceRequestCode = data?.serviceRequestCode;
 
   /**
-   * FilNest upload path: patientId is the root folder (same convention as profile photos).
-   * Falls back gracefully when patientFhirId is unavailable.
+   * FilNest upload path: patientId is the root folder (same convention as profile photos:
+   * {patientId}/...). Falls back gracefully when patientFhirId is unavailable.
    */
   const filePath =
     patientFhirId != null && serviceRequestId != null
@@ -776,9 +738,10 @@ export function UploadResultModal() {
         </DialogHeader>
 
         {/*
-         * UploadResultContent is conditionally mounted so state resets cleanly
-         * each time the modal opens for a different ServiceRequest. FileNestProvider
-         * wraps only the content — the token request is deferred until upload() is called.
+         * UploadResultContent mounts only when the modal is open with a known
+         * serviceRequestId — state resets cleanly each time the modal re-opens
+         * for a different ServiceRequest. FileNestProvider wraps only this inner
+         * content; the token endpoint is not called until upload() is invoked.
          */}
         {open && serviceRequestId != null ? (
           <FileNestProvider
@@ -791,7 +754,6 @@ export function UploadResultModal() {
               serviceRequestId={serviceRequestId}
               patientFhirId={patientFhirId ?? undefined}
               serviceRequestCode={serviceRequestCode ?? undefined}
-              onClose={onClose}
             />
           </FileNestProvider>
         ) : null}
