@@ -332,14 +332,15 @@ function UploadResultContent({
 
     let current = true;
 
-    listDiagnosticReportsAction({
-      payload: { patient_id: patientFhirId, limit: 100 },
-    })
-      .then((result) => {
+    (
+      listDiagnosticReportsAction({
+        payload: { patient_id: patientFhirId, limit: 100 },
+      }) as Promise<[TPaginatedDiagnosticReportResponse | null, unknown]>
+    )
+      .then(([page]) => {
         if (!current) return;
-        const typed = (result as [TPaginatedDiagnosticReportResponse | null, unknown])[0];
-        if (typed?.data) {
-          const filtered = typed.data.filter((dr: TDiagnosticReportResponse) =>
+        if (page?.data) {
+          const filtered = page.data.filter((dr: TDiagnosticReportResponse) =>
             dr.based_on?.some(
               (b: { reference_type?: string | null; reference_id?: number | null }) =>
                 b.reference_type === "ServiceRequest" &&
