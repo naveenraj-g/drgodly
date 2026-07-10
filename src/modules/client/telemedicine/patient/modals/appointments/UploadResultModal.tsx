@@ -91,7 +91,10 @@ function formatBytes(bytes: number | null | undefined): string {
  * @param title       - Filename, e.g. "blood-test.pdf".
  * @param contentType - MIME type, e.g. "application/pdf".
  */
-function getFileExt(title?: string | null, contentType?: string | null): string {
+function getFileExt(
+  title?: string | null,
+  contentType?: string | null,
+): string {
   if (title) {
     const ext = title.split(".").pop();
     if (ext && ext.length <= 5) return ext.toUpperCase();
@@ -141,12 +144,17 @@ function FileRow({ entry, onRemove }: FileRowProps) {
 
   return (
     <div className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2.5">
-      <Badge variant="secondary" className="text-[10px] font-mono shrink-0 min-w-13 justify-center">
+      <Badge
+        variant="secondary"
+        className="text-[10px] font-mono shrink-0 min-w-13 justify-center"
+      >
         {ext}
       </Badge>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate leading-tight">{entry.file.name}</p>
+        <p className="text-sm font-medium truncate leading-tight">
+          {entry.file.name}
+        </p>
         {size && <p className="text-xs text-muted-foreground mt-0.5">{size}</p>}
       </div>
 
@@ -192,7 +200,11 @@ interface ExistingUploadsProps {
  * Newest DiagnosticReports first. Each row shows extension, filename, size, date, and
  * a Download button.
  */
-function ExistingUploads({ reports, isLoading, onDownload }: ExistingUploadsProps) {
+function ExistingUploads({
+  reports,
+  isLoading,
+  onDownload,
+}: ExistingUploadsProps) {
   /** Flatten presentedForm across all DRs, newest DR first. */
   const allFiles = [...reports]
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
@@ -309,7 +321,9 @@ function UploadResultContent({
 
   // ── FHIR state ──────────────────────────────────────────────────────────────
   const [isSaving, setIsSaving] = useState(false);
-  const [existingReports, setExistingReports] = useState<TDiagnosticReportResponse[]>([]);
+  const [existingReports, setExistingReports] = useState<
+    TDiagnosticReportResponse[]
+  >([]);
   /**
    * Incrementing this key re-triggers the fetch effect.
    * Increment after a successful FHIR write to refresh the history section.
@@ -342,7 +356,10 @@ function UploadResultContent({
         if (page?.data) {
           const filtered = page.data.filter((dr: TDiagnosticReportResponse) =>
             dr.based_on?.some(
-              (b: { reference_type?: string | null; reference_id?: number | null }) =>
+              (b: {
+                reference_type?: string | null;
+                reference_id?: number | null;
+              }) =>
                 b.reference_type === "ServiceRequest" &&
                 b.reference_id === serviceRequestId,
             ),
@@ -462,8 +479,7 @@ function UploadResultContent({
 
         const failCount = docRefResults.filter(
           (r) =>
-            r.status === "rejected" ||
-            (r.status === "fulfilled" && r.value[1]),
+            r.status === "rejected" || (r.status === "fulfilled" && r.value[1]),
         ).length;
 
         if (failCount > 0) {
@@ -619,7 +635,9 @@ function UploadResultContent({
         >
           <Plus className="size-4 shrink-0" />
           <span>Add files</span>
-          <span className="ml-auto text-xs opacity-50">Any type · max 50 MB each</span>
+          <span className="ml-auto text-xs opacity-50">
+            Any type · max 50 MB each
+          </span>
         </button>
 
         {/* Staged / uploading file list */}
@@ -647,7 +665,9 @@ function UploadResultContent({
           <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
             <FileText className="size-8 opacity-40" />
             <p className="text-sm">No results uploaded yet.</p>
-            <p className="text-xs opacity-60">Add files above, then click Upload.</p>
+            <p className="text-xs opacity-60">
+              Add files above, then click Upload.
+            </p>
           </div>
         )}
 
@@ -721,6 +741,47 @@ export function UploadResultModal() {
 
   const tokenFetcher = useFileNestTokenFetcher({
     filePath,
+    /**
+     * Broad allow-list covering standard documents, images, and medical record formats.
+     * Includes DICOM (medical imaging), HL7 v2/v3, CDA, FHIR, and common office/scan formats
+     * so patients can upload any result the hospital or lab provides.
+     */
+    allowedMimeTypes: [
+      // Documents
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "text/plain",
+      "text/csv",
+      "application/rtf",
+      // Images (scanned reports, photos of results)
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/bmp",
+      "image/tiff",        // common in medical scanners
+      "image/heic",
+      "image/heif",
+      // Archives
+      "application/zip",
+      "application/x-zip-compressed",
+      // Medical / clinical standards
+      "application/dicom",             // DICOM imaging (X-ray, MRI, CT)
+      "application/octet-stream",      // generic binary — many DICOM viewers export this
+      "text/hl7v2",                    // HL7 v2 lab results
+      "application/hl7-v2+er7",        // HL7 v2 ER7 encoding
+      "application/hl7-v3+xml",        // HL7 v3 / CDA clinical documents
+      "text/xml",
+      "application/xml",
+      "application/fhir+json",         // FHIR R4 JSON bundles
+      "application/fhir+xml",          // FHIR R4 XML bundles
+      "application/json",
+    ],
     maxSizeMb: 50,
     maxFiles: 10,
     metadata: { serviceRequestId, patientFhirId },

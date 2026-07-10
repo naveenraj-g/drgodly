@@ -212,7 +212,42 @@ function SoapNoteView({ soap }: { soap: SoapNote }) {
 // ── FHIR resource list views ──────────────────────────────────────────────────
 
 /**
- * Renders the list of confirmed FHIR Conditions.
+ * Formats an ISO date string to a short human-readable date (e.g. "Jan 5, 2025").
+ * Returns null if the input is nullish or unparseable.
+ *
+ * @param iso - ISO 8601 date or datetime string.
+ */
+function fmtDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A small label + value row used inside detail cards.
+ *
+ * @param label - Short field label (e.g. "Severity").
+ * @param value - Display value; if falsy the row is omitted.
+ */
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      <span className="font-medium text-foreground/70">{label}:</span> {value}
+    </p>
+  );
+}
+
+/**
+ * Renders the list of confirmed FHIR Conditions with patient-relevant details.
+ * Shows name, clinical/verification status, severity, onset date, and body sites.
  *
  * @param conditions - Array of condition records from the FHIR server.
  */
@@ -226,36 +261,55 @@ function ConditionList({ conditions }: { conditions: TConditionResponse[] }) {
           Conditions
         </p>
       </div>
-      <div className="space-y-1.5">
-        {conditions.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 gap-3"
-          >
-            <p className="text-sm font-medium">
-              {c.code_display ?? c.code_text ?? "Unknown condition"}
-            </p>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {c.clinical_status_code && (
-                <Badge variant="outline" className="text-xs font-normal capitalize">
-                  {c.clinical_status_code}
-                </Badge>
-              )}
-              {c.verification_status_code && (
-                <Badge variant="secondary" className="text-xs font-normal capitalize">
-                  {c.verification_status_code}
-                </Badge>
-              )}
+      <div className="space-y-2">
+        {conditions.map((c) => {
+          const onset = fmtDate(c.onset_datetime) ?? c.onset_string ?? null;
+          const abatement = fmtDate(c.abatement_datetime) ?? c.abatement_string ?? null;
+          const severity = c.severity_display ?? c.severity_text ?? null;
+          const bodySites = (c.body_site ?? [])
+            .map((b) => b.coding_display ?? b.text)
+            .filter(Boolean)
+            .join(", ") || null;
+          const notes = (c.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
+          return (
+            <div key={c.id} className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
+              {/* Name + status badges */}
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium leading-snug">
+                  {c.code_display ?? c.code_text ?? "Unknown condition"}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                  {c.clinical_status_code && (
+                    <Badge variant="outline" className="text-xs font-normal capitalize">
+                      {c.clinical_status_code}
+                    </Badge>
+                  )}
+                  {c.verification_status_code && (
+                    <Badge variant="secondary" className="text-xs font-normal capitalize">
+                      {c.verification_status_code}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {/* Detail rows */}
+              <div className="space-y-0.5">
+                <DetailRow label="Severity" value={severity} />
+                <DetailRow label="Onset" value={onset} />
+                <DetailRow label="Resolved" value={abatement} />
+                <DetailRow label="Body site" value={bodySites} />
+                <DetailRow label="Notes" value={notes} />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
 /**
- * Renders the list of confirmed FHIR Observations.
+ * Renders the list of confirmed FHIR Observations with patient-relevant details.
+ * Shows name, value + unit, interpretation, reference range, and effective date.
  *
  * @param observations - Array of observation records from the FHIR server.
  */
@@ -269,23 +323,56 @@ function ObservationList({ observations }: { observations: TObservationResponse[
           Observations
         </p>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {observations.map((o) => {
-          const value =
-            o.value_quantity_value != null
-              ? `${o.value_quantity_value}${o.value_quantity_unit ? ` ${o.value_quantity_unit}` : ""}`
-              : (o.value_string ?? null);
+          /* Resolve value[x] — prefer quantity, then codeable concept, then string/boolean */
+          const value: string | null = (() => {
+            if (o.value_quantity_value != null)
+              return `${o.value_quantity_value}${o.value_quantity_unit ? ` ${o.value_quantity_unit}` : ""}`;
+            if (o.value_codeable_concept_display) return o.value_codeable_concept_display;
+            if (o.value_codeable_concept_text) return o.value_codeable_concept_text;
+            if (o.value_string) return o.value_string;
+            if (o.value_boolean != null) return String(o.value_boolean);
+            if (o.value_integer != null) return String(o.value_integer);
+            return null;
+          })();
+
+          /* Reference range — show first entry as "low – high unit" */
+          const rr = o.reference_range?.[0];
+          const refRange =
+            rr?.low_value != null && rr?.high_value != null
+              ? `${rr.low_value}${rr.low_unit ? ` ${rr.low_unit}` : ""} – ${rr.high_value}${rr.high_unit ? ` ${rr.high_unit}` : ""}`
+              : rr?.text ?? null;
+
+          /* Interpretation from first entry */
+          const interpretation =
+            o.interpretation?.[0]?.coding_display ??
+            o.interpretation?.[0]?.text ??
+            null;
+
+          const effectiveDate = fmtDate(o.effective_date_time ?? o.effective_period_start ?? o.issued);
+
           return (
-            <div
-              key={o.id}
-              className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 gap-3"
-            >
-              <p className="text-sm font-medium">
-                {o.code_display ?? o.code_text ?? "Unknown observation"}
-              </p>
-              {value && (
-                <p className="text-sm text-muted-foreground shrink-0">{value}</p>
-              )}
+            <div key={o.id} className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
+              {/* Name + value on same row when value is short */}
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium leading-snug">
+                  {o.code_display ?? o.code_text ?? "Unknown observation"}
+                </p>
+                {value && (
+                  <p className="text-sm font-semibold shrink-0 text-primary">{value}</p>
+                )}
+              </div>
+              {/* Detail rows */}
+              <div className="space-y-0.5">
+                <DetailRow label="Interpretation" value={interpretation} />
+                <DetailRow label="Reference range" value={refRange} />
+                <DetailRow label="Date" value={effectiveDate} />
+                <DetailRow
+                  label="Body site"
+                  value={o.body_site_display ?? o.body_site_text ?? null}
+                />
+              </div>
             </div>
           );
         })}
@@ -295,7 +382,8 @@ function ObservationList({ observations }: { observations: TObservationResponse[
 }
 
 /**
- * Renders the list of confirmed FHIR MedicationRequests.
+ * Renders the list of confirmed FHIR MedicationRequests with patient-relevant details.
+ * Shows name, dosage instructions, route, timing, quantity, supply duration, and notes.
  *
  * @param medications - Array of medication request records from the FHIR server.
  */
@@ -313,29 +401,63 @@ function MedicationList({
           Medications
         </p>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {medications.map((m) => {
           const dosage = m.dosage_instruction?.[0];
-          const details = [
-            dosage?.text,
-            dosage?.route_display ?? dosage?.route_text,
-            dosage?.timing_code_display,
-          ]
-            .filter(Boolean)
-            .join(" · ");
+
+          /* Dose amount — prefer dose_quantity, then dose_range */
+          const doseAmt =
+            dosage?.dose_and_rate?.[0]?.dose_quantity_value != null
+              ? `${dosage.dose_and_rate[0].dose_quantity_value}${dosage.dose_and_rate[0].dose_quantity_unit ? ` ${dosage.dose_and_rate[0].dose_quantity_unit}` : ""}`
+              : dosage?.dose_and_rate?.[0]?.dose_range_low_value != null
+              ? `${dosage.dose_and_rate[0].dose_range_low_value}–${dosage.dose_and_rate[0].dose_range_high_value}${dosage.dose_and_rate[0].dose_range_high_unit ? ` ${dosage.dose_and_rate[0].dose_range_high_unit}` : ""}`
+              : null;
+
+          /* Timing — prefer text, then frequency+period, then timing code */
+          const frequency =
+            dosage?.timing_repeat_frequency != null && dosage?.timing_repeat_period != null
+              ? `${dosage.timing_repeat_frequency}× per ${dosage.timing_repeat_period} ${dosage.timing_repeat_period_unit ?? ""}`.trim()
+              : (dosage?.timing_code_display ?? null);
+
+          /* Dispense quantity */
+          const dispenseQty =
+            m.dispense_quantity_value != null
+              ? `${m.dispense_quantity_value}${m.dispense_quantity_unit ? ` ${m.dispense_quantity_unit}` : ""}`
+              : null;
+
+          /* Supply duration */
+          const supplyDuration =
+            m.dispense_expected_supply_duration_value != null
+              ? `${m.dispense_expected_supply_duration_value}${m.dispense_expected_supply_duration_unit ? ` ${m.dispense_expected_supply_duration_unit}` : ""}`
+              : null;
+
+          const notes = (m.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
+
           return (
-            <div
-              key={m.id}
-              className="rounded-md border bg-muted/30 px-3 py-2 space-y-0.5"
-            >
-              <p className="text-sm font-medium">
-                {m.medication_code_display ??
-                  m.medication_code_text ??
-                  "Unknown medication"}
-              </p>
-              {details && (
-                <p className="text-xs text-muted-foreground">{details}</p>
-              )}
+            <div key={m.id} className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
+              {/* Name + status */}
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium leading-snug">
+                  {m.medication_code_display ?? m.medication_code_text ?? "Unknown medication"}
+                </p>
+                {m.status && (
+                  <Badge variant="secondary" className="text-xs font-normal capitalize shrink-0">
+                    {m.status}
+                  </Badge>
+                )}
+              </div>
+              {/* Detail rows */}
+              <div className="space-y-0.5">
+                {/* Free-text dosage instructions take priority */}
+                <DetailRow label="Instructions" value={dosage?.text ?? null} />
+                <DetailRow label="Dose" value={doseAmt} />
+                <DetailRow label="Route" value={dosage?.route_display ?? dosage?.route_text ?? null} />
+                <DetailRow label="Frequency" value={frequency} />
+                <DetailRow label="Patient instructions" value={dosage?.patient_instruction ?? null} />
+                <DetailRow label="Quantity dispensed" value={dispenseQty} />
+                <DetailRow label="Supply duration" value={supplyDuration} />
+                <DetailRow label="Notes" value={notes} />
+              </div>
             </div>
           );
         })}
@@ -345,7 +467,8 @@ function MedicationList({
 }
 
 /**
- * Renders the list of confirmed FHIR ServiceRequests (orders/investigations).
+ * Renders the list of confirmed FHIR ServiceRequests (orders/investigations) with details.
+ * Shows name, category, reason, occurrence date, patient instructions, notes, and body sites.
  *
  * @param serviceRequests  - Array of service request records from the FHIR server.
  * @param onUploadResult   - Optional callback to open the upload-result modal for a specific request.
@@ -367,41 +490,64 @@ function ServiceRequestList({
           Orders / Investigations
         </p>
       </div>
-      <div className="space-y-1.5">
-        {serviceRequests.map((s) => (
-          <div
-            key={s.id}
-            className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 gap-3"
-          >
-            <p className="text-sm font-medium">
-              {s.code_display ?? s.code_text ?? "Unknown order"}
-            </p>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {s.priority && (
-                <Badge variant="outline" className="text-xs font-normal capitalize">
-                  {s.priority}
-                </Badge>
-              )}
-              {s.status && (
-                <Badge variant="secondary" className="text-xs font-normal capitalize">
-                  {s.status}
-                </Badge>
-              )}
-              {onUploadResult && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs"
-                  onClick={() => onUploadResult(s)}
-                >
-                  <Upload className="size-3" />
-                  Upload Result
-                </Button>
-              )}
+      <div className="space-y-2">
+        {serviceRequests.map((s) => {
+          const category =
+            s.category?.[0]?.coding_display ?? s.category?.[0]?.text ?? null;
+          const reason =
+            s.reason_code?.[0]?.coding_display ?? s.reason_code?.[0]?.text ?? null;
+          const occurrence =
+            fmtDate(s.occurrence_datetime ?? s.occurrence_period_start) ?? null;
+          const bodySites = (s.body_site ?? [])
+            .map((b) => b.coding_display ?? b.text)
+            .filter(Boolean)
+            .join(", ") || null;
+          const notes = (s.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
+
+          return (
+            <div key={s.id} className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
+              {/* Name + badges + upload button */}
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium leading-snug">
+                  {s.code_display ?? s.code_text ?? "Unknown order"}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                  {s.priority && (
+                    <Badge variant="outline" className="text-xs font-normal capitalize">
+                      {s.priority}
+                    </Badge>
+                  )}
+                  {s.status && (
+                    <Badge variant="secondary" className="text-xs font-normal capitalize">
+                      {s.status}
+                    </Badge>
+                  )}
+                  {onUploadResult && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      onClick={() => onUploadResult(s)}
+                    >
+                      <Upload className="size-3" />
+                      Upload Result
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {/* Detail rows */}
+              <div className="space-y-0.5">
+                <DetailRow label="Category" value={category} />
+                <DetailRow label="Reason" value={reason} />
+                <DetailRow label="Scheduled" value={occurrence} />
+                <DetailRow label="Body site" value={bodySites} />
+                <DetailRow label="Instructions" value={s.patient_instruction ?? null} />
+                <DetailRow label="Notes" value={notes} />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
