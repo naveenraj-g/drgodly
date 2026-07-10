@@ -24,7 +24,7 @@
 import { useRef, useState, useCallback } from "react";
 import { FileNestProvider, useUpload, type FileRecord } from "@filenest/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Upload, Loader2, CheckCircle2 } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -39,7 +39,6 @@ import { useFileNestTokenFetcher } from "@/modules/client/shared/hooks/useFileNe
 import { createDiagnosticReportAction } from "@/modules/server/presentation/actions/diagnostic-report";
 import { createDocumentReferenceAction } from "@/modules/server/presentation/actions/document-reference";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
-import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 
 // ── Inner upload zone (must be a child of FileNestProvider) ──────────────────
 
@@ -159,16 +158,18 @@ function UploadZone({ serviceRequestId, patientFhirId, onClose }: UploadZoneProp
   const isLoading = isUploading || isSaving;
 
   /**
-   * Triggered when the patient selects a file from the hidden input.
-   * Clears the input value so the same file can be re-selected after an error.
+   * Triggered when the patient selects one or more files from the hidden input.
+   * Passes all selected files to upload() — FileNest processes them sequentially,
+   * calling onComplete once per file.
+   * Clears the input value so the same files can be re-selected after an error.
    *
    * @param e - Change event from the file input.
    */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
     e.target.value = "";
-    upload([file]);
+    upload(Array.from(files));
   };
 
   // ── Status label ─────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ function UploadZone({ serviceRequestId, patientFhirId, onClose }: UploadZoneProp
     ? "Saving to records…"
     : isUploading
       ? "Uploading…"
-      : "Click to select file";
+      : "Click to select files";
 
   return (
     <div className="space-y-3">
@@ -197,7 +198,7 @@ function UploadZone({ serviceRequestId, patientFhirId, onClose }: UploadZoneProp
           <div className="space-y-1">
             <p className="text-sm font-medium">{statusLabel}</p>
             <p className="text-xs text-muted-foreground">
-              PDF, PNG, JPEG · Max 20 MB
+              Any file type · Max 50 MB · Up to 10 files
             </p>
           </div>
         </div>
@@ -207,7 +208,7 @@ function UploadZone({ serviceRequestId, patientFhirId, onClose }: UploadZoneProp
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,application/pdf"
+        multiple
         className="sr-only"
         onChange={handleFileChange}
       />
@@ -249,9 +250,8 @@ export function UploadResultModal() {
 
   const tokenFetcher = useFileNestTokenFetcher({
     filePath,
-    allowedMimeTypes: ["image/jpeg", "image/png", "application/pdf"],
-    maxSizeMb: 20,
-    maxFiles: 1,
+    maxSizeMb: 50,
+    maxFiles: 10,
     metadata: { serviceRequestId, patientFhirId },
   });
 
