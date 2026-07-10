@@ -17,6 +17,8 @@ import {
   registerMedicationRequestModule,
   registerObservationModule,
   registerConditionModule,
+  registerDiagnosticReportModule,
+  registerDocumentReferenceModule,
 } from "./modules";
 
 const ApplicationContainer = createContainer();
@@ -37,6 +39,8 @@ registerServiceRequestModule(ApplicationContainer);
 registerMedicationRequestModule(ApplicationContainer);
 registerObservationModule(ApplicationContainer);
 registerConditionModule(ApplicationContainer);
+registerDiagnosticReportModule(ApplicationContainer);
+registerDocumentReferenceModule(ApplicationContainer);
 
 export const getInjection = <K extends keyof typeof DI_SYMBOLS>(
   symbol: K,

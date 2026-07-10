@@ -14,6 +14,8 @@ import { IServiceRequestService } from "../core/service-request/domain/interface
 import { IMedicationRequestService } from "../core/medication-request/domain/interfaces/medication-request.service.interface";
 import { IObservationService } from "../core/observation/domain/interfaces/observation.service.interface";
 import { IConditionService } from "../core/condition/domain/interfaces/condition.service.interface";
+import { IDiagnosticReportService } from "../core/diagnostic-report/domain/interfaces/diagnostic-report.service.interface";
+import { IDocumentReferenceService } from "../core/document-reference/domain/interfaces/document-reference.service.interface";
 
 export const DI_SYMBOLS = {
   IPatientsService: Symbol.for("IPatientsService"),
@@ -32,6 +34,8 @@ export const DI_SYMBOLS = {
   IMedicationRequestService: Symbol.for("IMedicationRequestService"),
   IObservationService: Symbol.for("IObservationService"),
   IConditionService: Symbol.for("IConditionService"),
+  IDiagnosticReportService: Symbol.for("IDiagnosticReportService"),
+  IDocumentReferenceService: Symbol.for("IDocumentReferenceService"),
 };
 
 export interface DI_RETURN_TYPES {
@@ -51,4 +55,6 @@ export interface DI_RETURN_TYPES {
   IMedicationRequestService: IMedicationRequestService;
   IObservationService: IObservationService;
   IConditionService: IConditionService;
+  IDiagnosticReportService: IDiagnosticReportService;
+  IDocumentReferenceService: IDocumentReferenceService;
 }

@@ -14,3 +14,5 @@ export * from "./service-request/service-request.module";
 export * from "./medication-request/medication-request.module";
 export * from "./observation/observation.module";
 export * from "./condition/condition.module";
+export * from "./diagnostic-report/diagnostic-report.module";
+export * from "./document-reference/document-reference.module";
