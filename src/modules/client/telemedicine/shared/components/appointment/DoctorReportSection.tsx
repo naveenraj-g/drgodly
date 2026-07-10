@@ -28,7 +28,9 @@ import {
   FlaskConical,
   Eye,
   Clock,
+  Upload,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { TConditionResponse } from "@/modules/entities/schemas/condition";
 import type { TObservationResponse } from "@/modules/entities/schemas/observation";
 import type { TMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
@@ -345,12 +347,16 @@ function MedicationList({
 /**
  * Renders the list of confirmed FHIR ServiceRequests (orders/investigations).
  *
- * @param serviceRequests - Array of service request records from the FHIR server.
+ * @param serviceRequests  - Array of service request records from the FHIR server.
+ * @param onUploadResult   - Optional callback to open the upload-result modal for a specific request.
+ *                           When provided, each card shows an "Upload Result" button.
  */
 function ServiceRequestList({
   serviceRequests,
+  onUploadResult,
 }: {
   serviceRequests: TServiceRequestResponse[];
+  onUploadResult?: (sr: TServiceRequestResponse) => void;
 }) {
   if (!serviceRequests.length) return null;
   return (
@@ -381,6 +387,18 @@ function ServiceRequestList({
                   {s.status}
                 </Badge>
               )}
+              {onUploadResult && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 text-xs"
+                  onClick={() => onUploadResult(s)}
+                >
+                  <Upload className="size-3" />
+                  Upload Result
+                </Button>
+              )}
             </div>
           </div>
         ))}
@@ -406,6 +424,12 @@ export interface DoctorReportSectionProps {
   medications: TMedicationRequestResponse[];
   /** FHIR ServiceRequests confirmed by the doctor. */
   serviceRequests: TServiceRequestResponse[];
+  /**
+   * Optional callback called when the user clicks "Upload Result" on a ServiceRequest card.
+   * When provided, each ServiceRequest card renders the Upload Result button.
+   * Omit on the doctor view — only pass on the patient appointment detail page.
+   */
+  onUploadResult?: (sr: TServiceRequestResponse) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -427,6 +451,7 @@ export function DoctorReportSection({
   observations,
   medications,
   serviceRequests,
+  onUploadResult,
 }: DoctorReportSectionProps) {
   const hasSoap = soap != null;
   const hasFhirData =
@@ -484,7 +509,10 @@ export function DoctorReportSection({
                 observations.length > 0 ||
                 medications.length > 0) &&
                 serviceRequests.length > 0 && <Separator />}
-              <ServiceRequestList serviceRequests={serviceRequests} />
+              <ServiceRequestList
+                serviceRequests={serviceRequests}
+                onUploadResult={onUploadResult}
+              />
             </div>
           </>
         )}

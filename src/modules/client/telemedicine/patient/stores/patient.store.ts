@@ -19,7 +19,8 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 export type PatientModalType =
   | "bookAppointment"
   | "cancelAppointment"
-  | "rescheduleAppointment";
+  | "rescheduleAppointment"
+  | "uploadResult";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -32,8 +33,14 @@ export interface PatientModalData {
   bookHref?: string;
   /** Localised href for the intake chooser. */
   intakeHref?: string;
-  /** Target appointment row — used by the cancel modal. */
+  /** Target appointment row — used by the cancel/reschedule modals. */
   appointment?: TAppointmentResponse;
+  /** FHIR ServiceRequest id — used by the upload result modal. */
+  serviceRequestId?: number;
+  /** Human-readable name of the ServiceRequest (e.g. "CBC Blood Test"). */
+  serviceRequestCode?: string;
+  /** FHIR Patient.id — used to construct the FilNest upload path. */
+  patientFhirId?: number;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

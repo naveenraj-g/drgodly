@@ -20,6 +20,8 @@ import { Brain, Stethoscope } from "lucide-react";
 import { IntakeReportSection } from "./IntakeReportSection";
 import { DoctorReportSection, type DoctorReportSectionProps } from "./DoctorReportSection";
 import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
+import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
+import { patientStore } from "@/modules/client/telemedicine/patient/stores/patient.store";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,11 @@ interface AppointmentReportTabsProps {
    * Passed directly to DoctorReportSection which handles its own empty state.
    */
   doctorReport: DoctorReportSectionProps;
+  /**
+   * When true, renders an "Upload Result" button on each ServiceRequest card.
+   * Pass from the patient appointment detail page only — the doctor view omits this.
+   */
+  isPatientView?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -43,13 +50,30 @@ interface AppointmentReportTabsProps {
  * Two-tab card layout showing the AI intake report and the doctor's
  * post-consultation report side by side.
  *
- * @param intake - Intake record (AI pre-intake assessment + conversation).
- * @param doctorReport - Doctor report data (SOAP + FHIR records).
+ * @param intake        - Intake record (AI pre-intake assessment + conversation).
+ * @param doctorReport  - Doctor report data (SOAP + FHIR records).
+ * @param isPatientView - When true, adds an "Upload Result" button to ServiceRequest cards.
  */
 export function AppointmentReportTabs({
   intake,
   doctorReport,
+  isPatientView = false,
 }: AppointmentReportTabsProps) {
+  /**
+   * Opens the upload-result modal for the given ServiceRequest.
+   * Only wired on the patient view — undefined on the doctor view.
+   */
+  const onUploadResult = isPatientView
+    ? (sr: TServiceRequestResponse) =>
+        patientStore.getState().onOpen({
+          type: "uploadResult",
+          data: {
+            serviceRequestId: sr.id,
+            serviceRequestCode: sr.code_display ?? sr.code_text ?? undefined,
+            patientFhirId: sr.subject_id ?? undefined,
+          },
+        })
+    : undefined;
   return (
     <Tabs defaultValue="intake" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -70,7 +94,7 @@ export function AppointmentReportTabs({
 
       {/* Doctor Report tab */}
       <TabsContent value="doctor" className="mt-4">
-        <DoctorReportSection {...doctorReport} />
+        <DoctorReportSection {...doctorReport} onUploadResult={onUploadResult} />
       </TabsContent>
     </Tabs>
   );

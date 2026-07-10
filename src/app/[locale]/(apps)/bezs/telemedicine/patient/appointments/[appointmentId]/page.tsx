@@ -152,9 +152,10 @@ export default async function PatientAppointmentViewPage({
         perspective="patient"
       />
 
-      {/* Tabbed report sections */}
+      {/* Tabbed report sections — isPatientView adds the Upload Result button to ServiceRequest cards */}
       <AppointmentReportTabs
         intake={intake}
+        isPatientView
         doctorReport={{
           soap: soapNote,
           conditions,
