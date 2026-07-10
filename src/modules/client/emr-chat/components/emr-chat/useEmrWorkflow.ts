@@ -123,7 +123,33 @@ export function useEmrWorkflow({
           return;
         }
 
-        const step = data.step ?? getSortedSteps(workflow)[stepIndex];
+        // All remaining steps were skipped by skip_unless conditions — complete workflow.
+        if (data.type === "workflow_complete") {
+          if (workflow.completion?.message) {
+            addMessage({
+              id: crypto.randomUUID(),
+              role: "assistant",
+              ui: buildMarkdownNode(workflow.completion.message),
+              workflowComplete: { workflowId: workflow.id, workflowName: workflow.name },
+            });
+            if (persist) {
+              const sid = emrChatStore.getState().activeSessionId;
+              if (sid)
+                await persistMessage(sid, {
+                  role: "ASSISTANT",
+                  content: workflow.completion.message,
+                  type: "WORKFLOW_COMPLETE",
+                  metadata: { workflowId: workflow.id, workflowName: workflow.name },
+                });
+            }
+          }
+          clearSession();
+          return;
+        }
+
+        // Use effectiveStepIndex when the server skipped ahead via skip_unless.
+        const effectiveStepIndex = data.effectiveStepIndex ?? stepIndex;
+        const step = data.step ?? getSortedSteps(workflow)[effectiveStepIndex];
         if (data.sessionContext) mergeContext(data.sessionContext);
 
         // Auto-advance context steps — they resolve data without showing a form.
@@ -175,7 +201,7 @@ export function useEmrWorkflow({
           ui: parsedUi ?? buildMarkdownNode(stepLabel),
           workflowSnapshot: {
             workflowId: workflow.id,
-            stepIndex,
+            stepIndex: effectiveStepIndex,
             stepId: step.id,
             contextAtStep: ctx,
           },
@@ -191,7 +217,7 @@ export function useEmrWorkflow({
             });
         }
 
-        setWorkflow(workflow, stepIndex);
+        setWorkflow(workflow, effectiveStepIndex);
       } catch (err) {
         addMessage({
           id: crypto.randomUUID(),

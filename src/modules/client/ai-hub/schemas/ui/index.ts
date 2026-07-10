@@ -58,6 +58,12 @@ import claimCreateForm from "./claim_create_form.json";
 import claimResponseCreateForm from "./claim_response_create_form.json";
 import invoiceCreateForm from "./invoice_create_form.json";
 import provenanceCreateForm from "./provenance_create_form.json";
+import selectAppointmentForm from "./select_appointment_form.json";
+import chooseExtractionsForm from "./choose_extractions_form.json";
+import addConditionsForm from "./add_conditions_form.json";
+import addObservationsForm from "./add_observations_form.json";
+import addMedicationRequestsForm from "./add_medication_requests_form.json";
+import addServiceRequestsForm from "./add_service_requests_form.json";
 
 /** Maps the workflow step's ui.schema name to the component tree JSON. */
 export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
@@ -121,4 +127,10 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   claim_response_create_form: claimResponseCreateForm,
   invoice_create_form: invoiceCreateForm,
   provenance_create_form: provenanceCreateForm,
+  select_appointment_form: selectAppointmentForm,
+  choose_extractions_form: chooseExtractionsForm,
+  add_conditions_form: addConditionsForm,
+  add_observations_form: addObservationsForm,
+  add_medication_requests_form: addMedicationRequestsForm,
+  add_service_requests_form: addServiceRequestsForm,
 };

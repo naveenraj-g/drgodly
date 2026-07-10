@@ -90,7 +90,27 @@ export async function POST(req: Request) {
   }
 
   const steps = sortedSteps(workflow.workflow_steps);
-  const step = steps[stepIndex];
+
+  // Advance past any steps whose skip_unless condition is not met in sessionContext.
+  // This lets the client always request stepIndex N+1 and the server resolves which
+  // step is actually shown, returning effectiveStepIndex so the client stays in sync.
+  let effectiveStepIndex = stepIndex;
+  while (effectiveStepIndex < steps.length) {
+    const candidate = steps[effectiveStepIndex];
+    if (!candidate.skip_unless) break; // no condition — always show this step
+    const val = sessionContext[candidate.skip_unless];
+    const isTruthy =
+      val === true || val === "true" || val === 1 || val === "1";
+    if (isTruthy) break; // condition met — show this step
+    effectiveStepIndex++; // condition not met — try next step
+  }
+
+  // All remaining steps were skipped — workflow is complete.
+  if (effectiveStepIndex >= steps.length) {
+    return Response.json({ type: "workflow_complete" });
+  }
+
+  const step = steps[effectiveStepIndex];
 
   if (!step) {
     return Response.json({ type: "error", message: "Step not found" }, { status: 404 });
@@ -123,7 +143,8 @@ export async function POST(req: Request) {
     return Response.json({
       type: "workflow_step",
       step,
-      stepIndex,
+      stepIndex: effectiveStepIndex,
+      effectiveStepIndex,
       stepData,                   // empty object if no context resolver was declared
       sessionContext: mergedContext,
     });

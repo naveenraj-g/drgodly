@@ -24,6 +24,7 @@ import create_billing_cycle from "@/modules/client/ai-hub/workflows/billing/crea
 // ── Care ──────────────────────────────────────────────────────────────────────
 import create_care_plan_with_task from "@/modules/client/ai-hub/workflows/care/create_care_plan_with_task.json";
 // ── Clinical ──────────────────────────────────────────────────────────────────
+import add_consultation_extractions from "@/modules/client/ai-hub/workflows/clinical/add_consultation_extractions.json";
 import record_allergy_intolerance from "@/modules/client/ai-hub/workflows/clinical/record_allergy_intolerance.json";
 import record_condition from "@/modules/client/ai-hub/workflows/clinical/record_condition.json";
 import record_observation from "@/modules/client/ai-hub/workflows/clinical/record_observation.json";
@@ -85,6 +86,10 @@ export interface WorkflowEntry {
  * Clinically important categories (Patient, Encounter, Clinical) appear first.
  */
 export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
+  {
+    category: "Clinical",
+    workflow: add_consultation_extractions as unknown as WorkflowDefinition,
+  },
   {
     category: "Patient",
     workflow: create_patient as unknown as WorkflowDefinition,

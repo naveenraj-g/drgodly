@@ -55,9 +55,21 @@ export interface WorkflowStepDefinition {
   step_type: "form" | "view" | "confirm" | "context";
   optional?: boolean;
   description: string;
+  /**
+   * Session context key whose value must be truthy for this step to be shown.
+   * If the value is falsy the step/route.ts skips over it automatically.
+   * Absent means the step is always shown.
+   */
+  skip_unless?: string;
   context?: {
     inputs: Record<string, StepContextInput>;
     outputs: Record<string, StepContextOutput>;
+    /**
+     * Keys from `outputs` that must be non-null after extractOutputs runs.
+     * If any listed key is absent the submit route returns an error using the
+     * output spec's `error_message` field.
+     */
+    required_outputs?: string[];
   };
   /** Single resolver — kept for backward compatibility. */
   context_resolver?: ContextResolverDef;
@@ -83,16 +95,28 @@ export interface StepContextOutput {
   type: string;
   resource?: string;
   field?: string;
+  /**
+   * Error message returned to the client when this output is listed in
+   * `context.required_outputs` but is missing from the extracted data.
+   */
+  error_message?: string;
 }
 
 export interface WorkflowAction {
-  type: "http";
+  type: "http" | "navigate";
   purpose: string;
   tool_name: string;
-  url: string;
-  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  /** Required for type "http". Absent for type "navigate". */
+  url?: string;
+  /** Required for type "http". Absent for type "navigate". */
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   validation_schema?: string;
   iterate_key?: string;
   retryable: boolean;
   timeout_ms?: number;
+  /**
+   * Zero-based step index to jump to. Only used when type is "navigate".
+   * The step route's skip_unless loop still applies from that index.
+   */
+  target_step_index?: number;
 }

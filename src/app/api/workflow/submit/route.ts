@@ -219,6 +219,21 @@ export async function POST(req: Request) {
     const data: Record<string, unknown> = await res.json();
 
     const outputs = step.context ? extractOutputs(step.context.outputs, data) : {};
+
+    // If the step declares required_outputs, verify each listed key is present.
+    // Uses the output spec's error_message for a workflow-configurable error.
+    if (step.context?.required_outputs?.length) {
+      for (const key of step.context.required_outputs) {
+        if (outputs[key] === undefined || outputs[key] === null) {
+          const spec = step.context.outputs[key];
+          const msg =
+            spec?.error_message ??
+            `Required output '${key}' was not found. Please check your selection and try again.`;
+          return Response.json({ success: false, error: msg }, { status: 422 });
+        }
+      }
+    }
+
     const updatedContext = { ...sessionContext, ...cleaned, ...outputs };
     const nextStepIndex = stepIndex + 1 < steps.length ? stepIndex + 1 : null;
 

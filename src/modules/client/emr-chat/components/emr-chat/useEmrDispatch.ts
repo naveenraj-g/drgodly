@@ -98,6 +98,21 @@ export function useEmrDispatch({
 
       const steps = getSortedSteps(currentWorkflow);
       const currentStepDef = steps[currentStepIdx];
+
+      // Navigate actions are handled entirely client-side — no HTTP call, no tool bubble.
+      const actionDef = currentStepDef?.actions?.find(
+        (a) => a.tool_name === actionName,
+      );
+      if (actionDef?.type === "navigate") {
+        resolve([]);
+        await loadWorkflowStep(
+          currentWorkflow,
+          actionDef.target_step_index ?? 0,
+          currentCtx,
+        );
+        return;
+      }
+
       const toolMsgId = crypto.randomUUID();
 
       addMessage({
