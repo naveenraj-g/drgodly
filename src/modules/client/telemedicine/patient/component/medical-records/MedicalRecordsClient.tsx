@@ -1,70 +1,246 @@
 /**
- * MedicalRecordsClient — interactive shell for the patient Medical Records page.
+ * MedicalRecordsClient — two-step interactive shell for the Medical Records page.
  *
  * Layer: client / telemedicine / patient / component / medical-records
  *
- * Receives pre-fetched server data and handles:
- *   • Cross-referencing ServiceRequests ↔ DiagnosticReports ↔ Appointments
- *   • Filter tabs: All | Awaiting Upload | Uploaded
- *   • Stats bar (total orders, awaiting, uploaded, files)
- *   • Rendering ServiceRequestRecordCard list with all derived context
+ * Step 1 — Appointment picker:
+ *   Shows all fulfilled appointments newest-first. Each card shows the date,
+ *   doctor name (from participant[Practitioner]), and appointment type.
+ *   Patient taps "View Orders" to proceed.
  *
- * "use client" is required for tab state.
- * Upload modal is already mounted in the patient layout (PatientModalProvider).
+ * Step 2 — Orders view (after appointment selected):
+ *   1. Calls listEncountersAction({ appointment_id }) to resolve the encounter.
+ *   2. Calls listServiceRequestsAction({ encounter_id }) to fetch the orders.
+ *   3. Cross-references the pre-loaded DiagnosticReports to show upload state.
+ *   4. Renders ServiceRequestRecordCard list (or an empty state if no orders).
+ *   Back button returns to Step 1.
+ *
+ * The UploadResultModal is already mounted in the patient layout — no extra
+ * provider is needed here.
  */
 
 "use client";
 
 import { useMemo, useState } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RecordStatBar } from "./RecordStatBar";
+import {
+  ArrowLeft,
+  CalendarDays,
+  UserRound,
+  ChevronRight,
+  ClipboardX,
+  CalendarOff,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ServiceRequestRecordCard,
   RecordListEmptyState,
 } from "./ServiceRequestRecordCard";
-import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
-import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
+import { listEncountersAction } from "@/modules/server/presentation/actions/encounter/core.actions";
+import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
+import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
+import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
+import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
+import type { TPaginatedEncounterResponse } from "@/modules/entities/schemas/encounter";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Formats an ISO datetime as a short locale date, e.g. "Jan 5, 2025".
+ * @param iso - ISO 8601 string.
+ */
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+/**
+ * Extracts the Practitioner participant's display name from an appointment.
+ * @param appt - Appointment record.
+ */
+function getDoctorName(appt: TAppointmentResponse): string | null {
+  return (
+    appt.participant?.find((p) => p.reference_type === "Practitioner")
+      ?.reference_display ?? null
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-/** Filter tab values. */
-type FilterTab = "all" | "awaiting" | "uploaded";
-
 export interface MedicalRecordsClientProps {
-  /** All ServiceRequests for this patient (doctor orders). */
-  serviceRequests: TServiceRequestResponse[];
-  /** All DiagnosticReports for this patient (uploaded results). */
-  diagnosticReports: TDiagnosticReportResponse[];
-  /**
-   * All appointments for this patient.
-   * Used to build encounter_id → appointment context map for the cards.
-   */
+  /** Fulfilled appointments for this patient (pre-fetched SSR). */
   appointments: TAppointmentResponse[];
+  /**
+   * All DiagnosticReports for this patient (pre-fetched SSR).
+   * Used to show existing upload history against each ServiceRequest.
+   */
+  diagnosticReports: TDiagnosticReportResponse[];
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Step 1 — Appointment picker ───────────────────────────────────────────────
+
+interface AppointmentPickerProps {
+  appointments: TAppointmentResponse[];
+  /** Called when the patient taps "View Orders" on a card. */
+  onSelect: (appt: TAppointmentResponse) => void;
+}
 
 /**
- * Client shell for the Medical Records page.
- * Builds cross-reference maps, computes stats, and renders the filtered card list.
+ * Lists fulfilled appointments for the patient to choose from.
+ * Shows date, doctor, and appointment type on each card.
  *
- * @param serviceRequests  - All patient SR records.
- * @param diagnosticReports - All patient DR records (uploaded files).
- * @param appointments     - All patient appointments (for encounter context).
+ * @param appointments - Pre-fetched fulfilled appointments.
+ * @param onSelect     - Callback with the chosen appointment.
+ */
+function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
+  if (appointments.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+        <CalendarOff className="size-10 opacity-30" />
+        <p className="text-sm font-medium text-center">
+          No completed appointments yet.
+        </p>
+        <p className="text-xs text-center max-w-xs opacity-70">
+          Completed appointment records will appear here once your doctor
+          has finished your consultation.
+        </p>
+      </div>
+    );
+  }
+
+  /* Newest first. */
+  const sorted = [...appointments].sort((a, b) =>
+    (b.start ?? "").localeCompare(a.start ?? ""),
+  );
+
+  return (
+    <div className="space-y-3">
+      {sorted.map((appt) => {
+        const doctorName = getDoctorName(appt);
+        const apptType =
+          appt.appointment_type_display ??
+          appt.appointment_type_text ??
+          appt.description ??
+          null;
+
+        return (
+          <Card
+            key={appt.id}
+            className="cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+            onClick={() => onSelect(appt)}
+          >
+            <CardContent className="px-4 py-3 flex items-center gap-4">
+              {/* Left: date + meta */}
+              <div className="flex-1 min-w-0 space-y-1">
+                {/* Date */}
+                <div className="flex items-center gap-1.5 text-sm font-semibold">
+                  <CalendarDays className="size-3.5 text-primary shrink-0" />
+                  {fmtDate(appt.start)}
+                </div>
+
+                {/* Doctor name */}
+                {doctorName && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <UserRound className="size-3 shrink-0" />
+                    {doctorName}
+                  </div>
+                )}
+
+                {/* Appointment type */}
+                {apptType && (
+                  <p className="text-xs text-muted-foreground truncate">
+                    {apptType}
+                  </p>
+                )}
+              </div>
+
+              {/* Right: status badge + chevron */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge
+                  variant="secondary"
+                  className="text-xs font-normal capitalize"
+                >
+                  Completed
+                </Badge>
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Step 2 — Orders view ──────────────────────────────────────────────────────
+
+/** Loading skeleton shown while the encounter + SR fetch is in flight. */
+function OrdersLoadingSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <Card key={i}>
+          <CardContent className="px-4 py-3 space-y-2.5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-9 rounded-lg shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-full rounded-md" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+/**
+ * Two-step Medical Records shell.
+ * Step 1: appointment picker. Step 2: encounter→SR resolution + upload cards.
+ *
+ * @param appointments    - Pre-fetched fulfilled appointments.
+ * @param diagnosticReports - Pre-fetched DRs for upload history.
  */
 export function MedicalRecordsClient({
-  serviceRequests,
-  diagnosticReports,
   appointments,
+  diagnosticReports,
 }: MedicalRecordsClientProps) {
-  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  /** The appointment the patient selected in Step 1. */
+  const [selectedAppt, setSelectedAppt] =
+    useState<TAppointmentResponse | null>(null);
 
-  // ── Cross-reference maps ──────────────────────────────────────────────────
+  /** Service requests loaded for the selected appointment's encounter. */
+  const [serviceRequests, setServiceRequests] = useState<
+    TServiceRequestResponse[]
+  >([]);
+
+  /** True while the encounter + SR fetch is in flight. */
+  const [isLoading, setIsLoading] = useState(false);
+
+  /** Error message if the fetch chain fails. */
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // ── Cross-reference: DR → SR ────────────────────────────────────────────
 
   /**
    * Map from ServiceRequest.id → DiagnosticReport[].
-   * Built by scanning each DR's based_on[] for ServiceRequest references.
+   * Rebuilt whenever serviceRequests or diagnosticReports change.
    */
   const drsByServiceRequestId = useMemo(() => {
     const map = new Map<number, TDiagnosticReportResponse[]>();
@@ -83,126 +259,181 @@ export function MedicalRecordsClient({
     return map;
   }, [diagnosticReports]);
 
+  // ── Appointment selection handler ───────────────────────────────────────
+
   /**
-   * Map from encounter_id → TAppointmentResponse.
-   * Appointment.encounter_id links an appointment to its FHIR Encounter,
-   * which is the same encounter_id stored on each ServiceRequest.
+   * Called when the patient taps a card in Step 1.
+   * Resolves the encounter chain: appointment → encounter → service requests.
+   *
+   * @param appt - The appointment the patient selected.
    */
-  const appointmentByEncounterId = useMemo(() => {
-    const map = new Map<number, TAppointmentResponse>();
-    for (const appt of appointments) {
-      if (appt.encounter_id != null) {
-        map.set(appt.encounter_id, appt);
+  async function handleSelectAppointment(appt: TAppointmentResponse) {
+    setSelectedAppt(appt);
+    setServiceRequests([]);
+    setFetchError(null);
+    setIsLoading(true);
+
+    try {
+      /* 1. Resolve encounter from appointment_id. */
+      const [encountersPage] = (await listEncountersAction({
+        payload: { appointment_id: appt.id, limit: 1 },
+      })) as [TPaginatedEncounterResponse | null, unknown];
+
+      const encounter = encountersPage?.data?.[0];
+
+      if (!encounter) {
+        /* Appointment exists but encounter not yet created — no orders. */
+        setServiceRequests([]);
+        setIsLoading(false);
+        return;
       }
+
+      /* 2. Fetch service requests for this encounter. */
+      const [srPage] = (await listServiceRequestsAction({
+        payload: { encounter_id: encounter.id, limit: 200 },
+      })) as [TPaginatedServiceRequestResponse | null, unknown];
+
+      setServiceRequests(srPage?.data ?? []);
+    } catch {
+      setFetchError("Could not load orders. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-    return map;
-  }, [appointments]);
+  }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  /** Returns to Step 1 (appointment picker). */
+  function handleBack() {
+    setSelectedAppt(null);
+    setServiceRequests([]);
+    setFetchError(null);
+  }
 
-  const stats = useMemo(() => {
-    let awaiting = 0;
-    let uploaded = 0;
-    let totalFiles = 0;
+  // ── Step 2 render ───────────────────────────────────────────────────────
 
-    for (const sr of serviceRequests) {
-      const drs = drsByServiceRequestId.get(sr.id) ?? [];
-      const fileCount = drs.reduce(
-        (sum, dr) => sum + (dr.presented_form?.length ?? 0),
-        0,
-      );
-      totalFiles += fileCount;
-      if (fileCount > 0) {
-        uploaded++;
-      } else {
-        awaiting++;
-      }
-    }
+  if (selectedAppt) {
+    const doctorName = getDoctorName(selectedAppt);
 
-    return { total: serviceRequests.length, awaiting, uploaded, totalFiles };
-  }, [serviceRequests, drsByServiceRequestId]);
-
-  // ── Filtered list ─────────────────────────────────────────────────────────
-
-  const filteredRequests = useMemo(() => {
-    if (activeTab === "all") return serviceRequests;
-    return serviceRequests.filter((sr) => {
-      const drs = drsByServiceRequestId.get(sr.id) ?? [];
-      const hasUploads = drs.some((dr) => (dr.presented_form?.length ?? 0) > 0);
-      return activeTab === "uploaded" ? hasUploads : !hasUploads;
-    });
-  }, [serviceRequests, drsByServiceRequestId, activeTab]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  return (
-    <div className="space-y-5">
-      {/* Stats bar */}
-      <RecordStatBar
-        total={stats.total}
-        awaiting={stats.awaiting}
-        uploaded={stats.uploaded}
-        totalFiles={stats.totalFiles}
-      />
-
-      {/* Filter tabs — only shown when there are records */}
-      {serviceRequests.length > 0 && (
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as FilterTab)}
+    return (
+      <div className="space-y-4">
+        {/* Back button */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 -ml-2 text-muted-foreground"
+          onClick={handleBack}
         >
-          <TabsList className="grid w-full grid-cols-3 max-w-sm">
-            <TabsTrigger value="all">
-              All
-              {stats.total > 0 && (
-                <span className="ml-1.5 tabular-nums text-xs opacity-60">
-                  {stats.total}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="awaiting">
-              Awaiting
-              {stats.awaiting > 0 && (
-                <span className="ml-1.5 tabular-nums text-xs opacity-60">
-                  {stats.awaiting}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="uploaded">
-              Uploaded
-              {stats.uploaded > 0 && (
-                <span className="ml-1.5 tabular-nums text-xs opacity-60">
-                  {stats.uploaded}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      )}
+          <ArrowLeft className="size-4" />
+          Back to Appointments
+        </Button>
 
-      {/* Card list */}
-      {filteredRequests.length === 0 ? (
-        <RecordListEmptyState filtered={activeTab !== "all"} />
-      ) : (
-        <div className="space-y-3 relative">
-          {filteredRequests.map((sr) => {
-            const drs = drsByServiceRequestId.get(sr.id) ?? [];
-            const appointment =
-              sr.encounter_id != null
-                ? (appointmentByEncounterId.get(sr.encounter_id) ?? null)
-                : null;
+        {/* Selected appointment context header */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="px-4 py-3 flex items-center gap-3 flex-wrap">
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <CalendarDays className="size-3.5 text-primary shrink-0" />
+                {fmtDate(selectedAppt.start)}
+              </div>
+              {doctorName && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <UserRound className="size-3 shrink-0" />
+                  {doctorName}
+                </div>
+              )}
+              {(selectedAppt.appointment_type_display ??
+                selectedAppt.description) && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedAppt.appointment_type_display ??
+                    selectedAppt.description}
+                </p>
+              )}
+            </div>
+            <Badge variant="secondary" className="text-xs shrink-0">
+              Completed
+            </Badge>
+          </CardContent>
+        </Card>
 
-            return (
+        {/* Orders section heading */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Test Orders &amp; Uploads
+          </p>
+        </div>
+
+        {/* Loading */}
+        {isLoading && <OrdersLoadingSkeleton />}
+
+        {/* Error */}
+        {!isLoading && fetchError && (
+          <Card>
+            <CardContent className="py-10 flex flex-col items-center gap-2 text-muted-foreground">
+              <ClipboardX className="size-8 opacity-40" />
+              <p className="text-sm">{fetchError}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleSelectAppointment(selectedAppt)}
+              >
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No orders */}
+        {!isLoading && !fetchError && serviceRequests.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-muted-foreground">
+            <ClipboardX className="size-10 opacity-30" />
+            <p className="text-sm font-medium text-center">
+              No test orders for this appointment.
+            </p>
+            <p className="text-xs text-center max-w-xs opacity-70">
+              Your doctor did not create any test or investigation orders
+              for this visit.
+            </p>
+          </div>
+        )}
+
+        {/* SR cards */}
+        {!isLoading && !fetchError && serviceRequests.length > 0 && (
+          <div className="space-y-3">
+            {serviceRequests.map((sr) => (
               <ServiceRequestRecordCard
                 key={sr.id}
                 sr={sr}
-                diagnosticReports={drs}
-                appointment={appointment}
+                diagnosticReports={drsByServiceRequestId.get(sr.id) ?? []}
+                appointment={selectedAppt}
               />
-            );
-          })}
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Step 1 render ───────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-4">
+      {/* Section heading */}
+      {appointments.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Completed Appointments
+          </p>
+          {isLoading && (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          )}
         </div>
       )}
+
+      <AppointmentPicker
+        appointments={appointments}
+        onSelect={handleSelectAppointment}
+      />
     </div>
   );
 }
