@@ -30,6 +30,9 @@ import {
   ClipboardX,
   CalendarOff,
   Loader2,
+  Clock,
+  Timer,
+  Stethoscope,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +67,61 @@ function fmtDate(iso: string | null | undefined): string {
   } catch {
     return "—";
   }
+}
+
+/**
+ * Formats an ISO datetime as a 12-hour clock time, e.g. "10:30 AM".
+ * @param iso - ISO 8601 string.
+ */
+function fmtTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Derives a human-readable duration string from start/end or minutes_duration.
+ * Returns e.g. "30 min" or "1 hr 15 min".
+ *
+ * @param start            - ISO start datetime.
+ * @param end              - ISO end datetime.
+ * @param minutesDuration  - Explicit duration in minutes (fallback when end is absent).
+ */
+function fmtDuration(
+  start: string | null | undefined,
+  end: string | null | undefined,
+  minutesDuration: number | null | undefined,
+): string | null {
+  let mins: number | null = null;
+
+  if (start && end) {
+    try {
+      mins = Math.round(
+        (new Date(end).getTime() - new Date(start).getTime()) / 60000,
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (mins == null && minutesDuration != null) {
+    mins = minutesDuration;
+  }
+
+  if (mins == null || mins <= 0) return null;
+
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h > 0 && m > 0) return `${h} hr ${m} min`;
+  if (h > 0) return `${h} hr`;
+  return `${m} min`;
 }
 
 /**
@@ -132,8 +190,11 @@ function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
         const apptType =
           appt.appointment_type_display ??
           appt.appointment_type_text ??
-          appt.description ??
           null;
+        const startTime = fmtTime(appt.start);
+        const endTime = fmtTime(appt.end);
+        const duration = fmtDuration(appt.start, appt.end, appt.minutes_duration);
+        const description = appt.description ?? null;
 
         return (
           <Card
@@ -141,14 +202,32 @@ function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
             className="cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
             onClick={() => onSelect(appt)}
           >
-            <CardContent className="px-4 py-3 flex items-center gap-4">
-              {/* Left: date + meta */}
-              <div className="flex-1 min-w-0 space-y-1">
-                {/* Date */}
+            <CardContent className="px-4 py-3 flex items-start gap-4">
+              {/* Left: all details */}
+              <div className="flex-1 min-w-0 space-y-2">
+                {/* Date — primary identifier */}
                 <div className="flex items-center gap-1.5 text-sm font-semibold">
                   <CalendarDays className="size-3.5 text-primary shrink-0" />
                   {fmtDate(appt.start)}
                 </div>
+
+                {/* Time + duration row */}
+                {(startTime ?? duration) && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {startTime && (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="size-3 shrink-0" />
+                        {endTime ? `${startTime} – ${endTime}` : startTime}
+                      </span>
+                    )}
+                    {duration && (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Timer className="size-3 shrink-0" />
+                        {duration}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Doctor name */}
                 {doctorName && (
@@ -160,17 +239,25 @@ function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
 
                 {/* Appointment type */}
                 {apptType && (
-                  <p className="text-xs text-muted-foreground truncate">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Stethoscope className="size-3 shrink-0" />
                     {apptType}
+                  </div>
+                )}
+
+                {/* Free-text description (if different from type) */}
+                {description && description !== apptType && (
+                  <p className="text-xs text-muted-foreground/70 truncate pl-0.5">
+                    {description}
                   </p>
                 )}
               </div>
 
-              {/* Right: status badge + chevron */}
-              <div className="flex items-center gap-2 shrink-0">
+              {/* Right: chevron */}
+              <div className="flex items-center gap-2 shrink-0 mt-0.5">
                 <Badge
                   variant="secondary"
-                  className="text-xs font-normal capitalize"
+                  className="text-xs font-normal"
                 >
                   Completed
                 </Badge>
@@ -312,6 +399,18 @@ export function MedicalRecordsClient({
 
   if (selectedAppt) {
     const doctorName = getDoctorName(selectedAppt);
+    const headerStartTime = fmtTime(selectedAppt.start);
+    const headerEndTime = fmtTime(selectedAppt.end);
+    const headerDuration = fmtDuration(
+      selectedAppt.start,
+      selectedAppt.end,
+      selectedAppt.minutes_duration,
+    );
+    const headerType =
+      selectedAppt.appointment_type_display ??
+      selectedAppt.appointment_type_text ??
+      selectedAppt.description ??
+      null;
 
     return (
       <div className="space-y-4">
@@ -329,27 +428,44 @@ export function MedicalRecordsClient({
 
         {/* Selected appointment context header */}
         <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="px-4 py-3 flex items-center gap-3 flex-wrap">
-            <div className="space-y-0.5 flex-1 min-w-0">
+          <CardContent className="px-4 py-3 flex items-start gap-3">
+            <div className="space-y-1.5 flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-sm font-semibold">
                 <CalendarDays className="size-3.5 text-primary shrink-0" />
                 {fmtDate(selectedAppt.start)}
               </div>
+              {(headerStartTime ?? headerDuration) && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  {headerStartTime && (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Clock className="size-3 shrink-0" />
+                      {headerEndTime
+                        ? `${headerStartTime} – ${headerEndTime}`
+                        : headerStartTime}
+                    </span>
+                  )}
+                  {headerDuration && (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Timer className="size-3 shrink-0" />
+                      {headerDuration}
+                    </span>
+                  )}
+                </div>
+              )}
               {doctorName && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <UserRound className="size-3 shrink-0" />
                   {doctorName}
                 </div>
               )}
-              {(selectedAppt.appointment_type_display ??
-                selectedAppt.description) && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedAppt.appointment_type_display ??
-                    selectedAppt.description}
-                </p>
+              {headerType && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Stethoscope className="size-3 shrink-0" />
+                  {headerType}
+                </div>
               )}
             </div>
-            <Badge variant="secondary" className="text-xs shrink-0">
+            <Badge variant="secondary" className="text-xs shrink-0 mt-0.5">
               Completed
             </Badge>
           </CardContent>
