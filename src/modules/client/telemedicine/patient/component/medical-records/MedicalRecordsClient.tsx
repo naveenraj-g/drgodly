@@ -362,23 +362,32 @@ export function MedicalRecordsClient({
 
     try {
       /* 1. Resolve encounter from appointment_id. */
-      const [encountersPage] = (await listEncountersAction({
+      const [encountersPage, encounterErr] = (await listEncountersAction({
         payload: { appointment_id: appt.id, limit: 1 },
       })) as [TPaginatedEncounterResponse | null, unknown];
+
+      if (encounterErr) {
+        setFetchError("Could not load appointment records. Please try again.");
+        return;
+      }
 
       const encounter = encountersPage?.data?.[0];
 
       if (!encounter) {
         /* Appointment exists but encounter not yet created — no orders. */
         setServiceRequests([]);
-        setIsLoading(false);
         return;
       }
 
       /* 2. Fetch service requests for this encounter. */
-      const [srPage] = (await listServiceRequestsAction({
+      const [srPage, srErr] = (await listServiceRequestsAction({
         payload: { encounter_id: encounter.id, limit: 200 },
       })) as [TPaginatedServiceRequestResponse | null, unknown];
+
+      if (srErr) {
+        setFetchError("Could not load test orders. Please try again.");
+        return;
+      }
 
       setServiceRequests(srPage?.data ?? []);
     } catch {

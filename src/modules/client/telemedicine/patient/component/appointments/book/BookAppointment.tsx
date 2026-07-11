@@ -87,6 +87,12 @@ import { useServerActionQuery } from "@/lib/zsa-query";
 interface BookAppointmentProps {
   /** FHIR integer ID of the authenticated patient (from getPatientMeAction). */
   patientFhirId: number;
+  /**
+   * Human-readable display name of the patient (derived server-side from name[0]).
+   * Sent as `patient_display` in the booking payload so the backend stores it as
+   * the Patient participant's reference_display — no separate fetch needed on read.
+   */
+  patientDisplayName?: string;
   /** drgodly string userId from session (for org context). */
   userId: string;
   /** Active organisation ID from session. */
@@ -156,6 +162,7 @@ function formatFullDate(date: Date): string {
  */
 export function BookAppointment({
   patientFhirId,
+  patientDisplayName,
   userId,
   orgId,
   intakeId,
@@ -330,6 +337,10 @@ export function BookAppointment({
         patient_id: patientFhirId,
         user_id: userId,
         org_id: orgId,
+        /* Display names stored as participant reference_display so they are
+           available on read without a secondary Practitioner/Patient fetch. */
+        practitioner_display: practitionerName || undefined,
+        patient_display: patientDisplayName || undefined,
       },
     });
     setIsBooking(false);

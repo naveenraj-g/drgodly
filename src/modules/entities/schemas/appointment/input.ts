@@ -62,6 +62,10 @@ export const BookAppointmentValidationSchema = z.object({
   patient_id: z.number().int().positive(),
   user_id: z.string().optional(),
   org_id: z.string().optional(),
+  /** Display name of the practitioner — stored as the Practitioner participant's reference_display. */
+  practitioner_display: z.string().optional(),
+  /** Display name of the patient — stored as the Patient participant's reference_display. */
+  patient_display: z.string().optional(),
   service_type_code: z.string().optional(),
   service_type_display: z.string().optional(),
   reason_code: z.string().optional(),
