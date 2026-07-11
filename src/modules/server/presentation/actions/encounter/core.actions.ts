@@ -11,6 +11,7 @@
 
 "use server";
 
+import { z } from "zod";
 import {
   CreateEncounterActionSchema,
   ListEncountersActionSchema,
@@ -34,6 +35,7 @@ import {
   type TGetEncounterByIdControllerOutput,
   type TUpdateEncounterControllerOutput,
 } from "@/modules/server/core/encounter/interface-adapters/controllers";
+import type { TEncounterResponse } from "@/modules/entities/schemas/encounter";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
 
@@ -92,5 +94,27 @@ export const deleteEncounterAction = authenticatedProcedure
     return await runWithTransport<void>(async () => {
       await deleteEncounterController(input.payload);
       return { result: undefined, transport: input.transportOptions };
+    });
+  });
+
+/**
+ * Resolves the first Encounter linked to a given FHIR Appointment.
+ *
+ * Uses flat input (no payload wrapper) with Zod coercion so the numeric
+ * appointment_id travels cleanly across the Next.js server-action POST
+ * boundary from client components — no skipInputParsing needed.
+ *
+ * @returns The matching Encounter, or null if none exists for this appointment.
+ */
+export const getEncounterByAppointmentAction = authenticatedProcedure
+  .createServerAction()
+  .input(z.object({ appointment_id: z.coerce.number().int().positive() }))
+  .handler(async ({ input }: { input: { appointment_id: number } }) => {
+    return await runWithTransport<TEncounterResponse | null>(async () => {
+      const data = await listEncountersController({
+        appointment_id: input.appointment_id,
+        limit: 1,
+      });
+      return { result: data.data?.[0] ?? null };
     });
   });

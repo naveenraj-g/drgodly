@@ -6,13 +6,14 @@
  * Step 1 — Appointment picker:
  *   Shows all fulfilled appointments newest-first. Each card shows the date,
  *   doctor name (from participant[Practitioner]), and appointment type.
- *   Patient taps "View Orders" to proceed.
+ *   Patient taps a card to proceed.
  *
  * Step 2 — Orders view (after appointment selected):
- *   1. Calls listEncountersAction({ appointment_id }) to resolve the encounter.
- *   2. Calls listServiceRequestsAction({ encounter_id }) to fetch the orders.
- *   3. Cross-references the pre-loaded DiagnosticReports to show upload state.
- *   4. Renders ServiceRequestRecordCard list (or an empty state if no orders).
+ *   All FHIR data is fetched on-demand when the patient selects an appointment:
+ *   1. getEncounterByAppointmentAction({ appointment_id }) → resolves encounter
+ *   2. In parallel: listServiceRequestsAction({ encounter_id })
+ *                 + listDiagnosticReportsAction({ encounter_id })
+ *   3. Cross-references the loaded DRs to show upload state per ServiceRequest.
  *   Back button returns to Step 1.
  *
  * The UploadResultModal is already mounted in the patient layout — no extra
@@ -42,13 +43,17 @@ import {
   ServiceRequestRecordCard,
   RecordListEmptyState,
 } from "./ServiceRequestRecordCard";
-import { listEncountersAction } from "@/modules/server/presentation/actions/encounter/core.actions";
+import { getEncounterByAppointmentAction } from "@/modules/server/presentation/actions/encounter/core.actions";
 import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
+import { listDiagnosticReportsAction } from "@/modules/server/presentation/actions/diagnostic-report";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
+import type {
+  TPaginatedDiagnosticReportResponse,
+} from "@/modules/entities/schemas/diagnostic-report";
 import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
-import type { TPaginatedEncounterResponse } from "@/modules/entities/schemas/encounter";
+import type { TEncounterResponse } from "@/modules/entities/schemas/encounter";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -140,18 +145,13 @@ function getDoctorName(appt: TAppointmentResponse): string | null {
 export interface MedicalRecordsClientProps {
   /** Fulfilled appointments for this patient (pre-fetched SSR). */
   appointments: TAppointmentResponse[];
-  /**
-   * All DiagnosticReports for this patient (pre-fetched SSR).
-   * Used to show existing upload history against each ServiceRequest.
-   */
-  diagnosticReports: TDiagnosticReportResponse[];
 }
 
 // ── Step 1 — Appointment picker ───────────────────────────────────────────────
 
 interface AppointmentPickerProps {
   appointments: TAppointmentResponse[];
-  /** Called when the patient taps "View Orders" on a card. */
+  /** Called when the patient taps a card. */
   onSelect: (appt: TAppointmentResponse) => void;
 }
 
@@ -273,7 +273,7 @@ function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
 
 // ── Step 2 — Orders view ──────────────────────────────────────────────────────
 
-/** Loading skeleton shown while the encounter + SR fetch is in flight. */
+/** Loading skeleton shown while the encounter + SR + DR fetch is in flight. */
 function OrdersLoadingSkeleton() {
   return (
     <div className="space-y-3">
@@ -299,14 +299,12 @@ function OrdersLoadingSkeleton() {
 
 /**
  * Two-step Medical Records shell.
- * Step 1: appointment picker. Step 2: encounter→SR resolution + upload cards.
+ * Step 1: appointment picker. Step 2: on-demand encounter → SR + DR fetch + upload cards.
  *
- * @param appointments    - Pre-fetched fulfilled appointments.
- * @param diagnosticReports - Pre-fetched DRs for upload history.
+ * @param appointments - Pre-fetched fulfilled appointments (SSR).
  */
 export function MedicalRecordsClient({
   appointments,
-  diagnosticReports,
 }: MedicalRecordsClientProps) {
   /** The appointment the patient selected in Step 1. */
   const [selectedAppt, setSelectedAppt] =
@@ -317,7 +315,15 @@ export function MedicalRecordsClient({
     TServiceRequestResponse[]
   >([]);
 
-  /** True while the encounter + SR fetch is in flight. */
+  /**
+   * Diagnostic reports loaded for the selected appointment's encounter.
+   * Fetched in parallel with service requests so upload history is instant.
+   */
+  const [diagnosticReports, setDiagnosticReports] = useState<
+    TDiagnosticReportResponse[]
+  >([]);
+
+  /** True while the encounter + SR + DR fetch is in flight. */
   const [isLoading, setIsLoading] = useState(false);
 
   /** Error message if the fetch chain fails. */
@@ -350,39 +356,42 @@ export function MedicalRecordsClient({
 
   /**
    * Called when the patient taps a card in Step 1.
-   * Resolves the encounter chain: appointment → encounter → service requests.
+   * On-demand fetch chain: appointment → encounter → (SRs + DRs in parallel).
    *
    * @param appt - The appointment the patient selected.
    */
   async function handleSelectAppointment(appt: TAppointmentResponse) {
     setSelectedAppt(appt);
     setServiceRequests([]);
+    setDiagnosticReports([]);
     setFetchError(null);
     setIsLoading(true);
 
     try {
-      /* 1. Resolve encounter from appointment_id. */
-      const [encountersPage, encounterErr] = (await listEncountersAction({
-        payload: { appointment_id: appt.id, limit: 1 },
-      })) as [TPaginatedEncounterResponse | null, unknown];
+      /* 1. Resolve the encounter for this appointment via server action. */
+      const [encounter, encounterErr] = (await getEncounterByAppointmentAction({
+        appointment_id: appt.id,
+      })) as [TEncounterResponse | null, unknown];
 
       if (encounterErr) {
-        setFetchError("Could not load appointment records. Please try again.");
+        setFetchError("Could not load appointment record. Please try again.");
         return;
       }
-
-      const encounter = encountersPage?.data?.[0];
 
       if (!encounter) {
-        /* Appointment exists but encounter not yet created — no orders. */
-        setServiceRequests([]);
+        /* Appointment exists but no encounter was created for it yet — no orders. */
         return;
       }
 
-      /* 2. Fetch service requests for this encounter. */
-      const [srPage, srErr] = (await listServiceRequestsAction({
-        payload: { encounter_id: encounter.id, limit: 200 },
-      })) as [TPaginatedServiceRequestResponse | null, unknown];
+      /* 2. Fetch service requests + diagnostic reports in parallel by encounter_id. */
+      const [[srPage, srErr], [drPage, drErr]] = await Promise.all([
+        listServiceRequestsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }) as Promise<[TPaginatedServiceRequestResponse | null, unknown]>,
+        listDiagnosticReportsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }) as Promise<[TPaginatedDiagnosticReportResponse | null, unknown]>,
+      ]);
 
       if (srErr) {
         setFetchError("Could not load test orders. Please try again.");
@@ -390,7 +399,12 @@ export function MedicalRecordsClient({
       }
 
       setServiceRequests(srPage?.data ?? []);
-    } catch {
+      /* DR errors are non-fatal — orders still render, upload history just won't show. */
+      if (!drErr) {
+        setDiagnosticReports(drPage?.data ?? []);
+      }
+    } catch (e) {
+      console.error("[MedicalRecords] unexpected error:", e);
       setFetchError("Could not load orders. Please try again.");
     } finally {
       setIsLoading(false);
@@ -401,6 +415,7 @@ export function MedicalRecordsClient({
   function handleBack() {
     setSelectedAppt(null);
     setServiceRequests([]);
+    setDiagnosticReports([]);
     setFetchError(null);
   }
 
