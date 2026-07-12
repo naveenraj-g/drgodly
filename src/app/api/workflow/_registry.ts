@@ -63,6 +63,7 @@ import create_related_person from "@/modules/client/ai-hub/workflows/related_per
 // ── Results ───────────────────────────────────────────────────────────────────
 import create_diagnostic_report from "@/modules/client/ai-hub/workflows/results/create_diagnostic_report.json";
 import create_document_reference from "@/modules/client/ai-hub/workflows/results/create_document_reference.json";
+import upload_patient_report from "@/modules/client/ai-hub/workflows/results/upload_patient_report.json";
 // ── Schedule ──────────────────────────────────────────────────────────────────
 import create_schedule_with_slots from "@/modules/client/ai-hub/workflows/schedule/create_schedule_with_slots.json";
 import generate_slots from "@/modules/client/ai-hub/workflows/schedule/generate_slots.json";
@@ -97,6 +98,10 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   {
     category: "Patient",
     workflow: admin_create_patient as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Results",
+    workflow: upload_patient_report as unknown as WorkflowDefinition,
   },
   // {
   //   category: "Appointment",

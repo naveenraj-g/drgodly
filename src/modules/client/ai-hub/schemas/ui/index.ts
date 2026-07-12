@@ -60,6 +60,9 @@ import invoiceCreateForm from "./invoice_create_form.json";
 import provenanceCreateForm from "./provenance_create_form.json";
 import selectAppointmentForm from "./select_appointment_form.json";
 import chooseExtractionsForm from "./choose_extractions_form.json";
+import adminSelectPatientForm from "./admin_select_patient_form.json";
+import adminSelectPatientAppointmentForm from "./admin_select_patient_appointment_form.json";
+import adminUploadReportForm from "./admin_upload_report_form.json";
 import addConditionsForm from "./add_conditions_form.json";
 import addObservationsForm from "./add_observations_form.json";
 import addMedicationRequestsForm from "./add_medication_requests_form.json";
@@ -129,6 +132,9 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   provenance_create_form: provenanceCreateForm,
   select_appointment_form: selectAppointmentForm,
   choose_extractions_form: chooseExtractionsForm,
+  admin_select_patient_form: adminSelectPatientForm,
+  admin_select_patient_appointment_form: adminSelectPatientAppointmentForm,
+  admin_upload_report_form: adminUploadReportForm,
   add_conditions_form: addConditionsForm,
   add_observations_form: addObservationsForm,
   add_medication_requests_form: addMedicationRequestsForm,

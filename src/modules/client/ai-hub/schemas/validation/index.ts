@@ -55,6 +55,8 @@ import { invoiceCreateSchema } from "./billing/invoice_create_schema";
 import { provenanceCreateSchema } from "./audit/provenance_create_schema";
 import { selectAppointmentSchema } from "./clinical/select_appointment_schema";
 import { chooseExtractionsSchema } from "./clinical/choose_extractions_schema";
+import { adminSelectPatientSchema } from "./patient/admin_select_patient_schema";
+import { adminUploadReportSchema } from "./results/admin_upload_report_schema";
 
 /** Maps the workflow action's validation_schema key to the corresponding Zod schema. */
 export const VALIDATION_SCHEMAS: Record<string, z.ZodTypeAny> = {
@@ -114,4 +116,6 @@ export const VALIDATION_SCHEMAS: Record<string, z.ZodTypeAny> = {
   provenance_create_schema: provenanceCreateSchema,
   select_appointment_schema: selectAppointmentSchema,
   choose_extractions_schema: chooseExtractionsSchema,
+  admin_select_patient_schema: adminSelectPatientSchema,
+  admin_upload_report_schema: adminUploadReportSchema,
 };
