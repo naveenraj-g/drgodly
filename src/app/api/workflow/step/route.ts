@@ -23,7 +23,11 @@
  *   3. Sort steps by sequence_number and look up the requested index.
  *   4. Obtain a fresh JWT from Better Auth.
  *   5. If the step declares context_resolvers or a context_resolver, execute
- *      them against the FHIR server to hydrate the latest resource state.
+ *      them to hydrate the latest resource state — each resolver's own `type`
+ *      picks REST (fetch against FHIR_GQL_URL, the default) or GraphQL
+ *      (request against FHIR_GRAPHQL_URL, resolver.type === "graphql"); see
+ *      runContextResolver() in ../_lib for the branch. Pilot scope: only the
+ *      create_patient workflow's "confirm patient exists" resolvers use GraphQL.
  *   6. Return the step definition + any fetched data.
  *
  * Request body:  { workflow: WorkflowDefinition, stepIndex: number, sessionContext?: Record<string, unknown> }

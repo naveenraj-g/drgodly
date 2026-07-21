@@ -10,17 +10,32 @@
  * agent uses a short-lived JWT obtained from Better Auth's JWT plugin endpoint.
  * The token is fetched fresh per request by forwarding the current session cookie,
  * so it always reflects the caller's identity and expiry.
+ *
+ * Transport: every workflow action/context resolver is REST by default. A
+ * resolver/action can opt into GraphQL instead by setting `type: "graphql"`
+ * plus `graphql_document`/`graphql_variables` — see runGraphQLResolverOrAction()
+ * below and GRAPHQL_DOCUMENTS (schemas/graphql/index.ts). Pilot scope: only
+ * the create_patient workflow's Patient calls use GraphQL so far, since
+ * fhir-gql only exposes a GraphQL schema for that one resource.
  */
 
+import { GraphQLClient } from "graphql-request";
 import type {
   WorkflowStepDefinition,
   StepContextOutput,
   ContextResolverDef,
 } from "@/types/workflow";
 import { getAuthToken } from "@/modules/server/auth/jwt-token";
+import { GRAPHQL_DOCUMENTS } from "@/modules/client/ai-hub/schemas/graphql";
 
 // Re-export under the name used throughout the workflow routes.
 export { getAuthToken as getJWTToken };
+
+// Single GraphQL client for the whole workflow engine — fhir-gql mounts its
+// GraphQL endpoint at server root (e.g. http://localhost:8005/graphql),
+// distinct from FHIR_GQL_URL which is the REST base (.../api/v1). Pilot
+// scope: only the create_patient workflow's Patient actions use this so far.
+const graphQLClient = new GraphQLClient(process.env.FHIR_GRAPHQL_URL ?? "");
 
 /**
  * Returns workflow steps sorted by sequence_number ascending.
@@ -171,6 +186,27 @@ export async function runContextResolver(
   sessionContext: Record<string, unknown>,
   token: string,
 ): Promise<Record<string, unknown>> {
+  if (resolver.type === "graphql") {
+    if (!resolver.graphql_document) {
+      throw new Error(
+        `Context resolver "${resolver.tool_name}" declares type "graphql" but no graphql_document.`,
+      );
+    }
+    const body = await runGraphQLResolverOrAction(
+      resolver.graphql_document,
+      resolver.graphql_variables,
+      resolver.graphql_input_fields,
+      sessionContext,
+      token,
+    );
+    return resolver.context_key ? { [resolver.context_key]: body } : body;
+  }
+
+  if (!resolver.url || !resolver.method) {
+    throw new Error(
+      `Context resolver "${resolver.tool_name}" is missing url/method for the REST transport.`,
+    );
+  }
   const url = resolveUrl(resolver.url, sessionContext);
   const res = await fetch(url, {
     method: resolver.method,
@@ -183,4 +219,130 @@ export async function runContextResolver(
   if (!res.ok) throw new Error(`Context resolver failed: ${res.status}`);
   const body = await res.json();
   return resolver.context_key ? { [resolver.context_key]: body } : body;
+}
+
+/** "birth_date" -> "birthDate". Only touches snake_case (a-z0-9 plus underscore). */
+function snakeToCamel(key: string): string {
+  return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
+/** "birthDate" -> "birth_date". Inverse of snakeToCamel. */
+function camelToSnake(key: string): string {
+  return key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+}
+
+/**
+ * Recursively rekeys every object key from snake_case to camelCase — arrays
+ * are mapped element-wise, scalars pass through untouched. Used to build
+ * GraphQL variables from sessionContext (which is snake_case throughout, to
+ * match the REST/Zod side of the engine).
+ */
+function toCamelCaseDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toCamelCaseDeep);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        snakeToCamel(k),
+        toCamelCaseDeep(v),
+      ]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Recursively rekeys every object key from camelCase to snake_case — the
+ * inverse of toCamelCaseDeep(). Applied to every GraphQL response so the rest
+ * of the engine (extractOutputs, Zod schemas, sessionContext) only ever sees
+ * snake_case field names, regardless of transport.
+ */
+function toSnakeCaseDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toSnakeCaseDeep);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        camelToSnake(k),
+        toSnakeCaseDeep(v),
+      ]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Builds a GraphQL `variables` object from sessionContext using a step's
+ * declared `graphql_variables` (flat top-level args) and `graphql_input_fields`
+ * (nested under `input`). Every context key is looked up as-is (snake_case)
+ * and auto camelCased on the way out — authors never hand-type a camelCase
+ * field name, which removes the exact failure mode of a mistyped/forgotten
+ * cased key. Keys whose resolved value is `undefined` are omitted entirely
+ * (mirrors cleanFormData's REST-side handling of empty/absent fields) rather
+ * than being sent as an explicit key with an undefined value that then
+ * silently vanishes mid-JSON-serialization.
+ *
+ * @param topLevelKeys - graphql_variables from the workflow action/resolver, if any.
+ * @param inputKeys    - graphql_input_fields from the workflow action/resolver, if any.
+ * @param merged       - Combined sessionContext + cleaned form data to read from.
+ * @returns A variables object ready to pass to the GraphQL client.
+ */
+export function buildGraphQLVariables(
+  topLevelKeys: string[] | undefined,
+  inputKeys: string[] | undefined,
+  merged: Record<string, unknown>,
+): Record<string, unknown> {
+  const variables: Record<string, unknown> = {};
+
+  for (const contextKey of topLevelKeys ?? []) {
+    const value = merged[contextKey];
+    if (value === undefined) continue;
+    variables[snakeToCamel(contextKey)] = toCamelCaseDeep(value);
+  }
+
+  if (inputKeys?.length) {
+    const input: Record<string, unknown> = {};
+    for (const contextKey of inputKeys) {
+      const value = merged[contextKey];
+      if (value === undefined) continue;
+      input[snakeToCamel(contextKey)] = toCamelCaseDeep(value);
+    }
+    variables.input = input;
+  }
+
+  return variables;
+}
+
+/**
+ * Executes a GraphQL action or context resolver — the GraphQL counterpart of
+ * runContextResolver()/the REST fetch() in submit/route.ts. Looks up the
+ * query/mutation document by name from GRAPHQL_DOCUMENTS (fails loudly on a
+ * missing key, unlike the validation-schema lookup, since there is no
+ * sensible fallback for "run without a query").
+ *
+ * @param graphqlDocument    - Key into GRAPHQL_DOCUMENTS (action/resolver's `graphql_document`).
+ * @param graphqlVariables   - Flat top-level context keys (action/resolver's `graphql_variables`).
+ * @param graphqlInputFields - Context keys nested under `input` (action/resolver's `graphql_input_fields`).
+ * @param mergedContext      - Combined sessionContext + cleaned form data.
+ * @param token              - Bearer JWT to authenticate the request.
+ * @returns The GraphQL response's `data`, rekeyed to snake_case and keyed by
+ *          operation name (e.g. `{ create_patient: { id } }`).
+ * @throws Error if `graphqlDocument` has no registry entry, or the GraphQL server returns errors.
+ */
+export async function runGraphQLResolverOrAction(
+  graphqlDocument: string,
+  graphqlVariables: string[] | undefined,
+  graphqlInputFields: string[] | undefined,
+  mergedContext: Record<string, unknown>,
+  token: string,
+): Promise<Record<string, unknown>> {
+  const document = GRAPHQL_DOCUMENTS[graphqlDocument];
+  if (!document) {
+    throw new Error(
+      `Unknown graphql_document "${graphqlDocument}" — no entry in GRAPHQL_DOCUMENTS.`,
+    );
+  }
+  const variables = buildGraphQLVariables(graphqlVariables, graphqlInputFields, mergedContext);
+  const response = await graphQLClient.request(document, variables, {
+    Authorization: `Bearer ${token}`,
+  });
+  return toSnakeCaseDeep(response) as Record<string, unknown>;
 }

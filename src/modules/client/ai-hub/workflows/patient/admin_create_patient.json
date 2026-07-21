@@ -56,7 +56,7 @@
           "patient_id": {
             "type": "integer",
             "resource": "Patient",
-            "field": "id"
+            "field": "create_patient.id"
           }
         }
       },
@@ -86,11 +86,23 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "create_patient",
           "tool_name": "create_patient",
-          "url": "$fhir_gql_url/patients/",
-          "method": "POST",
+          "graphql_document": "create_patient",
+          "graphql_input_fields": [
+            "user_id",
+            "org_id",
+            "gender",
+            "birth_date",
+            "active",
+            "deceased_boolean",
+            "deceased_datetime",
+            "marital_status_code",
+            "marital_status_system",
+            "marital_status_display",
+            "marital_status_text"
+          ],
           "validation_schema": "admin_patient_create_schema",
           "retryable": true,
           "timeout_ms": 10000
@@ -122,8 +134,9 @@
         {
           "description": "Confirm the Patient still exists before appending names.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_gql_url/patients/$patient_id",
-          "method": "GET",
+          "type": "graphql",
+          "graphql_document": "get_patient_by_id",
+          "graphql_variables": ["patient_id"],
           "timeout_ms": 10000
         },
         {
@@ -143,11 +156,12 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_name",
           "tool_name": "add_patient_name",
-          "url": "$fhir_gql_url/patients/$patient_id/names",
-          "method": "POST",
+          "graphql_document": "add_patient_name",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": ["use", "family", "given", "prefix", "suffix"],
           "iterate_key": "names",
           "validation_schema": "name_create_schema",
           "retryable": true,
@@ -180,8 +194,9 @@
         {
           "description": "Confirm the Patient still exists before appending identifiers.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_gql_url/patients/$patient_id",
-          "method": "GET",
+          "type": "graphql",
+          "graphql_document": "get_patient_by_id",
+          "graphql_variables": ["patient_id"],
           "timeout_ms": 10000
         },
         {
@@ -209,11 +224,22 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_identifier",
           "tool_name": "add_patient_identifier",
-          "url": "$fhir_gql_url/patients/$patient_id/identifiers",
-          "method": "POST",
+          "graphql_document": "add_patient_identifier",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": [
+            "use",
+            "type_code",
+            "type_system",
+            "type_display",
+            "type_text",
+            "system",
+            "value",
+            "period_start",
+            "period_end"
+          ],
           "iterate_key": "identifiers",
           "validation_schema": "identifier_create_schema",
           "retryable": true,
@@ -246,8 +272,9 @@
         {
           "description": "Confirm the Patient still exists before appending telecom.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_gql_url/patients/$patient_id",
-          "method": "GET",
+          "type": "graphql",
+          "graphql_document": "get_patient_by_id",
+          "graphql_variables": ["patient_id"],
           "timeout_ms": 10000
         },
         {
@@ -275,11 +302,12 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_telecom",
           "tool_name": "add_patient_telecom",
-          "url": "$fhir_gql_url/patients/$patient_id/telecom",
-          "method": "POST",
+          "graphql_document": "add_patient_telecom",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": ["system", "value", "use", "rank", "period_start", "period_end"],
           "iterate_key": "telecom",
           "validation_schema": "telecom_create_schema",
           "retryable": true,
@@ -312,8 +340,9 @@
         {
           "description": "Confirm the Patient still exists before appending an address.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_gql_url/patients/$patient_id",
-          "method": "GET",
+          "type": "graphql",
+          "graphql_document": "get_patient_by_id",
+          "graphql_variables": ["patient_id"],
           "timeout_ms": 10000
         },
         {
@@ -341,11 +370,24 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_address",
           "tool_name": "add_patient_address",
-          "url": "$fhir_gql_url/patients/$patient_id/addresses",
-          "method": "POST",
+          "graphql_document": "add_patient_address",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": [
+            "use",
+            "type",
+            "text",
+            "line",
+            "city",
+            "district",
+            "state",
+            "postal_code",
+            "country",
+            "period_start",
+            "period_end"
+          ],
           "iterate_key": "addresses",
           "validation_schema": "address_create_schema",
           "retryable": true,
@@ -378,8 +420,9 @@
         {
           "description": "Confirm the Patient still exists before appending communication languages.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_gql_url/patients/$patient_id",
-          "method": "GET",
+          "type": "graphql",
+          "graphql_document": "get_patient_by_id",
+          "graphql_variables": ["patient_id"],
           "timeout_ms": 10000
         },
         {
@@ -399,11 +442,18 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_communication",
           "tool_name": "add_patient_communication",
-          "url": "$fhir_gql_url/patients/$patient_id/communications",
-          "method": "POST",
+          "graphql_document": "add_patient_communication",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": [
+            "language_code",
+            "language_system",
+            "language_display",
+            "language_text",
+            "preferred"
+          ],
           "iterate_key": "communications",
           "validation_schema": "communication_create_schema",
           "retryable": true,
@@ -436,8 +486,9 @@
         {
           "description": "Confirm the Patient still exists before appending a contact.",
           "tool_name": "get_patient_by_id",
-          "url": "$fhir_gql_url/patients/$patient_id",
-          "method": "GET",
+          "type": "graphql",
+          "graphql_document": "get_patient_by_id",
+          "graphql_variables": ["patient_id"],
           "timeout_ms": 10000
         },
         {
@@ -481,11 +532,31 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_contact",
           "tool_name": "add_patient_contact",
-          "url": "$fhir_gql_url/patients/$patient_id/contacts",
-          "method": "POST",
+          "graphql_document": "add_patient_contact",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": [
+            "name_use",
+            "name_text",
+            "name_family",
+            "name_given",
+            "name_prefix",
+            "name_suffix",
+            "gender",
+            "address_use",
+            "address_type",
+            "address_text",
+            "address_line",
+            "address_city",
+            "address_district",
+            "address_state",
+            "address_postal_code",
+            "address_country",
+            "organization",
+            "organization_display"
+          ],
           "validation_schema": "contact_create_schema",
           "retryable": true,
           "timeout_ms": 10000
@@ -516,8 +587,9 @@
       "context_resolver": {
         "description": "Confirm the Patient still exists before appending general practitioners.",
         "tool_name": "get_patient_by_id",
-        "url": "$fhir_gql_url/patients/$patient_id",
-        "method": "GET",
+        "type": "graphql",
+        "graphql_document": "get_patient_by_id",
+        "graphql_variables": ["patient_id"],
         "timeout_ms": 10000
       },
       "ui": {
@@ -528,11 +600,12 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_general_practitioner",
           "tool_name": "add_patient_general_practitioner",
-          "url": "$fhir_gql_url/patients/$patient_id/general-practitioners",
-          "method": "POST",
+          "graphql_document": "add_patient_general_practitioner",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": ["reference_type", "reference_id", "reference_display"],
           "iterate_key": "general_practitioners",
           "validation_schema": "gp_create_schema",
           "retryable": true,
@@ -558,16 +631,16 @@
         "outputs": {
           "patient_photo_id": {
             "type": "integer",
-            "resource": "PatientPhoto",
-            "field": "id"
+            "resource": "PatientPhoto"
           }
         }
       },
       "context_resolver": {
         "description": "Confirm the Patient still exists before uploading a photo.",
         "tool_name": "get_patient_by_id",
-        "url": "$fhir_gql_url/patients/$patient_id",
-        "method": "GET",
+        "type": "graphql",
+        "graphql_document": "get_patient_by_id",
+        "graphql_variables": ["patient_id"],
         "timeout_ms": 10000
       },
       "ui": {
@@ -578,11 +651,12 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_photo",
           "tool_name": "add_patient_photo",
-          "url": "$fhir_gql_url/patients/$patient_id/photos",
-          "method": "POST",
+          "graphql_document": "add_patient_photo",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": ["url", "content_type", "size", "title", "creation"],
           "validation_schema": "patient_photo_upload_schema",
           "retryable": false,
           "timeout_ms": 15000
@@ -613,8 +687,9 @@
       "context_resolver": {
         "description": "Confirm the Patient still exists before appending links.",
         "tool_name": "get_patient_by_id",
-        "url": "$fhir_gql_url/patients/$patient_id",
-        "method": "GET",
+        "type": "graphql",
+        "graphql_document": "get_patient_by_id",
+        "graphql_variables": ["patient_id"],
         "timeout_ms": 10000
       },
       "ui": {
@@ -625,11 +700,12 @@
       },
       "actions": [
         {
-          "type": "http",
+          "type": "graphql",
           "purpose": "add_patient_link",
           "tool_name": "add_patient_link",
-          "url": "$fhir_gql_url/patients/$patient_id/links",
-          "method": "POST",
+          "graphql_document": "add_patient_link",
+          "graphql_variables": ["patient_id"],
+          "graphql_input_fields": ["other_type", "other_id", "type", "other_display"],
           "iterate_key": "links",
           "validation_schema": "link_create_schema",
           "retryable": true,

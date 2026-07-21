@@ -27,7 +27,7 @@ import { z } from "zod";
 
 export const adminPatientCreateSchema = z.object({
   /** Provided by the admin via the form — the platform user to link this patient to. */
-  target_user_id: z.string().optional(),
+  target_user_id: z.string().min(1, "Target user is required"),
 
   /** Session-seeded admin user ID — present in context but intentionally ignored here. */
   user_id: z.string().optional(),

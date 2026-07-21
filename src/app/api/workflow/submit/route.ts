@@ -3,9 +3,15 @@
  *
  * Layer: app / api / workflow / submit
  *
- * Executes the HTTP action for a workflow step — the form submission leg.
- * Calls the FHIR server directly using the URL declared in the step's action
- * definition, bypassing MCP entirely.
+ * Executes the action for a workflow step — the form submission leg. Two
+ * transports are supported per-action via WorkflowAction.type:
+ *   - "http"    — calls the FHIR REST server directly using the URL declared
+ *                 in the action definition, bypassing MCP entirely.
+ *   - "graphql" — calls the fhir-gql GraphQL endpoint (FHIR_GRAPHQL_URL) via
+ *                 runGraphQLResolverOrAction(), looking up the query/mutation
+ *                 document by the action's graphql_document key. Pilot scope:
+ *                 only the create_patient workflow's Patient actions use this
+ *                 so far (see schemas/graphql/index.ts for the doc registry).
  *
  * Authorization:
  *   - Requires an authenticated Better Auth session (401 if absent).
@@ -22,10 +28,12 @@
  *   3. Obtain a fresh JWT from Better Auth.
  *   4. Unpack formData — A2UI forms dispatch { formData: "<JSON string>" } so
  *      we JSON.parse if the formData key holds a string.
- *   5. Strip empty/null fields, then interpolate the action URL with sessionContext.
+ *   5. Strip empty/null fields; for "http" actions interpolate the action URL
+ *      with sessionContext.
  *   6. If the action declares a validation_schema, validate + transform with Zod.
- *   7. Call the FHIR endpoint with Bearer auth and the cleaned payload.
- *      For iterate_key steps, POST each array item individually.
+ *   7. Call the FHIR endpoint (REST fetch or GraphQL request) with Bearer auth
+ *      and the cleaned payload. For iterate_key steps, submit each array item
+ *      individually.
  *   8. Map the response through the step's context.outputs to extract named values.
  *   9. Return success + merged sessionContext + nextStepIndex.
  *
@@ -52,8 +60,10 @@ import {
   resolveUrl,
   extractOutputs,
   cleanFormData,
+  runGraphQLResolverOrAction,
 } from "../_lib";
 import { VALIDATION_SCHEMAS } from "@/modules/client/ai-hub/schemas/validation";
+import { WORKFLOW_REGISTRY } from "../_registry";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { checkWorkflowPermission } from "@/modules/server/shared/auth/checkWorkflowPermission";
 
@@ -75,7 +85,7 @@ export async function POST(req: Request) {
   }
 
   const {
-    workflow,
+    workflow: clientWorkflow,
     stepIndex,
     actionName,
     formData,
@@ -87,6 +97,13 @@ export async function POST(req: Request) {
     formData: Record<string, unknown>;
     sessionContext?: Record<string, unknown>;
   } = await req.json();
+
+  // Always prefer the server's current workflow definition over the client's
+  // snapshot — the client may be replaying a workflow JSON it fetched before
+  // a server-side edit (new steps, changed actions, migrated transport), same
+  // rationale as step/route.ts. The registry is the single source of truth.
+  const workflow =
+    WORKFLOW_REGISTRY.get(clientWorkflow.id)?.workflow ?? clientWorkflow;
 
   // Re-validate permissions before executing the FHIR action. A forged request
   // could re-send any workflow JSON, so the server must verify every submission.
@@ -148,9 +165,11 @@ export async function POST(req: Request) {
       }
     }
 
-    const url = resolveUrl(action.url, { ...sessionContext, ...cleaned });
+    // GraphQL actions have no URL to interpolate — the single FHIR_GRAPHQL_URL
+    // endpoint plus the resolved document decide where the call goes.
+    const url = action.url ? resolveUrl(action.url, { ...sessionContext, ...cleaned }) : undefined;
 
-    // RepeatableGroup steps set iterate_key — loop and POST each item individually.
+    // RepeatableGroup steps set iterate_key — loop and submit each item individually.
     if (action.iterate_key) {
       const items = Array.isArray(cleaned[action.iterate_key])
         ? (cleaned[action.iterate_key] as Record<string, unknown>[])
@@ -174,7 +193,24 @@ export async function POST(req: Request) {
           }
         }
 
-        const itemRes = await fetch(url, {
+        if (action.type === "graphql") {
+          if (!action.graphql_document) {
+            return Response.json(
+              { success: false, error: `Action "${action.tool_name}" declares type "graphql" but no graphql_document.` },
+              { status: 500 },
+            );
+          }
+          lastData = await runGraphQLResolverOrAction(
+            action.graphql_document,
+            action.graphql_variables,
+            action.graphql_input_fields,
+            { ...sessionContext, ...itemPayload },
+            token,
+          );
+          continue;
+        }
+
+        const itemRes = await fetch(url!, {
           method: action.method,
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(itemPayload),
@@ -199,24 +235,41 @@ export async function POST(req: Request) {
       });
     }
 
-    const res = await fetch(url, {
-      method: action.method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      // GET requests must not carry a body per HTTP spec.
-      body: action.method !== "GET" ? JSON.stringify(payload) : undefined,
-      cache: "no-store",
-      signal: action.timeout_ms ? AbortSignal.timeout(action.timeout_ms) : undefined,
-    });
+    let data: Record<string, unknown>;
+    if (action.type === "graphql") {
+      if (!action.graphql_document) {
+        return Response.json(
+          { success: false, error: `Action "${action.tool_name}" declares type "graphql" but no graphql_document.` },
+          { status: 500 },
+        );
+      }
+      data = await runGraphQLResolverOrAction(
+        action.graphql_document,
+        action.graphql_variables,
+        action.graphql_input_fields,
+        { ...sessionContext, ...payload },
+        token,
+      );
+    } else {
+      const res = await fetch(url!, {
+        method: action.method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        // GET requests must not carry a body per HTTP spec.
+        body: action.method !== "GET" ? JSON.stringify(payload) : undefined,
+        cache: "no-store",
+        signal: action.timeout_ms ? AbortSignal.timeout(action.timeout_ms) : undefined,
+      });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return Response.json({ success: false, error: errText || `HTTP ${res.status}` });
+      if (!res.ok) {
+        const errText = await res.text();
+        return Response.json({ success: false, error: errText || `HTTP ${res.status}` });
+      }
+
+      data = await res.json();
     }
-
-    const data: Record<string, unknown> = await res.json();
 
     const outputs = step.context ? extractOutputs(step.context.outputs, data) : {};
 
