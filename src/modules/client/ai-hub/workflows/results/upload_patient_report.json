@@ -66,6 +66,16 @@
             "type": "integer",
             "resource": "Patient",
             "field": "id"
+          },
+          "patient_user_id": {
+            "type": "string",
+            "resource": "Patient",
+            "field": "user_id"
+          },
+          "patient_org_id": {
+            "type": "string",
+            "resource": "Patient",
+            "field": "org_id"
           }
         }
       },
@@ -114,7 +124,7 @@
           "description": "Load fulfilled appointments for the selected patient so the user can pick one.",
           "context_key": "patient_appointments",
           "tool_name": "list_patient_appointments",
-          "url": "$fhir_gql_url/appointments/?patient_id=$patient_id&status=fulfilled&limit=100",
+          "url": "$fhir_gql_url/appointments/?user_id=$patient_user_id&org_id=$patient_org_id&status=fulfilled&limit=100",
           "method": "GET",
           "timeout_ms": 10000
         }
