@@ -22,6 +22,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { FileNestProvider, useUpload, type FileRecord } from "@filenest-fs/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -307,6 +308,7 @@ function UploadResultContent({
   patientFhirId,
 }: UploadResultContentProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // ── Staged file list ────────────────────────────────────────────────────────
   const [stagedFiles, setStagedFiles] = useState<StagedEntry[]>([]);
@@ -497,11 +499,16 @@ function UploadResultContent({
         setIsLoadingReports(true);
         setStagedFiles([]);
         completedRecordsRef.current = [];
+
+        // The appointment detail page is a server component that fetched
+        // diagnosticReports once at page load — without this, the ServiceRequest
+        // card behind this modal stays stale until a manual reload.
+        router.refresh();
       } finally {
         setIsSaving(false);
       }
     },
-    [serviceRequestId, patientFhirId],
+    [serviceRequestId, patientFhirId, router],
   );
 
   // ── FileNest upload callbacks ───────────────────────────────────────────────

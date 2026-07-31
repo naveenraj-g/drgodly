@@ -30,6 +30,8 @@ docker build --no-cache \
   --build-arg NEXT_PUBLIC_LIVEKIT_AGENT_URL="$(get_var NEXT_PUBLIC_LIVEKIT_AGENT_URL)" \
   --build-arg NEXT_PUBLIC_VAPI_PUBLIC_KEY="$(get_var NEXT_PUBLIC_VAPI_PUBLIC_KEY)" \
   --build-arg NEXT_PUBLIC_VAPI_AGENT_ID="$(get_var NEXT_PUBLIC_VAPI_AGENT_ID)" \
+  --build-arg NEXT_PUBLIC_FILENEST_PROJECT_ID="$(get_var NEXT_PUBLIC_FILENEST_PROJECT_ID)" \
+  --build-arg NEXT_PUBLIC_FILENEST_API_URL="$(get_var NEXT_PUBLIC_FILENEST_API_URL)" \
   -t "$IMAGE_TAG" \
   .
 

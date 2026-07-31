@@ -32,6 +32,9 @@ import {
   Clock,
   Upload,
   Loader2,
+  ChevronDown,
+  ChevronUp,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TConditionResponse } from "@/modules/entities/schemas/condition";
@@ -471,24 +474,255 @@ function MedicationList({
 }
 
 /**
- * Fetches a short-lived inline-view URL for a FileNest fileId and opens it in a new tab.
- * "inline" disposition lets the browser render the file (PDF/image) directly instead
- * of forcing a download.
- *
- * @param fileId - FileNest file ID stored as presented_form[].url.
+ * Fetches a short-lived FileNest URL for a fileId.
+ * @param fileId      - FileNest file ID stored as presented_form[].url.
+ * @param disposition - "inline" opens the file in a new tab (view); "attachment" forces a download.
  */
-async function openFileInline(fileId: string): Promise<void> {
+async function getFileUrl(
+  fileId: string,
+  disposition: "inline" | "attachment",
+): Promise<string> {
   const res = await fetch(
-    `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}&disposition=inline`,
+    `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}&disposition=${disposition}`,
   );
-  if (!res.ok) throw new Error("Failed to get view link");
+  if (!res.ok) throw new Error("Failed to get file link");
   const { url } = (await res.json()) as { url: string };
-  window.open(url, "_blank", "noopener,noreferrer");
+  return url;
 }
 
 /**
- * Renders the list of confirmed FHIR ServiceRequests (orders/investigations) with details.
- * Shows name, category, reason, occurrence date, patient instructions, notes, and body sites.
+ * Derives a short uppercase file extension badge from filename or MIME type.
+ * @param title       - Filename, e.g. "blood-test.pdf".
+ * @param contentType - MIME type, e.g. "application/pdf".
+ */
+function getFileExt(title?: string | null, contentType?: string | null): string {
+  if (title) {
+    const ext = title.split(".").pop();
+    if (ext && ext.length <= 5) return ext.toUpperCase();
+  }
+  if (contentType) {
+    if (contentType.includes("pdf")) return "PDF";
+    const sub = contentType.split("/")[1];
+    if (sub) return sub.split(";")[0].toUpperCase().slice(0, 5);
+  }
+  return "FILE";
+}
+
+/**
+ * Formats a byte count as a short human-readable string.
+ * @param bytes - Raw byte count.
+ */
+function formatBytes(bytes: number | null | undefined): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/** One uploaded result file, flattened from a DiagnosticReport's presented_form[]. */
+interface ResultFile {
+  id?: number | null;
+  url?: string | null;
+  title?: string | null;
+  content_type?: string | null;
+  size?: number | null;
+  uploadedAt?: string | null;
+}
+
+/**
+ * One confirmed ServiceRequest (order/investigation) card with an expandable list of
+ * every uploaded result file for that order — a doctor order can have many result
+ * files, so each gets its own View/Download row instead of a single collapsed button.
+ *
+ * @param sr              - ServiceRequest record.
+ * @param files           - Uploaded result files for this SR, newest first.
+ * @param onUploadResult  - Optional callback to open the upload-result modal for this request.
+ *                          When provided, the card shows an "Upload Result" button.
+ */
+function ServiceRequestCard({
+  sr,
+  files,
+  onUploadResult,
+}: {
+  sr: TServiceRequestResponse;
+  files: ResultFile[];
+  onUploadResult?: (sr: TServiceRequestResponse) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  /** Which file is currently being viewed/downloaded, if any. */
+  const [busy, setBusy] = useState<{ id: string; action: "view" | "download" } | null>(null);
+
+  const hasFiles = files.length > 0;
+  const category = sr.category?.[0]?.coding_display ?? sr.category?.[0]?.text ?? null;
+  const reason = sr.reason_code?.[0]?.coding_display ?? sr.reason_code?.[0]?.text ?? null;
+  const occurrence = fmtDate(sr.occurrence_datetime ?? sr.occurrence_period_start) ?? null;
+  const bodySites =
+    (sr.body_site ?? []).map((b) => b.coding_display ?? b.text).filter(Boolean).join(", ") ||
+    null;
+  const notes = (sr.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
+
+  /**
+   * Opens (view, inline in a new tab) or downloads a result file.
+   * @param file   - File to act on.
+   * @param action - "view" opens inline; "download" saves it to disk.
+   */
+  async function handleFileAction(file: ResultFile, action: "view" | "download") {
+    if (!file.url) return;
+    setBusy({ id: file.url, action });
+    try {
+      const url = await getFileUrl(file.url, action === "view" ? "inline" : "attachment");
+      if (action === "view") {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.title ?? "result";
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch {
+      toast.error(`Could not ${action === "view" ? "open" : "download"} file. Try again.`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
+      {/* Name + badges + upload button */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium leading-snug">
+          {sr.code_display ?? sr.code_text ?? "Unknown order"}
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+          {sr.priority && (
+            <Badge variant="outline" className="text-xs font-normal capitalize">
+              {sr.priority}
+            </Badge>
+          )}
+          {sr.status && (
+            <Badge variant="secondary" className="text-xs font-normal capitalize">
+              {sr.status}
+            </Badge>
+          )}
+          {onUploadResult && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 text-xs"
+              onClick={() => onUploadResult(sr)}
+            >
+              <Upload className="size-3" />
+              Upload Result
+            </Button>
+          )}
+        </div>
+      </div>
+      {/* Detail rows */}
+      <div className="space-y-0.5">
+        <DetailRow label="Category" value={category} />
+        <DetailRow label="Reason" value={reason} />
+        <DetailRow label="Scheduled" value={occurrence} />
+        <DetailRow label="Body site" value={bodySites} />
+        <DetailRow label="Instructions" value={sr.patient_instruction ?? null} />
+        <DetailRow label="Notes" value={notes} />
+      </div>
+
+      {/* Uploaded files toggle */}
+      {hasFiles && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1.5 text-xs -ml-2"
+          onClick={() => setIsExpanded((v) => !v)}
+        >
+          {isExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          {isExpanded ? "Hide" : "View"} {files.length} uploaded file{files.length !== 1 ? "s" : ""}
+        </Button>
+      )}
+
+      {/* Expanded file list — one row per uploaded file, each with its own View/Download */}
+      {isExpanded && hasFiles && (
+        <div className="space-y-1.5 pt-1">
+          {files.map((f, i) => {
+            const ext = getFileExt(f.title, f.content_type);
+            const size = formatBytes(f.size);
+            const date = fmtDate(f.uploadedAt);
+            const isViewing = f.url != null && busy?.id === f.url && busy.action === "view";
+            const isDownloading =
+              f.url != null && busy?.id === f.url && busy.action === "download";
+
+            return (
+              <div
+                key={f.id ?? i}
+                className="flex items-center gap-3 rounded-md border bg-background px-3 py-2"
+              >
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] font-mono shrink-0 min-w-12 justify-center"
+                >
+                  {ext}
+                </Badge>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate leading-tight">
+                    {f.title ?? "Untitled"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {[size, date].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                {f.url && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      disabled={isViewing}
+                      onClick={() => handleFileAction(f, "view")}
+                    >
+                      {isViewing ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Eye className="size-3" />
+                      )}
+                      View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      disabled={isDownloading}
+                      onClick={() => handleFileAction(f, "download")}
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Download className="size-3" />
+                      )}
+                      Download
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Renders the list of confirmed FHIR ServiceRequests (orders/investigations).
+ * Each order is its own independent card — cards don't need to align since
+ * order counts and uploaded-file counts vary per request.
  *
  * @param serviceRequests    - Array of service request records from the FHIR server.
  * @param diagnosticReports  - DiagnosticReports for the same encounter, cross-referenced to
@@ -505,8 +739,6 @@ function ServiceRequestList({
   diagnosticReports: TDiagnosticReportResponse[];
   onUploadResult?: (sr: TServiceRequestResponse) => void;
 }) {
-  const [viewingId, setViewingId] = useState<string | null>(null);
-
   /** Map from ServiceRequest.id → DiagnosticReport[], newest DR first. */
   const drsByServiceRequestId = useMemo(() => {
     const map = new Map<number, TDiagnosticReportResponse[]>();
@@ -525,21 +757,6 @@ function ServiceRequestList({
     return map;
   }, [diagnosticReports]);
 
-  /**
-   * Opens the most recently uploaded result file for a ServiceRequest in a new tab.
-   * @param fileId - FileNest file ID of the file to view.
-   */
-  async function handleView(fileId: string) {
-    setViewingId(fileId);
-    try {
-      await openFileInline(fileId);
-    } catch {
-      toast.error("Could not open file. Try again.");
-    } finally {
-      setViewingId(null);
-    }
-  }
-
   if (!serviceRequests.length) return null;
   return (
     <div className="space-y-2">
@@ -551,84 +768,14 @@ function ServiceRequestList({
       </div>
       <div className="space-y-2">
         {serviceRequests.map((s) => {
-          const category =
-            s.category?.[0]?.coding_display ?? s.category?.[0]?.text ?? null;
-          const reason =
-            s.reason_code?.[0]?.coding_display ?? s.reason_code?.[0]?.text ?? null;
-          const occurrence =
-            fmtDate(s.occurrence_datetime ?? s.occurrence_period_start) ?? null;
-          const bodySites = (s.body_site ?? [])
-            .map((b) => b.coding_display ?? b.text)
-            .filter(Boolean)
-            .join(", ") || null;
-          const notes = (s.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
-
-          /* Most recently uploaded result file for this order, if any. */
-          const latestFile = drsByServiceRequestId
-            .get(s.id)
-            ?.flatMap((dr) => dr.presented_form ?? [])
-            .find((pf) => pf.url);
-          const isViewing = latestFile?.url != null && viewingId === latestFile.url;
-
+          const files = (drsByServiceRequestId.get(s.id) ?? []).flatMap((dr) =>
+            (dr.presented_form ?? []).map((pf) => ({
+              ...pf,
+              uploadedAt: pf.creation ?? dr.created_at,
+            })),
+          );
           return (
-            <div key={s.id} className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
-              {/* Name + badges + upload button */}
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-medium leading-snug">
-                  {s.code_display ?? s.code_text ?? "Unknown order"}
-                </p>
-                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                  {s.priority && (
-                    <Badge variant="outline" className="text-xs font-normal capitalize">
-                      {s.priority}
-                    </Badge>
-                  )}
-                  {s.status && (
-                    <Badge variant="secondary" className="text-xs font-normal capitalize">
-                      {s.status}
-                    </Badge>
-                  )}
-                  {latestFile?.url && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      disabled={isViewing}
-                      onClick={() => handleView(latestFile.url!)}
-                    >
-                      {isViewing ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        <Eye className="size-3" />
-                      )}
-                      View
-                    </Button>
-                  )}
-                  {onUploadResult && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      onClick={() => onUploadResult(s)}
-                    >
-                      <Upload className="size-3" />
-                      Upload Result
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {/* Detail rows */}
-              <div className="space-y-0.5">
-                <DetailRow label="Category" value={category} />
-                <DetailRow label="Reason" value={reason} />
-                <DetailRow label="Scheduled" value={occurrence} />
-                <DetailRow label="Body site" value={bodySites} />
-                <DetailRow label="Instructions" value={s.patient_instruction ?? null} />
-                <DetailRow label="Notes" value={notes} />
-              </div>
-            </div>
+            <ServiceRequestCard key={s.id} sr={s} files={files} onUploadResult={onUploadResult} />
           );
         })}
       </div>
