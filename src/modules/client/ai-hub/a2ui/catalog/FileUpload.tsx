@@ -34,8 +34,8 @@
 
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileNestProvider, useUpload } from "@filenest/react";
-import type { FileRecord } from "@filenest/react";
+import { FileNestProvider, useUpload } from "@filenest-fs/react";
+import type { FileRecord } from "@filenest-fs/react";
 import { Upload, File, X, Loader2, AlertCircle, Eye } from "lucide-react";
 
 import { useDynamicComponent } from "../hooks/use-dynamic-component";

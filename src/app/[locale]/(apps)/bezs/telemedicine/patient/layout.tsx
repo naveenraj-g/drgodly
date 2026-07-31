@@ -12,7 +12,9 @@ import { PatientModalProvider } from "@/modules/client/telemedicine/patient/prov
 
 export const dynamic = "force-dynamic";
 
-function PatientLayout(props: LayoutProps<"/[locale]/telemedicine/patient">) {
+function PatientLayout(
+  props: LayoutProps<"/[locale]/bezs/telemedicine/patient">,
+) {
   return (
     <>
       {props.children}

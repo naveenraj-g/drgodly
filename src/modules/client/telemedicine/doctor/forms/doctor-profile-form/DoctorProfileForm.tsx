@@ -41,7 +41,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CircleAlert, Loader2 } from "lucide-react";
-import { FileNestProvider } from "@filenest/react";
+import { FileNestProvider } from "@filenest-fs/react";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -331,8 +331,11 @@ export function DoctorProfileForm({
               <LanguagesSection />
             </div>
 
-            {/* Sticky submit bar */}
-            <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
+            {/* Sticky submit bar. -mb-6 bleeds through the parent <main>'s pb-6 —
+                position:sticky can't cover an ancestor's own padding, so without
+                this the bar stops short of the screen edge and leaves a visible
+                gap below the button. */}
+            <div className="sticky bottom-0 z-10 -mx-4 -mb-6 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
               <Button
                 type="submit"
                 size="sm"

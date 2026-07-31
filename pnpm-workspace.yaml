@@ -8,6 +8,11 @@ allowBuilds:
   prisma: true
   sharp: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@filenest-fs/core@0.1.0'
+  - '@filenest-fs/node@0.1.1'
+  - '@filenest-fs/react@0.1.0'
+  - '@filenest-fs/nextjs@0.1.0'
 onlyBuiltDependencies:
   - "@parcel/watcher"
   - "@prisma/engines"

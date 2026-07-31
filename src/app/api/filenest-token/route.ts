@@ -4,7 +4,7 @@
  * Layer: presentation / API route
  *
  * Generates a short-lived FileNest upload token for use by the browser-side
- * @filenest/react SDK. The token scopes the upload to a folder so files land
+ * @filenest-fs/react SDK. The token scopes the upload to a folder so files land
  * in the right place without exposing the API key to the client.
  *
  * Folder lookup strategy: `getByPath` is attempted first — if the path already

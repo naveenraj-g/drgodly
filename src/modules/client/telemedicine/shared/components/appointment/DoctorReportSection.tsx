@@ -15,6 +15,8 @@
 
 "use client";
 
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -29,12 +31,14 @@ import {
   Eye,
   Clock,
   Upload,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TConditionResponse } from "@/modules/entities/schemas/condition";
 import type { TObservationResponse } from "@/modules/entities/schemas/observation";
 import type { TMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
 import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
+import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 import type { SoapNote } from "@/modules/client/telemedicine/doctor/component/appointment-review/types";
 
 // ── SOAP Note read-only view ──────────────────────────────────────────────────
@@ -467,20 +471,75 @@ function MedicationList({
 }
 
 /**
+ * Fetches a short-lived inline-view URL for a FileNest fileId and opens it in a new tab.
+ * "inline" disposition lets the browser render the file (PDF/image) directly instead
+ * of forcing a download.
+ *
+ * @param fileId - FileNest file ID stored as presented_form[].url.
+ */
+async function openFileInline(fileId: string): Promise<void> {
+  const res = await fetch(
+    `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}&disposition=inline`,
+  );
+  if (!res.ok) throw new Error("Failed to get view link");
+  const { url } = (await res.json()) as { url: string };
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/**
  * Renders the list of confirmed FHIR ServiceRequests (orders/investigations) with details.
  * Shows name, category, reason, occurrence date, patient instructions, notes, and body sites.
  *
- * @param serviceRequests  - Array of service request records from the FHIR server.
- * @param onUploadResult   - Optional callback to open the upload-result modal for a specific request.
- *                           When provided, each card shows an "Upload Result" button.
+ * @param serviceRequests    - Array of service request records from the FHIR server.
+ * @param diagnosticReports  - DiagnosticReports for the same encounter, cross-referenced to
+ *                             each ServiceRequest via based_on[] to find uploaded result files.
+ * @param onUploadResult     - Optional callback to open the upload-result modal for a specific request.
+ *                             When provided, each card shows an "Upload Result" button.
  */
 function ServiceRequestList({
   serviceRequests,
+  diagnosticReports,
   onUploadResult,
 }: {
   serviceRequests: TServiceRequestResponse[];
+  diagnosticReports: TDiagnosticReportResponse[];
   onUploadResult?: (sr: TServiceRequestResponse) => void;
 }) {
+  const [viewingId, setViewingId] = useState<string | null>(null);
+
+  /** Map from ServiceRequest.id → DiagnosticReport[], newest DR first. */
+  const drsByServiceRequestId = useMemo(() => {
+    const map = new Map<number, TDiagnosticReportResponse[]>();
+    const sorted = [...diagnosticReports].sort((a, b) =>
+      (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+    );
+    for (const dr of sorted) {
+      for (const ref of dr.based_on ?? []) {
+        if (ref.reference_type === "ServiceRequest" && ref.reference_id != null) {
+          const existing = map.get(ref.reference_id) ?? [];
+          existing.push(dr);
+          map.set(ref.reference_id, existing);
+        }
+      }
+    }
+    return map;
+  }, [diagnosticReports]);
+
+  /**
+   * Opens the most recently uploaded result file for a ServiceRequest in a new tab.
+   * @param fileId - FileNest file ID of the file to view.
+   */
+  async function handleView(fileId: string) {
+    setViewingId(fileId);
+    try {
+      await openFileInline(fileId);
+    } catch {
+      toast.error("Could not open file. Try again.");
+    } finally {
+      setViewingId(null);
+    }
+  }
+
   if (!serviceRequests.length) return null;
   return (
     <div className="space-y-2">
@@ -504,6 +563,13 @@ function ServiceRequestList({
             .join(", ") || null;
           const notes = (s.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
 
+          /* Most recently uploaded result file for this order, if any. */
+          const latestFile = drsByServiceRequestId
+            .get(s.id)
+            ?.flatMap((dr) => dr.presented_form ?? [])
+            .find((pf) => pf.url);
+          const isViewing = latestFile?.url != null && viewingId === latestFile.url;
+
           return (
             <div key={s.id} className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
               {/* Name + badges + upload button */}
@@ -521,6 +587,23 @@ function ServiceRequestList({
                     <Badge variant="secondary" className="text-xs font-normal capitalize">
                       {s.status}
                     </Badge>
+                  )}
+                  {latestFile?.url && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1.5 text-xs"
+                      disabled={isViewing}
+                      onClick={() => handleView(latestFile.url!)}
+                    >
+                      {isViewing ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <Eye className="size-3" />
+                      )}
+                      View
+                    </Button>
                   )}
                   {onUploadResult && (
                     <Button
@@ -571,6 +654,11 @@ export interface DoctorReportSectionProps {
   /** FHIR ServiceRequests confirmed by the doctor. */
   serviceRequests: TServiceRequestResponse[];
   /**
+   * FHIR DiagnosticReports for the same encounter. Cross-referenced to each
+   * ServiceRequest via based_on[] to surface a "View" button for uploaded result files.
+   */
+  diagnosticReports: TDiagnosticReportResponse[];
+  /**
    * Optional callback called when the user clicks "Upload Result" on a ServiceRequest card.
    * When provided, each ServiceRequest card renders the Upload Result button.
    * Omit on the doctor view — only pass on the patient appointment detail page.
@@ -590,6 +678,7 @@ export interface DoctorReportSectionProps {
  * @param observations - Confirmed FHIR Observations.
  * @param medications - Confirmed FHIR MedicationRequests.
  * @param serviceRequests - Confirmed FHIR ServiceRequests.
+ * @param diagnosticReports - DiagnosticReports for the same encounter (uploaded result files).
  */
 export function DoctorReportSection({
   soap,
@@ -597,6 +686,7 @@ export function DoctorReportSection({
   observations,
   medications,
   serviceRequests,
+  diagnosticReports,
   onUploadResult,
 }: DoctorReportSectionProps) {
   const hasSoap = soap != null;
@@ -657,6 +747,7 @@ export function DoctorReportSection({
                 serviceRequests.length > 0 && <Separator />}
               <ServiceRequestList
                 serviceRequests={serviceRequests}
+                diagnosticReports={diagnosticReports}
                 onUploadResult={onUploadResult}
               />
             </div>

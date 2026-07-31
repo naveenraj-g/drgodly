@@ -11,7 +11,10 @@
  * Components re-fetch this endpoint after each new upload to get a fresh URL.
  *
  * Query params:
- *   fileId  — required FileNest file ID string
+ *   fileId       — required FileNest file ID string
+ *   disposition  — optional "inline" | "attachment" (default "attachment").
+ *                  "inline" lets the browser render the file (PDF/image) in a
+ *                  new tab instead of forcing a download.
  *
  * Response: { url: string; expiresAt: string }
  */
@@ -32,10 +35,13 @@ export async function GET(req: Request): Promise<Response> {
   if (!fileId) {
     return Response.json({ error: "fileId query param is required" }, { status: 400 });
   }
+  const disposition =
+    searchParams.get("disposition") === "inline" ? "inline" : "attachment";
 
   // ── Fetch presigned download URL from FileNest (1 hr TTL) ─────────────────
   const { url, expiresAt } = await filenest.files.getDownloadUrl(fileId, {
     ttl: 3600,
+    disposition,
   });
 
   return Response.json({ url, expiresAt });

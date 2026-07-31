@@ -9,7 +9,7 @@
  * avatar (or the pencil overlay) opens a hidden file input that accepts images
  * up to 5 MB.
  *
- * On selection the file is uploaded via the FileNest @filenest/react useUpload
+ * On selection the file is uploaded via the FileNest @filenest-fs/react useUpload
  * hook (token provided by the parent FileNestProvider), then the FileNest file
  * record is persisted to the FHIR practitioner.photo[] sub-resource:
  *  - First upload → addPractitionerPhotoAction (POST)
@@ -24,7 +24,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { useUpload, type FileRecord } from "@filenest/react";
+import { useUpload, type FileRecord } from "@filenest-fs/react";
 import { Loader2, Pencil, Info } from "lucide-react";
 import { toast } from "sonner";
 

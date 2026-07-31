@@ -32,6 +32,7 @@ import { listConditionsAction } from "@/modules/server/presentation/actions/cond
 import { listObservationsAction } from "@/modules/server/presentation/actions/observation/core.actions";
 import { listMedicationRequestsAction } from "@/modules/server/presentation/actions/medication-request/core.actions";
 import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
+import { listDiagnosticReportsAction } from "@/modules/server/presentation/actions/diagnostic-report";
 import { AppointmentDetailHeader } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailHeader";
 import { AppointmentReportTabs } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentReportTabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +41,7 @@ import type { TPaginatedConditionResponse } from "@/modules/entities/schemas/con
 import type { TPaginatedObservationResponse } from "@/modules/entities/schemas/observation";
 import type { TPaginatedMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
 import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
+import type { TPaginatedDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 import type { SoapNote } from "@/modules/client/telemedicine/doctor/component/appointment-review/types";
 
 /** Route params for the dynamic segment. */
@@ -105,6 +107,7 @@ export default async function DoctorAppointmentViewPage({
     [observationsPage],
     [medicationsPage],
     [serviceRequestsPage],
+    [diagnosticReportsPage],
   ] = encounter
     ? await Promise.all([
         listConditionsAction({
@@ -119,8 +122,12 @@ export default async function DoctorAppointmentViewPage({
         listServiceRequestsAction({
           payload: { encounter_id: encounter.id, limit: 200 },
         }),
+        listDiagnosticReportsAction({
+          payload: { encounter_id: encounter.id, limit: 200 },
+        }),
       ])
     : [
+        [null] as [null],
         [null] as [null],
         [null] as [null],
         [null] as [null],
@@ -135,6 +142,8 @@ export default async function DoctorAppointmentViewPage({
     (medicationsPage as TPaginatedMedicationRequestResponse | null)?.data ?? [];
   const serviceRequests =
     (serviceRequestsPage as TPaginatedServiceRequestResponse | null)?.data ?? [];
+  const diagnosticReports =
+    (diagnosticReportsPage as TPaginatedDiagnosticReportResponse | null)?.data ?? [];
 
   /* Extract SOAP note from the consultation full report. */
   const soapNote =
@@ -159,6 +168,7 @@ export default async function DoctorAppointmentViewPage({
           observations,
           medications,
           serviceRequests,
+          diagnosticReports,
         }}
       />
     </div>

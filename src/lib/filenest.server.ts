@@ -13,7 +13,7 @@
  */
 
 import "server-only";
-import { FileNest } from "@filenest/node";
+import { FileNest } from "@filenest-fs/node";
 
 const globalForFileNest = globalThis as unknown as {
   fileNest: FileNest | undefined;

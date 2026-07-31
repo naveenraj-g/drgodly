@@ -22,7 +22,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import { FileNestProvider, useUpload, type FileRecord } from "@filenest/react";
+import { FileNestProvider, useUpload, type FileRecord } from "@filenest-fs/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Upload,
