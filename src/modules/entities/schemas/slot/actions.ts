@@ -19,6 +19,7 @@ import {
   ListSlotsValidationSchema,
   GetByIdSlotValidationSchema,
   DeleteSlotValidationSchema,
+  GenerateSlotsValidationSchema,
 } from "./input";
 
 /** Action schema for creating a Slot with all inline child arrays. */
@@ -53,3 +54,10 @@ export const DeleteSlotActionSchema = z.object({
   transportOptions: TransportOptionsSchema.optional(),
 });
 export type TDeleteSlotAction = z.infer<typeof DeleteSlotActionSchema>;
+
+/** Action schema for bulk-generating Slots for a Schedule within a time window. */
+export const GenerateSlotsActionSchema = z.object({
+  payload: GenerateSlotsValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TGenerateSlotsAction = z.infer<typeof GenerateSlotsActionSchema>;

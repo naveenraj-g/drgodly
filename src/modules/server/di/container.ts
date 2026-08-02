@@ -3,6 +3,8 @@ import { DI_RETURN_TYPES, DI_SYMBOLS } from "./types";
 import {
   registerOrganizationModule,
   registerLocationModule,
+  registerHealthcareServiceModule,
+  registerScheduleModule,
   registerTerminologyModule,
   registerEmrChatModule,
   registerPatientModule,
@@ -26,6 +28,8 @@ const ApplicationContainer = createContainer();
 
 registerOrganizationModule(ApplicationContainer);
 registerLocationModule(ApplicationContainer);
+registerHealthcareServiceModule(ApplicationContainer);
+registerScheduleModule(ApplicationContainer);
 registerTerminologyModule(ApplicationContainer);
 registerEmrChatModule(ApplicationContainer);
 registerPatientModule(ApplicationContainer);

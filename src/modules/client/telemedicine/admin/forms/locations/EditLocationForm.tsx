@@ -22,7 +22,7 @@
 
 "use client";
 
-import { useFormContext, Controller } from "react-hook-form";
+import { useFormContext, useWatch, Controller } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,9 @@ import {
   TerminologySelect,
   type TCodeableConcept,
 } from "@/modules/client/shared/components/TerminologySelect";
+import { ReferenceSelect } from "@/modules/client/shared/components/ReferenceSelect";
+import { searchOrganizationOptions } from "../../queries/organization.queries";
+import { searchLocationOptions } from "../../queries/location.queries";
 import type { TEditLocationFormSchema } from "@/modules/entities/schemas/location";
 
 interface EditLocationFormProps {
@@ -50,6 +53,10 @@ interface EditLocationFormProps {
   onCancel: () => void;
   /** True while the server action is executing — disables the submit button. */
   isPending: boolean;
+  /** The location's own tenant — scopes the managing-organization/part-of pickers. */
+  orgId: string | null;
+  /** The location's own id — excluded from its own part_of picker (can't be its own parent). */
+  excludeId: number;
 }
 
 /**
@@ -60,8 +67,14 @@ export function EditLocationForm({
   onSubmit,
   onCancel,
   isPending,
+  orgId,
+  excludeId,
 }: EditLocationFormProps) {
   const form = useFormContext<TEditLocationFormSchema>();
+  const [managingOrganization, partOf] = useWatch({
+    control: form.control,
+    name: ["managing_organization", "part_of"],
+  });
 
   /** Decomposes the selected physicalType CodeableConcept into its flat scalar fields. */
   function handlePhysicalTypeChange(value: string | TCodeableConcept | null) {
@@ -260,12 +273,68 @@ export function EditLocationForm({
         <Separator />
 
         <div className="grid grid-cols-2 gap-3">
-          <FormInput control={form.control} name="managing_organization" label="Managing Organization (ref)" />
-          <FormInput control={form.control} name="managing_organization_display" label="Managing Org Display" />
+          <Field>
+            <FieldLabel>Managing Organization</FieldLabel>
+            <Controller
+              control={form.control}
+              name="managing_organization"
+              render={({ field }) => {
+                const id = managingOrganization ? Number(managingOrganization.split("/")[1]) : undefined;
+                return (
+                  <ReferenceSelect
+                    fetchOptions={(q) => searchOrganizationOptions(q, orgId)}
+                    queryKey={["organizations", "picker", orgId]}
+                    value={
+                      id
+                        ? { id, label: form.getValues("managing_organization_display") ?? "" }
+                        : null
+                    }
+                    onChange={(opt) => {
+                      field.onChange(opt ? `Organization/${opt.id}` : "");
+                      form.setValue("managing_organization_display", opt?.label ?? "");
+                    }}
+                    placeholder="Search organizations…"
+                  />
+                );
+              }}
+            />
+          </Field>
+          <FormInput
+            control={form.control}
+            name="managing_organization_display"
+            label="Managing Org Display"
+            description="Auto-filled from your selection — you can still edit it."
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FormInput control={form.control} name="part_of" label="Part Of (ref)" />
-          <FormInput control={form.control} name="part_of_display" label="Part Of Display" />
+          <Field>
+            <FieldLabel>Part Of</FieldLabel>
+            <Controller
+              control={form.control}
+              name="part_of"
+              render={({ field }) => {
+                const id = partOf ? Number(partOf.split("/")[1]) : undefined;
+                return (
+                  <ReferenceSelect
+                    fetchOptions={(q) => searchLocationOptions(q, orgId, excludeId)}
+                    queryKey={["locations", "picker", orgId]}
+                    value={id ? { id, label: form.getValues("part_of_display") ?? "" } : null}
+                    onChange={(opt) => {
+                      field.onChange(opt ? `Location/${opt.id}` : "");
+                      form.setValue("part_of_display", opt?.label ?? "");
+                    }}
+                    placeholder="Search locations…"
+                  />
+                );
+              }}
+            />
+          </Field>
+          <FormInput
+            control={form.control}
+            name="part_of_display"
+            label="Part Of Display"
+            description="Auto-filled from your selection — you can still edit it."
+          />
         </div>
 
         <Separator />

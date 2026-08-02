@@ -111,3 +111,21 @@ export const PaginatedSlotResponseSchema = z.object({
   data: z.array(SlotResponseSchema),
 });
 export type TPaginatedSlotResponse = z.infer<typeof PaginatedSlotResponseSchema>;
+
+/**
+ * Response from POST /slots/generate.
+ * Partial-failure model — successfully created slots are not rolled back if
+ * later windows in the batch fail, so both counts must be surfaced to the caller.
+ */
+export const SlotGenerateResponseSchema = z.object({
+  schedule_id: z.number(),
+  generated_count: z.number(),
+  slot_ids: z.array(z.number()),
+  generation_start: z.string(),
+  generation_end: z.string(),
+  slot_duration_minutes: z.number(),
+  failed_count: z.number(),
+  /** One error string per failure — "{start_iso}: {reason}". */
+  errors: z.array(z.string()),
+});
+export type TSlotGenerateResponse = z.infer<typeof SlotGenerateResponseSchema>;

@@ -8,7 +8,7 @@
  * one-line addition here, no layout changes needed.
  */
 
-import { Building2, MapPin, Network } from "lucide-react";
+import { Building2, CalendarClock, Clock, MapPin, Network, Stethoscope } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface AdminNavItem {
@@ -39,6 +39,21 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: "/bezs/telemedicine/admin/locations/hierarchy",
     icon: Network,
   },
-  // Fast-follow (not yet built): HealthcareService, Schedule, Slot,
-  // PractitionerRole, Practitioner — each is a one-line addition here.
+  {
+    label: "Healthcare Services",
+    href: "/bezs/telemedicine/admin/healthcare-services",
+    icon: Stethoscope,
+  },
+  {
+    label: "Schedules",
+    href: "/bezs/telemedicine/admin/schedules",
+    icon: CalendarClock,
+  },
+  {
+    label: "Slots",
+    href: "/bezs/telemedicine/admin/slots",
+    icon: Clock,
+  },
+  // Fast-follow (not yet built): PractitionerRole, Practitioner — each is a
+  // one-line addition here.
 ];

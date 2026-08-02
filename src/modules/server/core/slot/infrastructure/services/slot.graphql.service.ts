@@ -12,11 +12,13 @@ import { ISlotService } from "../../domain/interfaces/slot.service.interface";
 import {
   type TSlotResponse,
   type TPaginatedSlotResponse,
+  type TSlotGenerateResponse,
 } from "@/modules/entities/schemas/slot";
 import {
   type TCreateSlot,
   type TSlotPatchDto,
   type TListSlotsQuery,
+  type TGenerateSlots,
 } from "@/modules/entities/schemas/slot";
 
 /** Stub — GraphQL transport not yet implemented for Slot. */
@@ -39,5 +41,9 @@ export class SlotGraphQLService implements ISlotService {
 
   delete(_id: number): Promise<void> {
     throw new Error("SlotGraphQLService.delete: not implemented");
+  }
+
+  generate(_dto: TGenerateSlots): Promise<TSlotGenerateResponse> {
+    throw new Error("SlotGraphQLService.generate: not implemented");
   }
 }

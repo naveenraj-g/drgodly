@@ -17,11 +17,13 @@ import { SlotCoreRestService } from "./rest/slot.core.rest.service";
 import {
   type TSlotResponse,
   type TPaginatedSlotResponse,
+  type TSlotGenerateResponse,
 } from "@/modules/entities/schemas/slot";
 import {
   type TCreateSlot,
   type TSlotPatchDto,
   type TListSlotsQuery,
+  type TGenerateSlots,
 } from "@/modules/entities/schemas/slot";
 
 /**
@@ -73,5 +75,10 @@ export class SlotRestApiService implements ISlotService {
   /** @inheritdoc */
   delete(id: number): Promise<void> {
     return this.core.delete(id);
+  }
+
+  /** @inheritdoc */
+  generate(dto: TGenerateSlots): Promise<TSlotGenerateResponse> {
+    return this.core.generate(dto);
   }
 }

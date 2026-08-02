@@ -14,13 +14,16 @@ import { logOperation } from "@/modules/server/config/logger/log-operation";
 import {
   SlotResponseSchema,
   PaginatedSlotResponseSchema,
+  SlotGenerateResponseSchema,
   type TSlotResponse,
   type TPaginatedSlotResponse,
+  type TSlotGenerateResponse,
 } from "@/modules/entities/schemas/slot";
 import {
   type TCreateSlot,
   type TSlotPatchDto,
   type TListSlotsQuery,
+  type TGenerateSlots,
 } from "@/modules/entities/schemas/slot";
 import { handleSlotApiError } from "./slot.rest.errors";
 
@@ -194,6 +197,47 @@ export class SlotCoreRestService {
     } catch (err) {
       logOperation("error", {
         name: "SlotCoreRestService.delete",
+        startTimeMs,
+        err,
+        context: { operationId },
+      });
+      if (axios.isAxiosError(err)) handleSlotApiError(err);
+      throw err;
+    }
+  }
+
+  /**
+   * POST /slots/generate — bulk-generates free Slots for a Schedule within a
+   * time window. Registered before /{resource_id} on the fhir-gql side so
+   * "generate" is never mistaken for an integer path param.
+   * @param dto - schedule_id, generation window, duration, and optional overrides.
+   * @returns Summary with generated_count, slot_ids, failed_count, and errors.
+   */
+  async generate(dto: TGenerateSlots): Promise<TSlotGenerateResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+    logOperation("start", {
+      name: "SlotCoreRestService.generate",
+      startTimeMs,
+      context: { operationId, scheduleId: dto.schedule_id },
+    });
+    try {
+      const res = await this.client.post<unknown>("/generate", dto);
+      const data = await SlotGenerateResponseSchema.parseAsync(res.data);
+      logOperation("success", {
+        name: "SlotCoreRestService.generate",
+        startTimeMs,
+        data,
+        context: {
+          operationId,
+          generatedCount: data.generated_count,
+          failedCount: data.failed_count,
+        },
+      });
+      return data;
+    } catch (err) {
+      logOperation("error", {
+        name: "SlotCoreRestService.generate",
         startTimeMs,
         err,
         context: { operationId },

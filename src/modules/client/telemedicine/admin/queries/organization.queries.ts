@@ -14,6 +14,7 @@ import {
   TPaginatedOrgResponse,
 } from "@/modules/entities/schemas/organization";
 import { listOrganizationsAction } from "@/modules/server/presentation/actions/organization";
+import type { TReferenceOption } from "@/modules/client/shared/components/ReferenceSelect";
 
 // ── Query key factory ──────────────────────────────────────────────────────────
 
@@ -118,4 +119,38 @@ export async function fetchAllOrganizations(
   }
 
   return all;
+}
+
+/**
+ * Searches organizations by name for the ReferenceSelect picker, scoped to
+ * the given tenant. fhir-gql's ListOrgsValidationSchema has a real server-side
+ * `name` filter, so this searches live rather than fetching the full list.
+ *
+ * @param query    - Search text; empty string returns the tenant's first page.
+ * @param orgId    - Active organization ID to scope results to the current tenant.
+ * @param excludeId - Optional record id to omit (e.g. a record editing itself
+ *                    should not be offered as its own parent).
+ * @returns Up to 50 matching organizations as {id, label} options.
+ * @throws Error with the server action's error message on failure.
+ */
+export async function searchOrganizationOptions(
+  query: string,
+  orgId: string | null,
+  excludeId?: number,
+): Promise<TReferenceOption[]> {
+  const [data, err] = await listOrganizationsAction({
+    payload: {
+      name: query || undefined,
+      org_id: orgId ?? undefined,
+      limit: 50,
+      offset: 0,
+    },
+  });
+
+  if (err) throw new Error(err.message ?? "Failed to search organizations");
+  if (!data) return [];
+
+  return data.data
+    .filter((org: TOrgResponse) => org.id !== excludeId)
+    .map((org: TOrgResponse) => ({ id: org.id, label: org.name ?? `Organization #${org.id}` }));
 }

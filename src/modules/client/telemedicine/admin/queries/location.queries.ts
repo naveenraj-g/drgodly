@@ -14,6 +14,7 @@ import {
   TPaginatedLocationResponse,
 } from "@/modules/entities/schemas/location";
 import { listLocationsAction } from "@/modules/server/presentation/actions/location";
+import type { TReferenceOption } from "@/modules/client/shared/components/ReferenceSelect";
 
 // ── Query key factory ──────────────────────────────────────────────────────────
 
@@ -109,4 +110,32 @@ export async function fetchAllLocations(
   }
 
   return all;
+}
+
+/**
+ * Searches locations by name for the ReferenceSelect picker, scoped to the
+ * given tenant. fhir-gql's Location list endpoint has no server-side name
+ * filter, so this reuses `fetchAllLocations` and filters client-side —
+ * consistent with how the Location Hierarchy view already sources its data.
+ *
+ * @param query     - Search text; case-insensitive substring match on name.
+ * @param orgId     - Active organization ID to scope results to the current tenant.
+ * @param excludeId - Optional record id to omit (e.g. a record editing itself
+ *                    should not be offered as its own parent).
+ * @returns Up to 50 matching locations as {id, label} options.
+ * @throws Error with the server action's error message on failure.
+ */
+export async function searchLocationOptions(
+  query: string,
+  orgId: string | null,
+  excludeId?: number,
+): Promise<TReferenceOption[]> {
+  const all = await fetchAllLocations(orgId);
+  const q = query.trim().toLowerCase();
+
+  return all
+    .filter((loc) => loc.id !== excludeId)
+    .filter((loc) => !q || (loc.name ?? "").toLowerCase().includes(q))
+    .slice(0, 50)
+    .map((loc) => ({ id: loc.id, label: loc.name ?? `Location #${loc.id}` }));
 }

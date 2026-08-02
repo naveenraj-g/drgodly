@@ -158,3 +158,52 @@ export const DeleteSlotValidationSchema = z.object({
   id: z.number().int().positive(),
 });
 export type TDeleteSlot = z.infer<typeof DeleteSlotValidationSchema>;
+
+// ── Bulk generation (POST /slots/generate) ────────────────────────────────────
+
+/**
+ * Schema for auto-generating Slots for a Schedule within a time window.
+ * Mirrors fhir-gql's SlotGenerateSchema exactly (extra="forbid").
+ *
+ * schedule_id, generation_start, generation_end, slot_duration_minutes are
+ * required. service_category/service_type/specialty are optional overrides —
+ * when omitted, fhir-gql auto-inherits them from the Schedule, then from the
+ * PractitionerRole actor's specialty[] as a further fallback for specialty.
+ */
+export const GenerateSlotsValidationSchema = z
+  .object({
+    user_id: z.string().optional(),
+    org_id: z.string().optional(),
+
+    schedule_id: z.number().int(),
+
+    /** Start of the generation window (inclusive). Must fall within the Schedule's planning horizon. */
+    generation_start: z.string().min(1, "Generation start is required"),
+    /** End of the generation window (exclusive). Must fall within the Schedule's planning horizon. */
+    generation_end: z.string().min(1, "Generation end is required"),
+
+    /** Duration of each generated slot in minutes (1–1440). Must divide evenly into the window. */
+    slot_duration_minutes: z.number().int().min(1).max(1440),
+
+    // Appointment type (flat CodeableConcept) — optional, can be set at booking time instead.
+    appointment_type_system: z.string().optional(),
+    appointment_type_code: z.string().optional(),
+    appointment_type_display: z.string().optional(),
+    appointment_type_text: z.string().optional(),
+
+    // Override arrays — auto-inherited from Schedule / PractitionerRole actor if omitted.
+    service_category: z.array(SlotServiceCategoryInputSchema).optional(),
+    service_type: z.array(SlotServiceTypeInputSchema).optional(),
+    specialty: z.array(SlotSpecialtyInputSchema).optional(),
+
+    overbooked: z.boolean().optional(),
+    comment: z.string().optional(),
+  })
+  .refine(
+    (fields) => new Date(fields.generation_end) > new Date(fields.generation_start),
+    {
+      message: "generation_end must be after generation_start",
+      path: ["generation_end"],
+    },
+  );
+export type TGenerateSlots = z.infer<typeof GenerateSlotsValidationSchema>;

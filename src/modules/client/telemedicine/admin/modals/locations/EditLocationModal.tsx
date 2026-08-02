@@ -196,6 +196,8 @@ export function EditLocationModal() {
             onSubmit={handleSubmit}
             onCancel={onClose}
             isPending={isPending}
+            orgId={location.org_id ?? null}
+            excludeId={location.id}
           />
         </FormProvider>
       </SheetContent>

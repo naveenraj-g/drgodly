@@ -28,3 +28,8 @@ export {
 } from "./updateSlot.controller";
 
 export { deleteSlotController } from "./deleteSlot.controller";
+
+export {
+  generateSlotsController,
+  type TGenerateSlotsControllerOutput,
+} from "./generateSlots.controller";

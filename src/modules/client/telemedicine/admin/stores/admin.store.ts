@@ -13,6 +13,9 @@
 import { create } from "zustand";
 import { TOrgResponse } from "@/modules/entities/schemas/organization";
 import { TLocationResponse } from "@/modules/entities/schemas/location";
+import { THealthcareServiceResponse } from "@/modules/entities/schemas/healthcare-service";
+import { TScheduleResponse } from "@/modules/entities/schemas/schedule";
+import { TSlotResponse } from "@/modules/entities/schemas/slot";
 
 // ── Modal type union ───────────────────────────────────────────────────────────
 
@@ -23,7 +26,17 @@ export type ModalType =
   | "deleteOrganization"
   | "createLocation"
   | "editLocation"
-  | "deleteLocation";
+  | "deleteLocation"
+  | "createHealthcareService"
+  | "editHealthcareService"
+  | "deleteHealthcareService"
+  | "createSchedule"
+  | "editSchedule"
+  | "deleteSchedule"
+  | "createSlot"
+  | "editSlot"
+  | "deleteSlot"
+  | "generateSlots";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -47,6 +60,26 @@ export interface ModalData {
   locationName?: string;
   /** Full location record — used by edit modal to pre-populate the form. */
   location?: TLocationResponse;
+
+  /** HealthcareService fields (edit / delete). */
+  healthcareServiceId?: number;
+  healthcareServiceName?: string;
+  /** Full healthcare service record — used by edit modal to pre-populate the form. */
+  healthcareService?: THealthcareServiceResponse;
+
+  /** Schedule fields (edit / delete). */
+  scheduleId?: number;
+  /** Display label for confirmation dialogs — Schedule has no name, so this is `comment` or a fallback. */
+  scheduleLabel?: string;
+  /** Full schedule record — used by edit modal to pre-populate the form. */
+  schedule?: TScheduleResponse;
+
+  /** Slot fields (edit / delete). */
+  slotId?: number;
+  /** Display label for confirmation dialogs — Slot has no name, so this is a start/status summary. */
+  slotLabel?: string;
+  /** Full slot record — used by edit modal to pre-populate the form. */
+  slot?: TSlotResponse;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

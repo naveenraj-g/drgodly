@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useFormContext, useWatch } from "react-hook-form";
+import { useFormContext, useWatch, Controller } from "react-hook-form";
 
 import {
   Field,
@@ -26,6 +26,9 @@ import {
   TerminologySelect,
   type TCodeableConcept,
 } from "@/modules/client/shared/components/TerminologySelect";
+import { ReferenceSelect } from "@/modules/client/shared/components/ReferenceSelect";
+import { searchOrganizationOptions } from "../../../../queries/organization.queries";
+import { useAdminStore } from "../../../../stores/admin.store";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 /**
@@ -36,9 +39,11 @@ export function BasicTab() {
   const {
     formState: { errors },
   } = form;
+  const orgId = useAdminStore((s) => s.data?.orgId ?? null);
 
   /** The type array holds exactly one entry today — watch it for the selected concept. */
   const currentType = useWatch({ control: form.control, name: "type" })?.[0];
+  const partof = useWatch({ control: form.control, name: "partof" });
 
   /** Replaces the entire type array with a single entry matching the chosen concept. */
   function handleTypeChange(value: string | TCodeableConcept | null) {
@@ -104,18 +109,39 @@ export function BasicTab() {
 
       <Separator />
 
-      {/* Part-of */}
-      <FormInput
-        control={form.control}
-        name="partof"
-        label="Part Of (reference)"
-        placeholder="Organization/190001"
-      />
+      {/* Part-of — searched live from the tenant's organizations */}
+      <Field>
+        <FieldLabel>Part Of</FieldLabel>
+        <Controller
+          control={form.control}
+          name="partof"
+          render={({ field }) => {
+            const partofId = partof ? Number(partof.split("/")[1]) : undefined;
+            return (
+              <ReferenceSelect
+                fetchOptions={(q) => searchOrganizationOptions(q, orgId)}
+                queryKey={["organizations", "picker", orgId]}
+                value={
+                  partofId
+                    ? { id: partofId, label: form.getValues("partof_display") ?? "" }
+                    : null
+                }
+                onChange={(opt) => {
+                  field.onChange(opt ? `Organization/${opt.id}` : "");
+                  form.setValue("partof_display", opt?.label ?? "");
+                }}
+                placeholder="Search organizations…"
+              />
+            );
+          }}
+        />
+      </Field>
       <FormInput
         control={form.control}
         name="partof_display"
         label="Part Of Display"
         placeholder="Parent Health Network"
+        description="Auto-filled from your selection above — you can still edit it."
       />
     </FieldGroup>
   );
