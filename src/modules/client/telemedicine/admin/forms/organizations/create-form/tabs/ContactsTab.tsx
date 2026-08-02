@@ -1,6 +1,10 @@
 /**
  * ContactsTab — contact persons (admin, billing, clinical, etc.) for the organization.
  * Each contact card contains nested purpose, name, address, and telecom sections.
+ *
+ * `name_use`, `address_use`, and `address_type` are sourced live from the FHIR
+ * terminology server via TerminologySelect (resource="Patient" — generic
+ * HumanName/Address bindings reused across resources).
  */
 
 "use client";
@@ -11,19 +15,11 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
+import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
-import { NAME_USES, ADDRESS_USES, ADDRESS_TYPES } from "../constants";
 import { ContactTelecomRows } from "../ContactTelecomRows";
 
 /** @see CreateOrganizationForm */
@@ -112,16 +108,14 @@ export function ContactsTab() {
                         control={form.control}
                         name={`contact.${i}.name_use`}
                         render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger><SelectValue placeholder="Select use" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {NAME_USES.map((u) => (
-                                  <SelectItem key={u} value={u}>{u}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+                          <TerminologySelect
+                            resource="Patient"
+                            field="name.use"
+                            valueType="code"
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select use"
+                          />
                         )}
                       />
                     </Field>
@@ -210,16 +204,14 @@ export function ContactsTab() {
                         control={form.control}
                         name={`contact.${i}.address_use`}
                         render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger><SelectValue placeholder="Select use" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {ADDRESS_USES.map((u) => (
-                                  <SelectItem key={u} value={u}>{u}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+                          <TerminologySelect
+                            resource="Patient"
+                            field="address.use"
+                            valueType="code"
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select use"
+                          />
                         )}
                       />
                     </Field>
@@ -229,16 +221,14 @@ export function ContactsTab() {
                         control={form.control}
                         name={`contact.${i}.address_type`}
                         render={({ field }) => (
-                          <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {ADDRESS_TYPES.map((t) => (
-                                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+                          <TerminologySelect
+                            resource="Patient"
+                            field="address.type"
+                            valueType="code"
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select type"
+                          />
                         )}
                       />
                     </Field>

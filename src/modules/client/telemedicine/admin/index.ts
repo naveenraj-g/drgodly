@@ -9,6 +9,9 @@
 
 export { OrganizationsTable } from "./components/organizations/OrganizationsTable";
 export { OrganizationModalProvider } from "./provider/OrganizationModalProvider";
+export { LocationsTable } from "./components/locations/LocationsTable";
+export { LocationModalProvider } from "./provider/LocationModalProvider";
 export { useAdminStore, adminStore } from "./stores/admin.store";
 export type { ModalType, ModalData } from "./stores/admin.store";
 export type { IOrganizationsTableProps, TOrganization } from "./types/organizations.type";
+export type { ILocationsTableProps, TLocation } from "./types/locations.type";

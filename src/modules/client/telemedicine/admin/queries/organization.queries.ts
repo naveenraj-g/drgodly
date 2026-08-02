@@ -9,7 +9,10 @@
  * organizationKeys.all })` to refresh every list regardless of page/size.
  */
 
-import { TPaginatedOrgResponse } from "@/modules/entities/schemas/organization";
+import {
+  TOrgResponse,
+  TPaginatedOrgResponse,
+} from "@/modules/entities/schemas/organization";
 import { listOrganizationsAction } from "@/modules/server/presentation/actions/organization";
 
 // ── Query key factory ──────────────────────────────────────────────────────────
@@ -43,6 +46,13 @@ export const organizationKeys = {
    */
   list: (params: { pageIndex: number; pageSize: number; orgId: string | null }) =>
     [...organizationKeys.lists(), params] as const,
+
+  /**
+   * Key for the "fetch every organization for this tenant" query — used by
+   * the Organization Hierarchy view, which needs the full flat list to build
+   * a tree client-side (fhir-gql has no children/tree endpoint).
+   */
+  allForOrg: (orgId: string | null) => [...organizationKeys.all, "all", orgId] as const,
 };
 
 // ── Fetcher ────────────────────────────────────────────────────────────────────
@@ -75,4 +85,37 @@ export async function fetchOrganizations(params: {
 
   if (err) throw new Error(err.message ?? "Failed to load organizations");
   return data!;
+}
+
+/**
+ * Fetches every organization for the given tenant by looping the list action
+ * at the maximum page size until all pages are retrieved. There is no
+ * server-side "get all" or tree endpoint for Organization, so the hierarchy
+ * view needs the complete flat list.
+ *
+ * @param orgId - Active organization ID to scope the fetch to the current tenant.
+ * @returns Every organization record for the tenant.
+ * @throws Error with the server action's error message on failure.
+ */
+export async function fetchAllOrganizations(
+  orgId: string | null,
+): Promise<TOrgResponse[]> {
+  const PAGE_SIZE = 200;
+  const all: TOrgResponse[] = [];
+  let offset = 0;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const [data, err] = await listOrganizationsAction({
+      payload: { limit: PAGE_SIZE, offset, org_id: orgId ?? undefined },
+    });
+    if (err) throw new Error(err.message ?? "Failed to load organizations");
+    if (!data) break;
+
+    all.push(...data.data);
+    offset += PAGE_SIZE;
+    if (data.data.length < PAGE_SIZE || offset >= data.total) break;
+  }
+
+  return all;
 }

@@ -41,7 +41,8 @@ export const OrgContactFormItemSchema = z.object({
   purpose_code: z.string().optional(),
   purpose_display: z.string().optional(),
   purpose_text: z.string().optional(),
-  name_use: z.enum(["usual", "official", "temp", "nickname", "anonymous", "old", "maiden"]).optional(),
+  /** Sourced from the terminology server (resource="Patient" field="name.use") via TerminologySelect. */
+  name_use: z.string().optional(),
   name_text: z.string().optional(),
   name_family: z.string().optional(),
   /** Comma-separated given names, e.g. "John Michael". */
@@ -50,8 +51,8 @@ export const OrgContactFormItemSchema = z.object({
   name_prefix: z.string().optional(),
   /** Comma-separated suffixes, e.g. "MD, PhD". */
   name_suffix: z.string().optional(),
-  address_use: z.enum(["home", "work", "temp", "old", "billing"]).optional(),
-  address_type: z.enum(["postal", "physical", "both"]).optional(),
+  address_use: z.string().optional(),
+  address_type: z.string().optional(),
   address_text: z.string().optional(),
   /** Comma-separated street address lines. */
   address_line: z.string().optional(),

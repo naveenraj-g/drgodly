@@ -1,22 +1,16 @@
 /**
  * BasicTab — core Organization fields: name, type, active, and partOf reference.
  *
- * Owns the terminology hook and type-select logic so the parent form shell
- * doesn't need to know about the type array's internal structure.
+ * The Organization Type field is sourced live from the FHIR terminology
+ * server via TerminologySelect (resource="Organization" field="type" —
+ * the same binding the A2UI create_organization workflow uses) rather than
+ * a hand-typed local list.
  */
 
 "use client";
 
 import { useFormContext, useWatch } from "react-hook-form";
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Field,
   FieldLabel,
@@ -28,7 +22,10 @@ import {
   FormInput,
   FormSwitch,
 } from "@/modules/client/shared/components/CustomFormFields";
-import { useConceptsForField } from "@/modules/client/shared/queries/terminology.queries";
+import {
+  TerminologySelect,
+  type TCodeableConcept,
+} from "@/modules/client/shared/components/TerminologySelect";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 /**
@@ -40,33 +37,23 @@ export function BasicTab() {
     formState: { errors },
   } = form;
 
-  /** Live terminology concepts for Organization.type — 10-min stale time. */
-  const { data: typeTerminology, isLoading: isLoadingTypes } =
-    useConceptsForField("Organization", "type");
+  /** The type array holds exactly one entry today — watch it for the selected concept. */
+  const currentType = useWatch({ control: form.control, name: "type" })?.[0];
 
-  /** Derive the currently selected type code from the watched type array. */
-  const currentTypeCode =
-    useWatch({ control: form.control, name: "type" })?.[0]?.coding_code ?? "";
-
-  /**
-   * Replaces the entire type array with a single entry matching the chosen concept.
-   * @param code - The coding_code selected from the terminology dropdown.
-   */
-  function handleTypeSelect(code: string) {
-    const concept = typeTerminology?.concepts.find((c) => c.code === code);
-    if (concept) {
-      form.setValue(
-        "type",
-        [
-          {
-            coding_system: concept.system,
-            coding_code: concept.code,
-            coding_display: concept.display,
-          },
-        ],
-        { shouldValidate: true },
-      );
-    }
+  /** Replaces the entire type array with a single entry matching the chosen concept. */
+  function handleTypeChange(value: string | TCodeableConcept | null) {
+    if (!value || typeof value !== "object") return;
+    form.setValue(
+      "type",
+      [
+        {
+          coding_system: value.system,
+          coding_code: value.code,
+          coding_display: value.display,
+        },
+      ],
+      { shouldValidate: true },
+    );
   }
 
   return (
@@ -79,29 +66,25 @@ export function BasicTab() {
         placeholder="General Hospital"
       />
 
-      {/* Organization type — sourced live from terminology service */}
+      {/* Organization type — sourced live from the terminology service */}
       <Field data-invalid={!!errors.type || undefined}>
         <FieldLabel>Organization Type *</FieldLabel>
-        <Select
-          value={currentTypeCode}
-          onValueChange={handleTypeSelect}
-          disabled={isLoadingTypes}
-        >
-          <SelectTrigger aria-invalid={!!errors.type}>
-            <SelectValue
-              placeholder={isLoadingTypes ? "Loading types…" : "Select a type"}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {typeTerminology?.concepts.map((concept) => (
-                <SelectItem key={concept.code} value={concept.code}>
-                  {concept.display}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <TerminologySelect
+          resource="Organization"
+          field="type"
+          valueType="codeable_concept"
+          value={
+            currentType
+              ? {
+                  code: currentType.coding_code ?? "",
+                  system: currentType.coding_system ?? "",
+                  display: currentType.coding_display ?? "",
+                }
+              : null
+          }
+          onChange={handleTypeChange}
+          placeholder="Search organization type…"
+        />
         {errors.type && (
           <FieldError>
             {(errors.type as { message?: string }).message ??

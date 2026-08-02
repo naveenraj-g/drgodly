@@ -2,6 +2,7 @@
 import { DI_RETURN_TYPES, DI_SYMBOLS } from "./types";
 import {
   registerOrganizationModule,
+  registerLocationModule,
   registerTerminologyModule,
   registerEmrChatModule,
   registerPatientModule,
@@ -24,6 +25,7 @@ import {
 const ApplicationContainer = createContainer();
 
 registerOrganizationModule(ApplicationContainer);
+registerLocationModule(ApplicationContainer);
 registerTerminologyModule(ApplicationContainer);
 registerEmrChatModule(ApplicationContainer);
 registerPatientModule(ApplicationContainer);

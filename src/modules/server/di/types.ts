@@ -1,4 +1,5 @@
 ﻿import { IOrganizationsService } from "../core/organization/domain/interfaces/organization.service.interface";
+import { ILocationsService } from "../core/location/domain/interfaces/location.service.interface";
 import { IPatientsService } from "../core/patient/domain/interfaces/patient.service.interface";
 import { ITerminologyService } from "../core/terminology/domain/interfaces/terminology.service.interface";
 import { IEmrChatRepository } from "../core/emr-chat/domain/interfaces/emr-chat.repository.interface";
@@ -20,6 +21,7 @@ import { IDocumentReferenceService } from "../core/document-reference/domain/int
 export const DI_SYMBOLS = {
   IPatientsService: Symbol.for("IPatientsService"),
   IOrganizationsService: Symbol.for("IOrganizationsService"),
+  ILocationsService: Symbol.for("ILocationsService"),
   ITerminologyService: Symbol.for("ITerminologyService"),
   IEmrChatRepository: Symbol.for("IEmrChatRepository"),
   IPractitionersService: Symbol.for("IPractitionersService"),
@@ -41,6 +43,7 @@ export const DI_SYMBOLS = {
 export interface DI_RETURN_TYPES {
   IPatientsService: IPatientsService;
   IOrganizationsService: IOrganizationsService;
+  ILocationsService: ILocationsService;
   ITerminologyService: ITerminologyService;
   IEmrChatRepository: IEmrChatRepository;
   IPractitionersService: IPractitionersService;

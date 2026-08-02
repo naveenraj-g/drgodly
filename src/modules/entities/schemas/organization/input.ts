@@ -22,8 +22,13 @@ export type TOrgTypeInput = z.infer<typeof OrgTypeInputSchema>;
 
 /** Single FHIR Identifier to attach to an Organization on create. */
 export const OrgIdentifierInputSchema = z.object({
-  /** Identifier use: usual | official | temp | secondary | old */
-  use: z.enum(["usual", "official", "temp", "secondary", "old"]).optional(),
+  /**
+   * Identifier use, e.g. usual | official | temp | secondary | old.
+   * Sourced from the FHIR terminology server (resource="Patient" field=
+   * "identifier.use") via TerminologySelect — not a fixed enum. fhir-gql
+   * itself accepts any string here, so the schema shouldn't over-constrain it.
+   */
+  use: z.string().optional(),
   type_system: z.string().optional(),
   type_code: z.string().optional(),
   type_display: z.string().optional(),
@@ -38,19 +43,28 @@ export const OrgIdentifierInputSchema = z.object({
 });
 export type TOrgIdentifierInput = z.infer<typeof OrgIdentifierInputSchema>;
 
-/** Contact point (phone, email, etc.) for the organization. */
+/**
+ * Contact point (phone, email, etc.) for the organization.
+ * `system`/`use` are sourced from the terminology server (resource="Patient"
+ * field="telecom.system"/"telecom.use") via TerminologySelect — not fixed
+ * enums; fhir-gql itself accepts any string for these fields.
+ */
 export const OrgTelecomInputSchema = z.object({
-  system: z.enum(["phone", "fax", "email", "pager", "url", "sms", "other"]),
+  system: z.string(),
   value: z.string().min(1),
-  use: z.enum(["home", "work", "temp", "old", "mobile"]).optional(),
+  use: z.string().optional(),
   rank: z.number().int().min(1).optional(),
 });
 export type TOrgTelecomInput = z.infer<typeof OrgTelecomInputSchema>;
 
-/** Postal or physical address for the organization. */
+/**
+ * Postal or physical address for the organization.
+ * `use`/`type` are sourced from the terminology server (resource="Patient"
+ * field="address.use"/"address.type") via TerminologySelect.
+ */
 export const OrgAddressInputSchema = z.object({
-  use: z.enum(["home", "work", "temp", "old", "billing"]).optional(),
-  type: z.enum(["postal", "physical", "both"]).optional(),
+  use: z.string().optional(),
+  type: z.string().optional(),
   text: z.string().optional(),
   /** Street address lines, e.g. ["123 Main St", "Suite 400"]. */
   line: z.array(z.string()).optional(),
@@ -62,11 +76,15 @@ export const OrgAddressInputSchema = z.object({
 });
 export type TOrgAddressInput = z.infer<typeof OrgAddressInputSchema>;
 
-/** Telecom entry nested inside a contact person (not the org-level telecom). */
+/**
+ * Telecom entry nested inside a contact person (not the org-level telecom).
+ * `system`/`use` are sourced from the terminology server via TerminologySelect
+ * (same bindings as OrgTelecomInputSchema).
+ */
 export const OrgContactTelecomInputSchema = z.object({
-  system: z.enum(["phone", "fax", "email", "pager", "url", "sms", "other"]),
+  system: z.string(),
   value: z.string().min(1),
-  use: z.enum(["home", "work", "temp", "old", "mobile"]).optional(),
+  use: z.string().optional(),
   rank: z.number().int().min(1).optional(),
 });
 export type TOrgContactTelecomInput = z.infer<typeof OrgContactTelecomInputSchema>;
@@ -80,15 +98,19 @@ export const OrgContactInputSchema = z.object({
   purpose_code: z.string().optional(),
   purpose_display: z.string().optional(),
   purpose_text: z.string().optional(),
-  /** HumanName use: usual | official | temp | nickname | anonymous | old | maiden */
-  name_use: z.enum(["usual", "official", "temp", "nickname", "anonymous", "old", "maiden"]).optional(),
+  /**
+   * HumanName use, e.g. usual | official | temp | nickname | anonymous |
+   * old | maiden. Sourced from the terminology server (resource="Patient"
+   * field="name.use") via TerminologySelect.
+   */
+  name_use: z.string().optional(),
   name_text: z.string().optional(),
   name_family: z.string().optional(),
   name_given: z.array(z.string()).optional(),
   name_prefix: z.array(z.string()).optional(),
   name_suffix: z.array(z.string()).optional(),
-  address_use: z.enum(["home", "work", "temp", "old", "billing"]).optional(),
-  address_type: z.enum(["postal", "physical", "both"]).optional(),
+  address_use: z.string().optional(),
+  address_type: z.string().optional(),
   address_text: z.string().optional(),
   address_line: z.array(z.string()).optional(),
   address_city: z.string().optional(),

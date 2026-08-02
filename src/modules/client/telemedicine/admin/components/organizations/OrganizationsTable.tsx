@@ -13,7 +13,8 @@
  *  - View toggle (table / grid) in the toolbar
  *  - Row selection + bulk delete via DataTableSelectionBar
  *  - Row actions: Edit, Delete — opened via Zustand admin store (no local state)
- *  - Column pinning (name left, actions right) — resizing and view-options intentionally disabled
+ *  - No default column pinning (users may pin manually) — table stays in
+ *    auto-layout so it fills the container width; resizing intentionally disabled
  *  - Export (CSV / Excel / JSON)
  *  - "New Organization" button opens create modal via admin store
  *
@@ -93,10 +94,12 @@ export function OrganizationsTable({
     initialPageSize: INITIAL_PAGE_SIZE,
     /** Disable drag-resize handles — TanStack defaults columnResizeMode to 'onEnd' internally. */
     enableColumnResizing: false,
-    initialColumnPinning: {
-      left: ["select", "expand", "name"],
-      right: ["actions"],
-    },
+    // No default column pinning — pinning forces table-layout:fixed with an
+    // explicit width equal to the sum of column sizes (needed to keep sticky
+    // offsets pixel-accurate), which left a gap when that sum was narrower
+    // than the container. Leaving pinning unset keeps the table in
+    // auto-layout, which fills the container width naturally. Users can
+    // still pin columns manually via the column menu if they want to.
     getRowCanExpand: () => true,
   });
 

@@ -4,9 +4,10 @@
  * Layer: presentation / actions
  * Resource: Organization
  *
- * All mutating actions (register, update, delete) use authenticatedProcedure — the caller
- * must have an active admin role. Read actions (list, getById) use authenticatedProcedure
- * too since organization data is restricted to admin users.
+ * All actions use adminProcedure — the caller must have an active session with
+ * a role in ROLES["telemedicine-admin"], since organization data is
+ * admin-only. This is enforced at the procedure layer here in addition to the
+ * route-level requireRole() guard in the admin layout.
  * Mutating actions include transportOptions for revalidation / redirect.
  * Read actions have no transportOptions — no side effects.
  */
@@ -38,10 +39,10 @@ import {
   type TUpdateOrganizationControllerOutput,
 } from "@/modules/server/core/organization/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { adminProcedure } from "../procedures";
 
 /** Creates a new organization. Accepts transportOptions for post-create revalidation. */
-export const registerOrganizationAction = authenticatedProcedure
+export const registerOrganizationAction = adminProcedure
   .createServerAction()
   .input(RegisterOrgActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TRegisterOrgAction }) => {
@@ -54,7 +55,7 @@ export const registerOrganizationAction = authenticatedProcedure
   });
 
 /** Lists organizations with optional server-side filters and pagination. */
-export const listOrganizationsAction = authenticatedProcedure
+export const listOrganizationsAction = adminProcedure
   .createServerAction()
   .input(ListOrgsActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TListOrgsAction }) => {
@@ -67,7 +68,7 @@ export const listOrganizationsAction = authenticatedProcedure
   });
 
 /** Fetches a single organization by its numeric ID. */
-export const getOrganizationByIdAction = authenticatedProcedure
+export const getOrganizationByIdAction = adminProcedure
   .createServerAction()
   .input(GetOrgByIdActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TGetOrgByIdAction }) => {
@@ -80,7 +81,7 @@ export const getOrganizationByIdAction = authenticatedProcedure
   });
 
 /** Partially updates an organization (name, active, partof_display only). */
-export const updateOrganizationAction = authenticatedProcedure
+export const updateOrganizationAction = adminProcedure
   .createServerAction()
   .input(PatchOrgActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchOrgAction }) => {
@@ -93,7 +94,7 @@ export const updateOrganizationAction = authenticatedProcedure
   });
 
 /** Permanently deletes an organization and its child records. */
-export const deleteOrganizationAction = authenticatedProcedure
+export const deleteOrganizationAction = adminProcedure
   .createServerAction()
   .input(DeleteOrgActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeleteOrgAction }) => {

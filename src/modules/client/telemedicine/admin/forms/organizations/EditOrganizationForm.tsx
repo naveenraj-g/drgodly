@@ -19,7 +19,7 @@ import { useFormContext } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
+import { SheetFooter } from "@/components/ui/sheet";
 import {
   FormInput,
   FormSwitch,
@@ -63,7 +63,10 @@ export function EditOrganizationForm({
   const form = useFormContext<TEditOrgFormSchema>();
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="flex flex-col flex-1 min-h-0 gap-4 overflow-y-auto px-4"
+    >
       {/* Name */}
       <FormInput
         control={form.control}
@@ -90,15 +93,15 @@ export function EditOrganizationForm({
       />
 
       {/* Footer actions */}
-      <DialogFooter className="pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
+      <SheetFooter className="shrink-0 px-0">
         <Button type="submit" disabled={isPending}>
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
         </Button>
-      </DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </SheetFooter>
     </form>
   );
 }

@@ -1,5 +1,9 @@
 /**
  * IdentifiersTab — FHIR identifiers (NPI, tax-ID, etc.) for the organization.
+ *
+ * `use` is sourced live from the FHIR terminology server via
+ * TerminologySelect (resource="Patient" field="identifier.use" — the same
+ * generic binding the A2UI workflows use).
  */
 
 "use client";
@@ -10,18 +14,10 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
-import { IDENTIFIER_USES } from "../constants";
 
 /** @see CreateOrganizationForm */
 export function IdentifiersTab() {
@@ -73,18 +69,14 @@ export function IdentifiersTab() {
                     control={form.control}
                     name={`identifier.${i}.use`}
                     render={({ field }) => (
-                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select use" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {IDENTIFIER_USES.map((u) => (
-                              <SelectItem key={u} value={u}>{u}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <TerminologySelect
+                        resource="Patient"
+                        field="identifier.use"
+                        valueType="code"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select use"
+                      />
                     )}
                   />
                 </Field>

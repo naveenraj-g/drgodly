@@ -8,6 +8,14 @@
  * any valid session) and the admin pages. It adds the admin role check so that
  * only users whose active organization role is "admin" can access these routes.
  *
+ * Role-guard only — deliberately does NOT render AdminSidebar. This layout
+ * wraps every route under admin/, including emr-chat, which is a full-screen
+ * chat experience that shouldn't be squeezed alongside a resource nav. The
+ * sidebar instead lives in `(resources)/layout.tsx`, a route group that only
+ * wraps the resource-management screens (organizations, locations, and
+ * future admin resources) — see that file's comment for why the split
+ * exists.
+ *
  * Any authenticated user who fails the role check is redirected to /unauthorized.
  * The session is already resolved by the parent (apps)/layout.tsx, but we must
  * call getServerSession() again here — Server Component layouts do not receive

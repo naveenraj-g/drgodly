@@ -24,7 +24,7 @@ import { Loader2Icon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
+import { SheetFooter } from "@/components/ui/sheet";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
 
 import type { CreateOrganizationFormProps } from "./types";
@@ -85,7 +85,7 @@ export function CreateOrganizationForm({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="flex flex-col flex-1 min-h-0 gap-4 overflow-hidden"
+      className="flex flex-col flex-1 min-h-0 gap-4 overflow-hidden px-4"
     >
       <Tabs
         defaultValue="basic"
@@ -148,17 +148,17 @@ export function CreateOrganizationForm({
         </TabsContent>
       </Tabs>
 
-      <DialogFooter className="shrink-0">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
+      <SheetFooter className="shrink-0 px-0">
         <Button type="submit" disabled={isPending}>
           {isPending && (
             <Loader2Icon data-icon="inline-start" className="animate-spin" />
           )}
           Create Organization
         </Button>
-      </DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </SheetFooter>
     </form>
   );
 }

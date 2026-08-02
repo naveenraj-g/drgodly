@@ -1,5 +1,5 @@
 /**
- * EditOrganizationModal — self-contained dialog for editing an Organization.
+ * EditOrganizationModal — self-contained Sheet for editing an Organization.
  *
  * Layer: client / telemedicine / admin / modals
  * Resource: Organization
@@ -7,6 +7,9 @@
  * Pattern (nextjs-iam): the modal owns the form instance (useForm + FormProvider)
  * and the server action (useServerAction). The form component is a dumb shell
  * that reads from FormProvider via useFormContext() and renders field layout only.
+ *
+ * Uses a right-side Sheet instead of a centered Dialog — matches the Location
+ * create/edit pattern.
  *
  * Opens when the Zustand admin store's type === "editOrganization".
  * The store's `data.organization` field carries the full org record used to
@@ -24,12 +27,12 @@ import { useServerAction } from "zsa-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   EditOrgFormSchema,
   type TEditOrgFormSchema,
@@ -122,15 +125,18 @@ export function EditOrganizationModal() {
   if (!open || !org) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit Organization</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-lg overflow-hidden flex flex-col gap-0 p-0"
+      >
+        <SheetHeader className="border-b">
+          <SheetTitle>Edit Organization</SheetTitle>
+          <SheetDescription>
             Update the name, status, or parent organization. Child arrays
             (types, telecoms, addresses) require delete and recreate.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         {/* FormProvider injects the form instance into EditOrganizationForm */}
         <FormProvider {...form}>
@@ -140,7 +146,7 @@ export function EditOrganizationModal() {
             isPending={isPending}
           />
         </FormProvider>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

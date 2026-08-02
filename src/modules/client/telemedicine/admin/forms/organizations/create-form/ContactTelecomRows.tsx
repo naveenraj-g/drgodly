@@ -14,17 +14,9 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldError } from "@/components/ui/field";
+import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
-import { TELECOM_SYSTEMS, TELECOM_USES } from "./constants";
 
 interface ContactTelecomRowsProps {
   /** Index of the parent contact in the contacts field array. */
@@ -73,23 +65,19 @@ export function ContactTelecomRows({ contactIndex, control, errors }: ContactTel
       {fields.map((telecom, ti) => (
         <div key={telecom.id} className="flex items-start gap-2">
           {/* System */}
-          <Field className="w-32" data-invalid={!!rowError(ti, "system") || undefined}>
+          <Field className="w-40" data-invalid={!!rowError(ti, "system") || undefined}>
             <Controller
               control={control}
               name={`contact.${contactIndex}.telecom.${ti}.system`}
               render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                  <SelectTrigger aria-invalid={!!rowError(ti, "system")}>
-                    <SelectValue placeholder="System" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {TELECOM_SYSTEMS.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <TerminologySelect
+                  resource="Patient"
+                  field="telecom.system"
+                  valueType="code"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="System"
+                />
               )}
             />
             {rowError(ti, "system") && <FieldError>{rowError(ti, "system")}</FieldError>}
@@ -108,23 +96,19 @@ export function ContactTelecomRows({ contactIndex, control, errors }: ContactTel
           </Field>
 
           {/* Use */}
-          <Field className="w-28">
+          <Field className="w-36">
             <Controller
               control={control}
               name={`contact.${contactIndex}.telecom.${ti}.use`}
               render={({ field }) => (
-                <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Use" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {TELECOM_USES.map((u) => (
-                        <SelectItem key={u} value={u}>{u}</SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <TerminologySelect
+                  resource="Patient"
+                  field="telecom.use"
+                  valueType="code"
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Use"
+                />
               )}
             />
           </Field>

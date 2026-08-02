@@ -1,5 +1,9 @@
 /**
  * AddressTab — postal and physical addresses for the organization.
+ *
+ * `use` and `type` are sourced live from the FHIR terminology server via
+ * TerminologySelect (resource="Patient" — a generic Address binding reused
+ * across resources, same one the A2UI workflows use).
  */
 
 "use client";
@@ -10,18 +14,10 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
-import { ADDRESS_USES, ADDRESS_TYPES } from "../constants";
 
 /** @see CreateOrganizationForm */
 export function AddressTab() {
@@ -70,16 +66,14 @@ export function AddressTab() {
                     control={form.control}
                     name={`address.${i}.use`}
                     render={({ field }) => (
-                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                        <SelectTrigger><SelectValue placeholder="Select use" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {ADDRESS_USES.map((u) => (
-                              <SelectItem key={u} value={u}>{u}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <TerminologySelect
+                        resource="Patient"
+                        field="address.use"
+                        valueType="code"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select use"
+                      />
                     )}
                   />
                 </Field>
@@ -89,16 +83,14 @@ export function AddressTab() {
                     control={form.control}
                     name={`address.${i}.type`}
                     render={({ field }) => (
-                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {ADDRESS_TYPES.map((t) => (
-                              <SelectItem key={t} value={t}>{t}</SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                      <TerminologySelect
+                        resource="Patient"
+                        field="address.type"
+                        valueType="code"
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Select type"
+                      />
                     )}
                   />
                 </Field>

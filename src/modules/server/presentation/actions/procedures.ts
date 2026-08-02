@@ -49,19 +49,16 @@ export const authenticatedProcedure = createServerActionProcedure().handler(
  * @throws ZSAError("NOT_AUTHORIZED") if no session exists.
  * @throws ZSAError("FORBIDDEN") if the user's active role is not in the admin group.
  */
-export const adminProcedure = createServerActionProcedure().handler(
-  async () => {
-    const session = await getServerSession();
-    if (!session?.user) {
-      throw new ZSAError("NOT_AUTHORIZED", "You must be signed in.");
-    }
-    const allowed = ROLES["telemedicine-admin"] as readonly string[];
-    if (!allowed.includes(session.session.activeRole)) {
-      throw new ZSAError(
-        "FORBIDDEN",
-        "You must have an admin role to perform this action.",
-      );
-    }
-    return { session };
-  },
-);
+export const adminProcedure = createServerActionProcedure(
+  authenticatedProcedure,
+).handler(async ({ ctx }) => {
+  const session = ctx.session;
+  const allowed = ROLES["telemedicine-admin"] as readonly string[];
+  if (!allowed.includes(session.session.activeRole)) {
+    throw new ZSAError(
+      "FORBIDDEN",
+      "You must have an admin role to perform this action.",
+    );
+  }
+  return { session };
+});

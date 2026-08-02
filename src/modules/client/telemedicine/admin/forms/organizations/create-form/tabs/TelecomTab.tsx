@@ -1,5 +1,10 @@
 /**
  * TelecomTab — phone, email, fax and other contact points for the organization.
+ *
+ * `system` and `use` are sourced live from the FHIR terminology server via
+ * TerminologySelect (resource="Patient" — a generic ContactPoint binding
+ * reused across resources, the same one the A2UI workflows use) instead of
+ * a hand-typed local list.
  */
 
 "use client";
@@ -7,20 +12,11 @@
 import { useFormContext, useFieldArray, Controller } from "react-hook-form";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Field, FieldError } from "@/components/ui/field";
+import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
 import type { TCreateOrgFormSchema } from "@/modules/entities/schemas/organization";
-import { TELECOM_SYSTEMS, TELECOM_USES } from "../constants";
 
 /** @see CreateOrganizationForm */
 export function TelecomTab() {
@@ -52,23 +48,19 @@ export function TelecomTab() {
         {fields.map((t, i) => (
           <div key={t.id} className="flex items-start gap-2">
             {/* System */}
-            <Field className="w-32" data-invalid={!!e?.telecom?.[i]?.system || undefined}>
+            <Field className="w-40" data-invalid={!!e?.telecom?.[i]?.system || undefined}>
               <Controller
                 control={form.control}
                 name={`telecom.${i}.system`}
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger aria-invalid={!!e?.telecom?.[i]?.system}>
-                      <SelectValue placeholder="System" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {TELECOM_SYSTEMS.map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <TerminologySelect
+                    resource="Patient"
+                    field="telecom.system"
+                    valueType="code"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="System"
+                  />
                 )}
               />
             </Field>
@@ -92,23 +84,19 @@ export function TelecomTab() {
             </Field>
 
             {/* Use */}
-            <Field className="w-28">
+            <Field className="w-36">
               <Controller
                 control={form.control}
                 name={`telecom.${i}.use`}
                 render={({ field }) => (
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Use" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {TELECOM_USES.map((u) => (
-                          <SelectItem key={u} value={u}>{u}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <TerminologySelect
+                    resource="Patient"
+                    field="telecom.use"
+                    valueType="code"
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Use"
+                  />
                 )}
               />
             </Field>

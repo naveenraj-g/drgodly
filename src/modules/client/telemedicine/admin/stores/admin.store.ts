@@ -12,6 +12,7 @@
 
 import { create } from "zustand";
 import { TOrgResponse } from "@/modules/entities/schemas/organization";
+import { TLocationResponse } from "@/modules/entities/schemas/location";
 
 // ── Modal type union ───────────────────────────────────────────────────────────
 
@@ -19,7 +20,10 @@ import { TOrgResponse } from "@/modules/entities/schemas/organization";
 export type ModalType =
   | "createOrganization"
   | "editOrganization"
-  | "deleteOrganization";
+  | "deleteOrganization"
+  | "createLocation"
+  | "editLocation"
+  | "deleteLocation";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -37,6 +41,12 @@ export interface ModalData {
   userId?: string;
   /** Better Auth active organization ID of the current session — scopes created resources to the tenant. */
   orgId?: string;
+
+  /** Location fields (edit / delete). */
+  locationId?: number;
+  locationName?: string;
+  /** Full location record — used by edit modal to pre-populate the form. */
+  location?: TLocationResponse;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

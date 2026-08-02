@@ -1,5 +1,5 @@
 /**
- * CreateOrganizationModal — self-contained dialog for creating an Organization.
+ * CreateOrganizationModal — self-contained Sheet for creating an Organization.
  *
  * Layer: client / telemedicine / admin / modals
  * Resource: Organization
@@ -7,6 +7,10 @@
  * Pattern (nextjs-iam): the modal owns the form instance (useForm + FormProvider)
  * and the server action (useServerAction). The form component is a dumb shell
  * that reads from FormProvider via useFormContext() and renders field layout only.
+ *
+ * Uses a right-side Sheet instead of a centered Dialog — matches the Location
+ * create/edit pattern, giving the tabbed multi-section form more usable
+ * height than the Dialog + max-h-[90vh] workaround this screen used before.
  *
  * Opens when the Zustand admin store's type === "createOrganization".
  * No props required — subscribes to the store directly.
@@ -28,12 +32,12 @@ import { useServerAction } from "zsa-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   CreateOrgFormSchema,
   type TCreateOrgFormSchema,
@@ -169,16 +173,20 @@ export function CreateOrganizationModal() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleCloseModal()}>
-      {/* Wider dialog to accommodate the tabbed multi-section form */}
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>New Organization</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={(o) => !o && handleCloseModal()}>
+      {/* Right-side Sheet — matches the Location create/edit pattern, gives
+          the tabbed multi-section form more usable height than a centered Dialog */}
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-2xl overflow-hidden flex flex-col gap-0 p-0"
+      >
+        <SheetHeader className="border-b">
+          <SheetTitle>New Organization</SheetTitle>
+          <SheetDescription>
             Register a new organization in the FHIR server. Fill in the Basic
             tab at minimum — name and type are required.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         {/* FormProvider injects the form instance into CreateOrganizationForm */}
         <FormProvider {...form}>
@@ -188,7 +196,7 @@ export function CreateOrganizationModal() {
             isPending={isPending}
           />
         </FormProvider>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

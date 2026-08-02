@@ -1,4 +1,5 @@
 ﻿export * from "./organization/organization.module";
+export * from "./location/location.module";
 export * from "./terminology/terminology.module";
 export * from "./emr-chat/emr-chat.module";
 export * from "./patient/patient.module";
