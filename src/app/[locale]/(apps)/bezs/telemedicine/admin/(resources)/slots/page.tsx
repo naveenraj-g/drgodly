@@ -28,13 +28,13 @@ export default async function SlotsPage() {
 
   const [data] = await listSlotsAction({
     payload: {
-      limit: 20,
+      limit: 10,
       offset: 0,
       org_id: orgId ?? undefined,
     },
   });
 
-  const initialData = data ?? { total: 0, limit: 20, offset: 0, data: [] };
+  const initialData = data ?? { total: 0, limit: 10, offset: 0, data: [] };
 
   return (
     <div className="space-y-6 w-full">

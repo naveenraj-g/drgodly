@@ -48,7 +48,7 @@ import { ISlotsTableProps } from "../../types/slots.type";
 import { fetchSlots, slotKeys } from "../../queries/slot.queries";
 
 /** Default page size kept in sync with `initialPageSize` below. */
-const INITIAL_PAGE_SIZE = 20;
+const INITIAL_PAGE_SIZE = 10;
 
 /**
  * Server-driven slots table.
