@@ -8,9 +8,11 @@
  * via useFormContext() injected by the parent modal's <FormProvider>. All
  * submission logic and server action wiring live in GenerateSlotsModal.
  *
- * `schedule_id` is the fhir-gql numeric primary key — a plain number input,
- * NOT a FHIR reference string like every other reference field in this admin
- * section, because that's what SlotGenerateSchema actually takes.
+ * `schedule_id` is the fhir-gql numeric primary key — NOT a FHIR reference
+ * string like every other reference field in this admin section, because
+ * that's what SlotGenerateSchema actually takes. Picked via the same
+ * ReferenceSelect/searchScheduleOptions combo as Add Slot's BasicTab, just
+ * unwrapped to a plain number instead of a "Schedule/{id}" string.
  *
  * The 3 CodeableConcept override arrays are optional — when omitted,
  * fhir-gql auto-inherits them from the Schedule (then, for specialty, from
@@ -20,7 +22,7 @@
 
 "use client";
 
-import { useFormContext, Controller } from "react-hook-form";
+import { useFormContext, useWatch, Controller } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,8 @@ import {
   TerminologySelect,
   type TCodeableConcept,
 } from "@/modules/client/shared/components/TerminologySelect";
+import { ReferenceSelect } from "@/modules/client/shared/components/ReferenceSelect";
+import { searchScheduleOptions } from "../../queries/schedule.queries";
 import { SlotCodeableConceptRepeatableField } from "./SlotCodeableConceptRepeatableField";
 import type { TGenerateSlotsFormSchema } from "@/modules/entities/schemas/slot";
 
@@ -62,6 +66,7 @@ export function GenerateSlotsForm({
   isPending,
 }: GenerateSlotsFormProps) {
   const form = useFormContext<TGenerateSlotsFormSchema>();
+  const scheduleId = useWatch({ control: form.control, name: "schedule_id" });
 
   /** Decomposes the selected appointmentType CodeableConcept into its flat scalar fields. */
   function handleAppointmentTypeChange(value: string | TCodeableConcept | null) {
@@ -78,18 +83,24 @@ export function GenerateSlotsForm({
     >
       <FieldGroup className="flex flex-col gap-4 pb-2">
         <Field>
-          <FieldLabel>Schedule ID</FieldLabel>
+          <FieldLabel>Schedule</FieldLabel>
           <Controller
             control={form.control}
             name="schedule_id"
             render={({ field }) => (
-              <Input
-                type="number"
-                value={field.value ?? ""}
-                onChange={(ev) =>
-                  field.onChange(ev.target.value === "" ? undefined : Number(ev.target.value))
+              <ReferenceSelect
+                fetchOptions={searchScheduleOptions}
+                queryKey={["schedules", "picker"]}
+                value={
+                  scheduleId
+                    ? { id: scheduleId, label: form.getValues("schedule_display") ?? "" }
+                    : null
                 }
-                placeholder="200001"
+                onChange={(opt) => {
+                  field.onChange(opt ? Number(opt.id) : undefined);
+                  form.setValue("schedule_display", opt?.label ?? "");
+                }}
+                placeholder="Search schedules…"
               />
             )}
           />

@@ -70,6 +70,8 @@ export type TEditSlotFormSchema = z.infer<typeof EditSlotFormSchema>;
 export const GenerateSlotsFormSchema = z
   .object({
     schedule_id: z.number({ message: "Schedule ID is required" }),
+    /** Not sent to the API — mirrors the picker's label so it survives form.reset()/re-render. */
+    schedule_display: z.string().optional(),
     generation_start: z.string().min(1, "Generation start is required"),
     generation_end: z.string().min(1, "Generation end is required"),
     slot_duration_minutes: z.number().min(1).max(1440),
