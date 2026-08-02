@@ -18,11 +18,20 @@
  * fhir-gql auto-inherits them from the Schedule (then, for specialty, from
  * the PractitionerRole actor as a further fallback). Leaving them empty here
  * is a valid, common choice, not an error.
+ *
+ * Generation Start/End are constrained to the selected Schedule's planning
+ * horizon (fhir-gql rejects a window outside it) via DateTimePicker's
+ * min/max day matchers — mirrors the A2UI reference form's DatePicker
+ * (`ai-hub/schemas/ui/generate_slots_form.json`, `fromDate`/`toDate` bound to
+ * `planning_horizon_start`/`planning_horizon_end`), just with a time-of-day
+ * component added since fhir-gql's SlotGenerateSchema takes full datetimes,
+ * not bare dates.
  */
 
 "use client";
 
 import { useFormContext, useWatch, Controller } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -40,9 +49,18 @@ import {
   type TCodeableConcept,
 } from "@/modules/client/shared/components/TerminologySelect";
 import { ReferenceSelect } from "@/modules/client/shared/components/ReferenceSelect";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
+import { getScheduleByIdAction } from "@/modules/server/presentation/actions/schedule";
 import { searchScheduleOptions } from "../../queries/schedule.queries";
 import { SlotCodeableConceptRepeatableField } from "./SlotCodeableConceptRepeatableField";
 import type { TGenerateSlotsFormSchema } from "@/modules/entities/schemas/slot";
+
+/** Parses a nullable date string, returning undefined for missing/invalid input. */
+function parseDateSafe(raw: string | null | undefined): Date | undefined {
+  if (!raw) return undefined;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
 
 interface GenerateSlotsFormProps {
   /**
@@ -67,6 +85,21 @@ export function GenerateSlotsForm({
 }: GenerateSlotsFormProps) {
   const form = useFormContext<TGenerateSlotsFormSchema>();
   const scheduleId = useWatch({ control: form.control, name: "schedule_id" });
+
+  /** Loads the selected schedule's planning horizon to bound the generation window pickers. */
+  const scheduleQuery = useQuery({
+    queryKey: ["schedules", "byId", scheduleId],
+    queryFn: async () => {
+      const [data, err] = await getScheduleByIdAction({ payload: { id: scheduleId! } });
+      if (err) throw new Error(err.message ?? "Failed to load schedule");
+      return data;
+    },
+    enabled: !!scheduleId,
+    staleTime: 30_000,
+  });
+
+  const planningHorizonStart = parseDateSafe(scheduleQuery.data?.planning_horizon_start);
+  const planningHorizonEnd = parseDateSafe(scheduleQuery.data?.planning_horizon_end);
 
   /** Decomposes the selected appointmentType CodeableConcept into its flat scalar fields. */
   function handleAppointmentTypeChange(value: string | TCodeableConcept | null) {
@@ -113,7 +146,14 @@ export function GenerateSlotsForm({
               control={form.control}
               name="generation_start"
               render={({ field }) => (
-                <Input {...field} value={field.value ?? ""} type="datetime-local" />
+                <DateTimePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  minDate={planningHorizonStart}
+                  maxDate={planningHorizonEnd}
+                  disabled={!scheduleId}
+                  placeholder={scheduleId ? "Pick start date & time…" : "Select a schedule first"}
+                />
               )}
             />
           </Field>
@@ -123,11 +163,23 @@ export function GenerateSlotsForm({
               control={form.control}
               name="generation_end"
               render={({ field }) => (
-                <Input {...field} value={field.value ?? ""} type="datetime-local" />
+                <DateTimePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  minDate={planningHorizonStart}
+                  maxDate={planningHorizonEnd}
+                  disabled={!scheduleId}
+                  placeholder={scheduleId ? "Pick end date & time…" : "Select a schedule first"}
+                />
               )}
             />
           </Field>
         </div>
+        {scheduleId && !planningHorizonStart && !planningHorizonEnd && !scheduleQuery.isFetching && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            This schedule has no planning horizon set — any date is allowed.
+          </p>
+        )}
 
         <Field>
           <FieldLabel>Slot Duration (minutes)</FieldLabel>
