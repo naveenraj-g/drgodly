@@ -6,20 +6,26 @@
  * A controlled combobox that sources its options from the FHIR terminology
  * server. Works as a drop-in React Hook Form <Controller> render prop.
  *
- * ── Fetch modes ──────────────────────────────────────────────────────────────
+ * ── Always searches the server ───────────────────────────────────────────────
  *
- *  Client mode (default, serverSearch=false):
- *    Loads the full value set bound to `resource + field` once on mount via
- *    getConceptsForFieldAction. Filtering is done in the browser. Best for
- *    small, stable enumerations (gender: 4 items, status: 5 items).
+ * Every query — including the very first page shown when the popover opens —
+ * goes to the server via `useInfiniteQuery`, paginated `limit` (default 50)
+ * concepts at a time. As the user types, the query is debounced and re-run
+ * from offset 0; as the user scrolls near the bottom of the list, the next
+ * page is fetched and appended. This mirrors the A2UI reference widget
+ * (`ai-hub/a2ui/catalog/terminology-select.tsx`) and its backend route
+ * (`/api/workflow/terminology`), which both already prove `q`+`limit`+
+ * `offset` work together against the FHIR terminology server and that the
+ * response's `total` is reliable for computing "has more".
  *
- *  Server field search (serverSearch=true, no searchSystem):
- *    Re-fires getConceptsForFieldAction with the user's query on every debounce
- *    tick. The server filters the value set. Good for larger field value sets.
+ * Earlier version's bug: "client mode" loaded up to `limit` concepts ONCE
+ * with no query, then filtered only that fixed batch as the user typed — a
+ * value set larger than `limit` meant search could never find anything past
+ * the first page. There is no such mode anymore; search always hits every
+ * record, not just what's already been loaded.
  *
- *  Server system search (serverSearch=true, searchSystem provided):
- *    Uses searchTerminologyAction scoped to the given canonical system URL.
- *    Appropriate for open terminologies: SNOMED CT, LOINC, ICD-10, RxNorm.
+ * `serverSearch` is kept as a prop for backward compatibility with existing
+ * call sites but is now a no-op — every mode already searches the server.
  *
  * ── Value types ───────────────────────────────────────────────────────────────
  *
@@ -38,18 +44,18 @@
  *   value={field.value} onChange={field.onChange} />
  *
  * @example
- * // Large open terminology — SNOMED diagnosis with server search
+ * // Large open terminology — SNOMED diagnosis with system-scoped search
  * <TerminologySelect
  *   resource="Condition" field="code"
  *   valueType="codeable_concept"
- *   serverSearch searchSystem={TERMINOLOGY_SYSTEMS.SNOMED_CT}
+ *   searchSystem={TERMINOLOGY_SYSTEMS.SNOMED_CT}
  *   value={field.value} onChange={field.onChange} />
  */
 
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronsUpDown, Check, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -103,30 +109,29 @@ export interface TerminologySelectProps {
   /** FHIR field name, e.g. "gender", "clinicalStatus". */
   field: string;
 
-  // ── Initial load params ──────────────────────────────────────────────────────
-  /** Pre-filter query applied on the initial client-mode load. */
-  initialQ?: string;
-  /** Max concepts to load / return per request. Default: 200. */
+  // ── Pagination ────────────────────────────────────────────────────────────────
+  /** Concepts fetched per page (initial load and every subsequent scroll-triggered page). Default: 50. */
   limit?: number;
-  /** Pagination offset. Default: 0. */
-  offset?: number;
 
-  // ── Server search (opt-in) ───────────────────────────────────────────────────
-  /**
-   * Enable server-side search. When false (default) all concepts are loaded
-   * on mount and filtered in the browser.
-   */
-  serverSearch?: boolean;
+  // ── Search scoping ────────────────────────────────────────────────────────────
   /**
    * Canonical code system URL to scope the search (e.g. TERMINOLOGY_SYSTEMS.SNOMED_CT).
-   * When set, uses searchTerminologyAction instead of getConceptsForFieldAction.
-   * Leave unset to search within the field's bound value set.
+   * When set, searches within that system instead of the field's bound value set.
    */
   searchSystem?: string | TTerminologySystem;
-  /** Minimum characters before a server search fires. Default: 2. */
+  /**
+   * Minimum characters before a search fires. Default: 2 when `searchSystem`
+   * is set (browsing an entire open terminology with no query isn't useful);
+   * 0 otherwise (shows the field's value set immediately on open).
+   */
   minChars?: number;
-  /** Debounce delay in ms for server search input. Default: 300. */
+  /** Debounce delay in ms for search input. Default: 300. */
   debounceMs?: number;
+  /**
+   * @deprecated No longer has any effect — every mode already searches the
+   * server. Kept so existing call sites don't need to be updated.
+   */
+  serverSearch?: boolean;
 
   // ── Value ────────────────────────────────────────────────────────────────────
   /**
@@ -147,20 +152,11 @@ export interface TerminologySelectProps {
 
 // ── Query key helpers ──────────────────────────────────────────────────────────
 
-const CONCEPTS_KEY = (
-  resource: string,
-  field: string,
-  q: string | undefined,
-  limit: number,
-  offset: number,
-) => ["terminology", "conceptsForField", resource, field, q, limit, offset] as const;
+const FIELD_KEY = (resource: string, field: string, q: string, limit: number) =>
+  ["terminology", "conceptsForField", resource, field, q, limit] as const;
 
-const SEARCH_KEY = (
-  q: string,
-  system: string | undefined,
-  limit: number,
-  offset: number,
-) => ["terminology", "search", q, system, limit, offset] as const;
+const SYSTEM_KEY = (system: string | undefined, q: string, limit: number) =>
+  ["terminology", "search", system, q, limit] as const;
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -172,12 +168,9 @@ const SEARCH_KEY = (
 export function TerminologySelect({
   resource,
   field,
-  initialQ,
-  limit = 200,
-  offset = 0,
-  serverSearch = false,
+  limit = 50,
   searchSystem,
-  minChars = 2,
+  minChars,
   debounceMs = 300,
   valueType = "code",
   value,
@@ -192,21 +185,24 @@ export function TerminologySelect({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [triggerWidth, setTriggerWidth] = useState<number | undefined>();
 
-  // ── Derived flags ────────────────────────────────────────────────────────────
-
-  const isServerSystemMode = serverSearch && !!searchSystem;
-  const isServerFieldMode = serverSearch && !searchSystem;
-  const isClientMode = !serverSearch;
-
-  const effectiveMinChars = serverSearch ? minChars : 0;
+  const isSystemMode = !!searchSystem;
+  const effectiveMinChars = minChars ?? (isSystemMode ? 2 : 0);
 
   // ── Debounce input → debouncedQ ──────────────────────────────────────────────
 
   useEffect(() => {
-    if (!serverSearch) return;
     const id = setTimeout(() => setDebouncedQ(inputValue), debounceMs);
     return () => clearTimeout(id);
-  }, [inputValue, debounceMs, serverSearch]);
+  }, [inputValue, debounceMs]);
+
+  // ── Reset the search box when the popover closes ─────────────────────────────
+
+  useEffect(() => {
+    if (!open) {
+      setInputValue("");
+      setDebouncedQ("");
+    }
+  }, [open]);
 
   // ── Sync trigger width for popover ───────────────────────────────────────────
 
@@ -216,95 +212,61 @@ export function TerminologySelect({
     }
   }, [open]);
 
-  // ── Concepts query (client mode + server field search) ───────────────────────
+  // ── Infinite query — always server-driven, paginated ─────────────────────────
 
-  /**
-   * Used for:
-   *  - Client mode: load all concepts once (enabled always).
-   *  - Server field search: refetch with debounced query (enabled when minChars met).
-   */
-  const conceptsQuery = useQuery({
-    queryKey: CONCEPTS_KEY(
-      resource,
-      field,
-      isClientMode ? initialQ : debouncedQ || undefined,
-      limit,
-      offset,
-    ),
-    queryFn: async () => {
+  const query = useInfiniteQuery({
+    queryKey: isSystemMode
+      ? SYSTEM_KEY(searchSystem as string, debouncedQ, limit)
+      : FIELD_KEY(resource, field, debouncedQ, limit),
+    queryFn: async ({ pageParam }) => {
+      if (isSystemMode) {
+        const [data, err] = await searchTerminologyAction({
+          payload: {
+            q: debouncedQ,
+            system: searchSystem as TTerminologySystem,
+            limit,
+            offset: pageParam,
+          },
+        });
+        if (err) throw new Error(err.message ?? "Failed to search terminology");
+        // SearchResponseSchema's array field is `data`, not `concepts` — different
+        // shape from ConceptsForFieldResponseSchema's `concepts`.
+        return { concepts: data!.data, total: data!.total };
+      }
+
       const [data, err] = await getConceptsForFieldAction({
-        payload: {
-          resource,
-          field,
-          q: isClientMode ? initialQ : (debouncedQ || undefined),
-          limit,
-          offset,
-        },
+        payload: { resource, field, q: debouncedQ || undefined, limit, offset: pageParam },
       });
       if (err) throw new Error(err.message ?? "Failed to load concepts");
-      return data!;
+      return { concepts: data!.concepts, total: data!.total };
     },
-    staleTime: 10 * 60 * 1000,
-    // Client mode: always enabled. Server field mode: only when enough chars typed.
-    enabled: !isServerSystemMode && (isClientMode || debouncedQ.length >= effectiveMinChars),
-  });
-
-  // ── System search query (server system mode only) ─────────────────────────────
-
-  const systemSearchQuery = useQuery({
-    queryKey: SEARCH_KEY(debouncedQ, searchSystem as string | undefined, limit, offset),
-    queryFn: async () => {
-      const [data, err] = await searchTerminologyAction({
-        payload: {
-          q: debouncedQ,
-          system: searchSystem as TTerminologySystem | undefined,
-          limit,
-          offset,
-        },
-      });
-      if (err) throw new Error(err.message ?? "Failed to search terminology");
-      return data!;
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.concepts.length, 0);
+      return loaded < lastPage.total ? loaded : undefined;
     },
+    enabled: open && debouncedQ.length >= effectiveMinChars,
     staleTime: 30_000,
-    enabled: isServerSystemMode && debouncedQ.length >= effectiveMinChars,
   });
 
-  // ── Resolved concept list ─────────────────────────────────────────────────────
+  const allConcepts: TConceptResponse[] = useMemo(
+    () => query.data?.pages.flatMap((p) => p.concepts) ?? [],
+    [query.data],
+  );
 
-  const allConcepts: TConceptResponse[] = useMemo(() => {
-    if (isServerSystemMode) return systemSearchQuery.data?.concepts ?? [];
-    return conceptsQuery.data?.concepts ?? [];
-  }, [isServerSystemMode, systemSearchQuery.data, conceptsQuery.data]);
-
-  /**
-   * Client-mode: filter the full list locally against the input.
-   * Server modes: the server already applied the filter — use as-is.
-   */
-  const displayConcepts: TConceptResponse[] = useMemo(() => {
-    if (serverSearch) return allConcepts;
-    if (!inputValue.trim()) return allConcepts;
-    const q = inputValue.toLowerCase();
-    return allConcepts.filter(
-      (c) =>
-        c.display?.toLowerCase().includes(q) ||
-        c.code?.toLowerCase().includes(q) ||
-        (c.definition?.toLowerCase().includes(q) ?? false),
-    );
-  }, [serverSearch, allConcepts, inputValue]);
-
-  const isLoading =
-    conceptsQuery.isFetching || systemSearchQuery.isFetching;
+  const isSearching = query.isFetching && !query.isFetchingNextPage;
+  const isFetchingMore = query.isFetchingNextPage;
 
   // ── Selected concept display label ────────────────────────────────────────────
 
   /**
    * Resolves the human-readable label for the currently selected value.
-   * Falls back to the raw code/system string when the concept list hasn't loaded yet.
+   * Falls back to the raw code/system string when the concept isn't in the
+   * currently-loaded page(s) (e.g. a previously-saved value not yet searched for).
    */
   const selectedLabel: string | null = useMemo(() => {
     if (!value) return null;
     if (typeof value === "object") return value.display;
-    // Plain code — look up display from the loaded list
     return allConcepts.find((c) => c.code === value)?.display ?? value;
   }, [value, allConcepts]);
 
@@ -323,8 +285,6 @@ export function TerminologySelect({
       onChange?.(concept.code);
     }
     setOpen(false);
-    setInputValue("");
-    setDebouncedQ("");
   }
 
   /** Clear the current selection. */
@@ -333,11 +293,20 @@ export function TerminologySelect({
     onChange?.(null);
   }
 
+  /** Fetches the next page once the list is scrolled near the bottom. */
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
+    if (!query.hasNextPage || query.isFetchingNextPage) return;
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 60) {
+      void query.fetchNextPage();
+    }
+  }
+
   // ── Empty state message ───────────────────────────────────────────────────────
 
-  const emptyMessage = isLoading
+  const emptyMessage = isSearching
     ? "Loading…"
-    : serverSearch && inputValue.length < effectiveMinChars
+    : inputValue.length < effectiveMinChars
       ? `Type at least ${effectiveMinChars} character${effectiveMinChars !== 1 ? "s" : ""} to search`
       : "No results found.";
 
@@ -376,7 +345,7 @@ export function TerminologySelect({
                 <X className="h-3 w-3" />
               </span>
             )}
-            {isLoading ? (
+            {isSearching ? (
               <Loader2 className="h-4 w-4 animate-spin opacity-50" />
             ) : (
               <ChevronsUpDown className="h-4 w-4 opacity-50" />
@@ -396,10 +365,10 @@ export function TerminologySelect({
             value={inputValue}
             onValueChange={setInputValue}
           />
-          <CommandList>
+          <CommandList onScroll={handleScroll}>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
-              {displayConcepts.map((concept) => {
+              {allConcepts.map((concept) => {
                 const isSelected =
                   typeof value === "object"
                     ? value?.code === concept.code
@@ -436,6 +405,13 @@ export function TerminologySelect({
                 );
               })}
             </CommandGroup>
+
+            {/* Load-more spinner — shown while fetching the next page on scroll */}
+            {isFetchingMore && (
+              <div className="py-3 flex justify-center">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>

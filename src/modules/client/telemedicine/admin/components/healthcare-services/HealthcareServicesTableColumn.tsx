@@ -9,7 +9,7 @@
  * lean. Row actions call the Zustand admin store directly — no prop drilling.
  *
  * Columns:
- *  select | name | active | provided by | category | contact | created_at | actions
+ *  select | expand | name | active | provided by | category | contact | created_at | actions
  */
 
 import React from "react";
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DataTableColumnHeader,
+  DataTableExpandButton,
   DataTableRowActions,
   type RowAction,
 } from "@/modules/client/shared/components/tables";
@@ -92,6 +93,18 @@ export const HEALTHCARE_SERVICES_COLUMNS: ColumnDef<THealthcareServiceResponse>[
         aria-label="Select row"
       />
     ),
+    enableSorting: false,
+    enableHiding: false,
+    enableResizing: false,
+    size: 40,
+    meta: { exportable: false },
+  },
+
+  // ── Expand column ────────────────────────────────────────────────────────────
+  {
+    id: "expand",
+    header: () => null,
+    cell: ({ row }) => <DataTableExpandButton row={row} />,
     enableSorting: false,
     enableHiding: false,
     enableResizing: false,

@@ -127,6 +127,8 @@ export function GenerateSlotsModal() {
     <Sheet open={open} onOpenChange={(o) => !o && handleCloseModal()}>
       <SheetContent
         side="right"
+        resizable
+        maxWidth={1200}
         className="w-full sm:max-w-lg overflow-hidden flex flex-col gap-0 p-0"
       >
         <SheetHeader className="border-b">

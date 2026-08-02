@@ -121,6 +121,8 @@ export function CreateScheduleModal() {
     <Sheet open={open} onOpenChange={(o) => !o && handleCloseModal()}>
       <SheetContent
         side="right"
+        resizable
+        maxWidth={1200}
         className="w-full sm:max-w-2xl overflow-hidden flex flex-col gap-0 p-0"
       >
         <SheetHeader className="border-b">

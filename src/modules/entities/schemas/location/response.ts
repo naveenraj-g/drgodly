@@ -14,9 +14,14 @@
  * soft instead of throwing during response parsing.
  *
  * Confirmed differences from Organization's response schema:
- *  - `part_of_id` / `managing_organization_id` are STRINGS, not numbers
- *    (Organization's `partof_id` is a number). Hierarchy/tree code must
- *    coerce both sides to string before comparing ids.
+ *  - `part_of_id` / `managing_organization_id` are declared `Optional[str]`
+ *    in fhir-gql's own Pydantic model, but have been observed coming back
+ *    as raw JSON numbers at runtime (that endpoint's response apparently
+ *    isn't always going through the declared model's string coercion) —
+ *    accepted as `string | number` here and normalized to a string so
+ *    parsing never breaks regardless of which shape the API sends.
+ *    Hierarchy/tree code must still coerce both sides to string before
+ *    comparing ids (Organization's `partof_id` is a plain number).
  *  - `alias` is a plain string[], not an array of `{ id, value }` objects.
  *  - `address_line` is absent from fhir-gql's typed response model even
  *    though it's accepted on create — included here defensively as
@@ -24,6 +29,16 @@
  */
 
 import { z } from "zod";
+
+/**
+ * `managing_organization_id`/`part_of_id` are declared `Optional[str]` in
+ * fhir-gql's own model but have been observed returning as raw numbers —
+ * accept either and normalize to a string.
+ */
+const StringifiedIdSchema = z
+  .union([z.string(), z.number()])
+  .nullish()
+  .transform((v) => (typeof v === "number" ? String(v) : v));
 
 /** Single FHIR Identifier attached to a Location. */
 export const LocationIdentifierResponseSchema = z.object({
@@ -115,12 +130,12 @@ export const LocationResponseSchema = z.object({
   physical_type_display: z.string().nullish(),
   physical_type_text: z.string().nullish(),
 
-  // Relationships — managing_organization_id / part_of_id are STRINGS.
+  // Relationships — managing_organization_id / part_of_id: see StringifiedIdSchema above.
   managing_organization_type: z.string().nullish(),
-  managing_organization_id: z.string().nullish(),
+  managing_organization_id: StringifiedIdSchema,
   managing_organization_display: z.string().nullish(),
   part_of_type: z.string().nullish(),
-  part_of_id: z.string().nullish(),
+  part_of_id: StringifiedIdSchema,
   part_of_display: z.string().nullish(),
 
   availability_exceptions: z.string().nullish(),

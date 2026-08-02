@@ -75,7 +75,7 @@ export function EditSlotForm({ onSubmit, onCancel, isPending }: EditSlotFormProp
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="flex flex-col flex-1 min-h-0 gap-4 overflow-y-auto px-4"
+      className="flex flex-col flex-1 min-h-0 gap-4 overflow-y-auto px-4 pt-4"
     >
       <FieldGroup className="flex flex-col gap-4 pb-2">
         <Field>

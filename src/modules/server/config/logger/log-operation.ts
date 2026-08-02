@@ -13,6 +13,7 @@
  */
 
 import { randomUUID } from "crypto";
+import { isAxiosError } from "axios";
 import { format as dateFnsFormat } from "date-fns";
 import { logger } from ".";
 import { formatDuration } from "@/modules/shared/helper";
@@ -97,8 +98,18 @@ export function logOperation(stage: LogStage, opts: LogOperationOptions): void {
 
     case "error": {
       // Error properties (message, stack) are non-enumerable — serialize explicitly.
-      const serializedErr =
-        err instanceof Error
+      // For AxiosErrors, `err.message` is just Axios's generic
+      // "Request failed with status code NNN" — the actual reason (Pydantic
+      // validation detail, FHIR OperationOutcome, etc.) lives in the response
+      // body, so include it explicitly or this log is useless for debugging.
+      const serializedErr = isAxiosError(err)
+        ? {
+            message: err.message,
+            stack: err.stack,
+            status: err.response?.status,
+            responseData: err.response?.data,
+          }
+        : err instanceof Error
           ? { message: err.message, stack: err.stack }
           : err;
       logger.error(`[ERROR] ${name}`, {

@@ -178,6 +178,8 @@ export function CreateOrganizationModal() {
           the tabbed multi-section form more usable height than a centered Dialog */}
       <SheetContent
         side="right"
+        resizable
+        maxWidth={1200}
         className="w-full sm:max-w-2xl overflow-hidden flex flex-col gap-0 p-0"
       >
         <SheetHeader className="border-b">

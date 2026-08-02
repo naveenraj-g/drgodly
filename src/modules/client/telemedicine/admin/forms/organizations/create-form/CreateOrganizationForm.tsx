@@ -85,7 +85,7 @@ export function CreateOrganizationForm({
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
-      className="flex flex-col flex-1 min-h-0 gap-4 overflow-hidden px-4"
+      className="flex flex-col flex-1 min-h-0 gap-4 overflow-hidden px-4 pt-4"
     >
       <Tabs
         defaultValue="basic"

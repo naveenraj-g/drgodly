@@ -54,6 +54,16 @@ function splitCsv(s?: string): string[] | undefined {
   return parts.length > 0 ? parts : undefined;
 }
 
+/**
+ * Converts a blank date-input string to undefined.
+ * fhir-gql's period_start/period_end are Optional[datetime] — an empty
+ * string is not a valid datetime and fails Pydantic validation with a 422,
+ * unlike an omitted key which is treated as null.
+ */
+function orUndef(s?: string): string | undefined {
+  return s ? s : undefined;
+}
+
 /** Maps a practitioner record onto the tabbed edit form's default values. */
 function toFormValues(
   practitioner: TPractitionerResponse | undefined,
@@ -180,11 +190,19 @@ export function EditPractitionerModal() {
           given: splitCsv(n.given),
           prefix: splitCsv(n.prefix),
           suffix: splitCsv(n.suffix),
+          period_start: orUndef(n.period_start),
+          period_end: orUndef(n.period_end),
         })),
-        telecom: values.telecom,
+        telecom: values.telecom?.map((t) => ({
+          ...t,
+          period_start: orUndef(t.period_start),
+          period_end: orUndef(t.period_end),
+        })),
         addresses: values.addresses?.map((a) => ({
           ...a,
           line: a.line ? [a.line] : undefined,
+          period_start: orUndef(a.period_start),
+          period_end: orUndef(a.period_end),
         })),
         communications: values.communications,
       },
@@ -207,6 +225,8 @@ export function EditPractitionerModal() {
       <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
         <SheetContent
           side="right"
+          resizable
+          maxWidth={1200}
           className="w-full sm:max-w-2xl overflow-hidden flex flex-col gap-0 p-0"
         >
           <SheetHeader className="border-b">

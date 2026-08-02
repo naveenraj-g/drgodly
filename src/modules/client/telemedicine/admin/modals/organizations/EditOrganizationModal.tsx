@@ -128,6 +128,8 @@ export function EditOrganizationModal() {
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="right"
+        resizable
+        maxWidth={1200}
         className="w-full sm:max-w-lg overflow-hidden flex flex-col gap-0 p-0"
       >
         <SheetHeader className="border-b">
