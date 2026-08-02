@@ -4,7 +4,9 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /identifiers sub-resource
  *
- * All actions use authenticatedProcedure. Mutating actions include transportOptions
+ * add/patch/delete have no consumer anywhere (confirmed via a full-repo
+ * grep) so they use adminProcedure. list stays authenticatedProcedure — a
+ * read with no reason to restrict. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +32,10 @@ import {
   type TPatchPractitionerIdentifierControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Adds a business identifier (NPI, DEA, etc.) to a Practitioner. */
-export const addPractitionerIdentifierAction = authenticatedProcedure
+/** Adds a business identifier (NPI, DEA, etc.) to a Practitioner. No current consumer; admin-only. */
+export const addPractitionerIdentifierAction = adminProcedure
   .createServerAction()
   .input(AddPractitionerIdentifierActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerIdentifierAction }) => {
@@ -54,8 +56,8 @@ export const listPractitionerIdentifiersAction = authenticatedProcedure
     });
   });
 
-/** Patches a business identifier on a Practitioner. */
-export const patchPractitionerIdentifierAction = authenticatedProcedure
+/** Patches a business identifier on a Practitioner. No current consumer; admin-only. */
+export const patchPractitionerIdentifierAction = adminProcedure
   .createServerAction()
   .input(PatchPractitionerIdentifierActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerIdentifierAction }) => {
@@ -65,8 +67,8 @@ export const patchPractitionerIdentifierAction = authenticatedProcedure
     });
   });
 
-/** Removes an identifier record from a Practitioner. */
-export const deletePractitionerIdentifierAction = authenticatedProcedure
+/** Removes an identifier record from a Practitioner. No current consumer; admin-only. */
+export const deletePractitionerIdentifierAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerIdentifierActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerIdentifierAction }) => {

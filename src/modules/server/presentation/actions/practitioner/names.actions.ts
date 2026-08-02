@@ -4,8 +4,11 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /names sub-resource
  *
- * All actions use authenticatedProcedure. Mutating actions include transportOptions
- * for cache revalidation; list does not.
+ * add/patch/delete have no consumer anywhere (confirmed via a full-repo
+ * grep — DoctorProfileForm.tsx only uses the atomic /full endpoints) so they
+ * use adminProcedure. list stays authenticatedProcedure — a read with no
+ * reason to restrict. Mutating actions include transportOptions for cache
+ * revalidation; list does not.
  */
 
 "use server";
@@ -30,10 +33,10 @@ import {
   type TPatchPractitionerNameControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Adds a HumanName to a Practitioner. */
-export const addPractitionerNameAction = authenticatedProcedure
+/** Adds a HumanName to a Practitioner. No current consumer; admin-only. */
+export const addPractitionerNameAction = adminProcedure
   .createServerAction()
   .input(AddPractitionerNameActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerNameAction }) => {
@@ -54,8 +57,8 @@ export const listPractitionerNamesAction = authenticatedProcedure
     });
   });
 
-/** Patches a HumanName record on a Practitioner. */
-export const patchPractitionerNameAction = authenticatedProcedure
+/** Patches a HumanName record on a Practitioner. No current consumer; admin-only. */
+export const patchPractitionerNameAction = adminProcedure
   .createServerAction()
   .input(PatchPractitionerNameActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerNameAction }) => {
@@ -65,8 +68,8 @@ export const patchPractitionerNameAction = authenticatedProcedure
     });
   });
 
-/** Removes a HumanName record from a Practitioner. */
-export const deletePractitionerNameAction = authenticatedProcedure
+/** Removes a HumanName record from a Practitioner. No current consumer; admin-only. */
+export const deletePractitionerNameAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerNameActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerNameAction }) => {

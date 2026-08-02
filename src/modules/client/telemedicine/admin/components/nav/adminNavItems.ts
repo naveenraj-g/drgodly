@@ -3,12 +3,11 @@
  *
  * Layer: client / telemedicine / admin / components / nav
  *
- * One entry per admin screen. Adding a new admin resource (HealthcareService,
- * Schedule, Slot, PractitionerRole, Practitioner — fast-follow work) is a
- * one-line addition here, no layout changes needed.
+ * One entry per admin screen. Adding a new admin resource is a one-line
+ * addition here, no layout changes needed.
  */
 
-import { Building2, CalendarClock, Clock, MapPin, Network, Stethoscope } from "lucide-react";
+import { Building2, CalendarClock, Clock, MapPin, Network, Stethoscope, User, UserCog } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface AdminNavItem {
@@ -54,6 +53,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     href: "/bezs/telemedicine/admin/slots",
     icon: Clock,
   },
-  // Fast-follow (not yet built): PractitionerRole, Practitioner — each is a
-  // one-line addition here.
+  {
+    label: "Practitioner Roles",
+    href: "/bezs/telemedicine/admin/practitioner-roles",
+    icon: UserCog,
+  },
+  {
+    label: "Practitioners",
+    href: "/bezs/telemedicine/admin/practitioners",
+    icon: User,
+  },
 ];

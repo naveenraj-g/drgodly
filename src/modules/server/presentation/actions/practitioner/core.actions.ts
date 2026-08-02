@@ -4,9 +4,19 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — core operations
  *
- * All actions use authenticatedProcedure — practitioner records are managed by
- * telemedicine-admin users. Mutating actions include transportOptions for
- * cache revalidation; read actions do not.
+ * `createPractitionerFullAction`/`updatePractitionerFullAction` have a real,
+ * non-admin consumer (`DoctorProfileForm.tsx` — doctors editing their own
+ * profile) and MUST stay `authenticatedProcedure`. `listPractitionersAction`
+ * and `getMyPractitionerAction` are reads with no reason to restrict.
+ * `createPractitionerAction` (core-only, no arrays), `getPractitionerByIdAction`,
+ * `updatePractitionerAction` (core-only), and `deletePractitionerAction` have
+ * zero consumers anywhere — confirmed via a full-repo grep — so they move to
+ * `adminProcedure`. Same class of gap fixed on every prior resource this
+ * session, but applied carefully here since not every mutation on this
+ * resource is admin-only.
+ *
+ * Mutating actions include transportOptions for cache revalidation; read
+ * actions do not.
  */
 
 "use server";
@@ -45,9 +55,13 @@ import {
   type TUpdatePractitionerFullControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Atomically creates a Practitioner with sub-resources in a single request. */
+/**
+ * Atomically creates a Practitioner with sub-resources in a single request.
+ * Used by DoctorProfileForm.tsx for self-service profile creation — must
+ * stay open to any authenticated user, not admin-only.
+ */
 export const createPractitionerFullAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePractitionerFullActionSchema, { skipInputParsing: true })
@@ -60,7 +74,11 @@ export const createPractitionerFullAction = authenticatedProcedure
     );
   });
 
-/** Atomically updates a Practitioner's scalar fields and sub-resource arrays in a single request. */
+/**
+ * Atomically updates a Practitioner's scalar fields and sub-resource arrays
+ * in a single request. Used by DoctorProfileForm.tsx for self-service
+ * profile editing — must stay open to any authenticated user, not admin-only.
+ */
 export const updatePractitionerFullAction = authenticatedProcedure
   .createServerAction()
   .input(UpdatePractitionerFullActionSchema, { skipInputParsing: true })
@@ -73,8 +91,8 @@ export const updatePractitionerFullAction = authenticatedProcedure
     );
   });
 
-/** Creates a new Practitioner record. Accepts transportOptions for post-create revalidation. */
-export const createPractitionerAction = authenticatedProcedure
+/** Creates a new Practitioner record (core scalars only, no arrays). No current consumer; admin-only. */
+export const createPractitionerAction = adminProcedure
   .createServerAction()
   .input(CreatePractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TCreatePractitionerAction }) => {
@@ -114,8 +132,8 @@ export const getMyPractitionerAction = authenticatedProcedure
     );
   });
 
-/** Fetches a single Practitioner by numeric ID. */
-export const getPractitionerByIdAction = authenticatedProcedure
+/** Fetches a single Practitioner by numeric ID. No current consumer; admin-only. */
+export const getPractitionerByIdAction = adminProcedure
   .createServerAction()
   .input(GetPractitionerByIdActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TGetPractitionerByIdAction }) => {
@@ -127,8 +145,8 @@ export const getPractitionerByIdAction = authenticatedProcedure
     );
   });
 
-/** Partially updates scalar fields on a Practitioner. Accepts transportOptions for revalidation. */
-export const updatePractitionerAction = authenticatedProcedure
+/** Partially updates scalar fields on a Practitioner (core-only, no arrays). No current consumer; admin-only. */
+export const updatePractitionerAction = adminProcedure
   .createServerAction()
   .input(UpdatePractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TUpdatePractitionerAction }) => {
@@ -140,8 +158,8 @@ export const updatePractitionerAction = authenticatedProcedure
     );
   });
 
-/** Permanently removes a Practitioner and all child records. Accepts transportOptions for revalidation. */
-export const deletePractitionerAction = authenticatedProcedure
+/** Permanently removes a Practitioner and all child records. No current consumer; admin-only. */
+export const deletePractitionerAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerAction }) => {

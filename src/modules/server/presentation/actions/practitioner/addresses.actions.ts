@@ -4,8 +4,11 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /addresses sub-resource
  *
- * All actions use authenticatedProcedure. Mutating actions include transportOptions
- * for cache revalidation; list does not.
+ * add/patch/delete have no consumer anywhere (confirmed via a full-repo
+ * grep — DoctorProfileForm.tsx only uses the atomic /full endpoints) so they
+ * use adminProcedure. list stays authenticatedProcedure — a read with no
+ * reason to restrict. Mutating actions include transportOptions for cache
+ * revalidation; list does not.
  */
 
 "use server";
@@ -30,10 +33,10 @@ import {
   type TPatchPractitionerAddressControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Adds an Address to a Practitioner. */
-export const addPractitionerAddressAction = authenticatedProcedure
+/** Adds an Address to a Practitioner. No current consumer; admin-only. */
+export const addPractitionerAddressAction = adminProcedure
   .createServerAction()
   .input(AddPractitionerAddressActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerAddressAction }) => {
@@ -54,8 +57,8 @@ export const listPractitionerAddressesAction = authenticatedProcedure
     });
   });
 
-/** Patches an Address on a Practitioner. */
-export const patchPractitionerAddressAction = authenticatedProcedure
+/** Patches an Address on a Practitioner. No current consumer; admin-only. */
+export const patchPractitionerAddressAction = adminProcedure
   .createServerAction()
   .input(PatchPractitionerAddressActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerAddressAction }) => {
@@ -65,8 +68,8 @@ export const patchPractitionerAddressAction = authenticatedProcedure
     });
   });
 
-/** Removes an address record from a Practitioner. */
-export const deletePractitionerAddressAction = authenticatedProcedure
+/** Removes an address record from a Practitioner. No current consumer; admin-only. */
+export const deletePractitionerAddressAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerAddressActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerAddressAction }) => {

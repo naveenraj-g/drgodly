@@ -4,9 +4,15 @@
  * Layer: presentation / actions
  * Resource: PractitionerRole (FHIR R4) — all operations
  *
- * All actions use authenticatedProcedure — PractitionerRole records are managed by
- * telemedicine-admin users. Mutating actions include transportOptions for
- * cache revalidation; read actions do not.
+ * Reads used by real booking flows (`listPractitionerRolesAction` — both
+ * RescheduleAppointmentModal.tsx; `listPractitionerRolesForBookingAction` —
+ * BookAppointment.tsx) stay on `authenticatedProcedure`. `getById`, `create`,
+ * `update`, `delete` have no consumer outside the admin section — confirmed
+ * via a full-repo grep — so they move to `adminProcedure`. Same class of gap
+ * originally found and fixed on Organization and Slot.
+ *
+ * Mutating actions include transportOptions for cache revalidation; read
+ * actions do not.
  */
 
 "use server";
@@ -39,10 +45,10 @@ import {
   type TUpdatePractitionerRoleControllerOutput,
 } from "@/modules/server/core/practitioner-role/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Creates a PractitionerRole with all inline child arrays in a single request. */
-export const createPractitionerRoleAction = authenticatedProcedure
+/** Creates a PractitionerRole with all inline child arrays in a single request. Admin-only. */
+export const createPractitionerRoleAction = adminProcedure
   .createServerAction()
   .input(CreatePractitionerRoleActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TCreatePractitionerRoleAction }) => {
@@ -77,8 +83,8 @@ export const listPractitionerRolesForBookingAction = authenticatedProcedure
     });
   });
 
-/** Fetches a single PractitionerRole by numeric ID. */
-export const getPractitionerRoleByIdAction = authenticatedProcedure
+/** Fetches a single PractitionerRole by numeric ID. No current consumer outside admin; admin-only. */
+export const getPractitionerRoleByIdAction = adminProcedure
   .createServerAction()
   .input(GetPractitionerRoleByIdActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TGetPractitionerRoleByIdAction }) => {
@@ -88,8 +94,8 @@ export const getPractitionerRoleByIdAction = authenticatedProcedure
     });
   });
 
-/** Patches scalar fields on a PractitionerRole (active, period_start, period_end, availability_exceptions). */
-export const updatePractitionerRoleAction = authenticatedProcedure
+/** Patches scalar fields on a PractitionerRole (active, period_start, period_end, availability_exceptions). Admin-only. */
+export const updatePractitionerRoleAction = adminProcedure
   .createServerAction()
   .input(UpdatePractitionerRoleActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TUpdatePractitionerRoleAction }) => {
@@ -99,8 +105,8 @@ export const updatePractitionerRoleAction = authenticatedProcedure
     });
   });
 
-/** Permanently removes a PractitionerRole and all child records (cascade). */
-export const deletePractitionerRoleAction = authenticatedProcedure
+/** Permanently removes a PractitionerRole and all child records (cascade). Admin-only. */
+export const deletePractitionerRoleAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerRoleActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerRoleAction }) => {

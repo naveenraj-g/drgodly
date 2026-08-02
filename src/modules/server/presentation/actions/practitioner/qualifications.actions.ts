@@ -4,7 +4,9 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /qualifications sub-resource
  *
- * All actions use authenticatedProcedure. Mutating actions include transportOptions
+ * add/patch/delete have no consumer anywhere (confirmed via a full-repo
+ * grep) so they use adminProcedure. list stays authenticatedProcedure — a
+ * read with no reason to restrict. Mutating actions include transportOptions
  * for cache revalidation; list does not.
  */
 
@@ -30,10 +32,10 @@ import {
   type TPatchPractitionerQualificationControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Adds a Qualification (certification, license, training) to a Practitioner. */
-export const addPractitionerQualificationAction = authenticatedProcedure
+/** Adds a Qualification (certification, license, training) to a Practitioner. No current consumer; admin-only. */
+export const addPractitionerQualificationAction = adminProcedure
   .createServerAction()
   .input(AddPractitionerQualificationActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerQualificationAction }) => {
@@ -54,8 +56,8 @@ export const listPractitionerQualificationsAction = authenticatedProcedure
     });
   });
 
-/** Patches a Qualification on a Practitioner. Identifier array is fully replaced if provided. */
-export const patchPractitionerQualificationAction = authenticatedProcedure
+/** Patches a Qualification on a Practitioner. Identifier array is fully replaced if provided. No current consumer; admin-only. */
+export const patchPractitionerQualificationAction = adminProcedure
   .createServerAction()
   .input(PatchPractitionerQualificationActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerQualificationAction }) => {
@@ -65,8 +67,8 @@ export const patchPractitionerQualificationAction = authenticatedProcedure
     });
   });
 
-/** Removes a qualification record from a Practitioner. */
-export const deletePractitionerQualificationAction = authenticatedProcedure
+/** Removes a qualification record from a Practitioner. No current consumer; admin-only. */
+export const deletePractitionerQualificationAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerQualificationActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerQualificationAction }) => {

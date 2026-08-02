@@ -68,9 +68,13 @@ import {
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
-/** A single pickable record — the fhir-gql primary key plus a human-readable label. */
+/**
+ * A single pickable record — an id plus a human-readable label. `id` is
+ * usually the fhir-gql numeric primary key, but string ids are supported too
+ * (e.g. Better Auth user ids, which aren't FHIR references at all).
+ */
 export interface TReferenceOption {
-  id: number;
+  id: number | string;
   label: string;
 }
 

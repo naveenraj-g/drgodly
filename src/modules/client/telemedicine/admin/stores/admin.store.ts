@@ -16,6 +16,8 @@ import { TLocationResponse } from "@/modules/entities/schemas/location";
 import { THealthcareServiceResponse } from "@/modules/entities/schemas/healthcare-service";
 import { TScheduleResponse } from "@/modules/entities/schemas/schedule";
 import { TSlotResponse } from "@/modules/entities/schemas/slot";
+import { TPractitionerRoleResponse } from "@/modules/entities/schemas/practitioner-role";
+import { TPractitionerResponse } from "@/modules/entities/schemas/practitioner";
 
 // ── Modal type union ───────────────────────────────────────────────────────────
 
@@ -36,7 +38,13 @@ export type ModalType =
   | "createSlot"
   | "editSlot"
   | "deleteSlot"
-  | "generateSlots";
+  | "generateSlots"
+  | "createPractitionerRole"
+  | "editPractitionerRole"
+  | "deletePractitionerRole"
+  | "createPractitioner"
+  | "editPractitioner"
+  | "deletePractitioner";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -80,6 +88,20 @@ export interface ModalData {
   slotLabel?: string;
   /** Full slot record — used by edit modal to pre-populate the form. */
   slot?: TSlotResponse;
+
+  /** PractitionerRole fields (edit / delete). */
+  practitionerRoleId?: number;
+  /** Display label for confirmation dialogs — PractitionerRole has no name, so this is `practitioner_display` or a fallback. */
+  practitionerRoleLabel?: string;
+  /** Full practitioner role record — used by edit modal to pre-populate the form. */
+  practitionerRole?: TPractitionerRoleResponse;
+
+  /** Practitioner fields (edit / delete). */
+  practitionerId?: number;
+  /** Display label for confirmation dialogs — composed from the practitioner's first HumanName, or a fallback. */
+  practitionerLabel?: string;
+  /** Full practitioner record — used by edit modal to pre-populate the form. */
+  practitioner?: TPractitionerResponse;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

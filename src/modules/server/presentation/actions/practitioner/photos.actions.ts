@@ -4,8 +4,12 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /photos sub-resource
  *
- * All actions use authenticatedProcedure. Mutating actions include transportOptions
- * for cache revalidation; list does not.
+ * `add`/`patch` have a real, non-admin consumer (`DoctorProfilePhotoUpload.tsx`
+ * — doctors uploading their own profile photo) and MUST stay
+ * `authenticatedProcedure`. `list` is a read with no reason to restrict.
+ * `delete` has no consumer anywhere (confirmed via a full-repo grep) so it
+ * uses `adminProcedure`. Mutating actions include transportOptions for
+ * cache revalidation; list does not.
  */
 
 "use server";
@@ -30,9 +34,13 @@ import {
   type TPatchPractitionerPhotoControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Adds a photo Attachment to a Practitioner. */
+/**
+ * Adds a photo Attachment to a Practitioner. Used by
+ * DoctorProfilePhotoUpload.tsx for self-service photo upload — must stay
+ * open to any authenticated user, not admin-only.
+ */
 export const addPractitionerPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(AddPractitionerPhotoActionSchema, { skipInputParsing: true })
@@ -54,7 +62,11 @@ export const listPractitionerPhotosAction = authenticatedProcedure
     });
   });
 
-/** Patches a photo Attachment on a Practitioner. */
+/**
+ * Patches a photo Attachment on a Practitioner. Used by
+ * DoctorProfilePhotoUpload.tsx for self-service photo re-upload — must stay
+ * open to any authenticated user, not admin-only.
+ */
 export const patchPractitionerPhotoAction = authenticatedProcedure
   .createServerAction()
   .input(PatchPractitionerPhotoActionSchema, { skipInputParsing: true })
@@ -65,8 +77,8 @@ export const patchPractitionerPhotoAction = authenticatedProcedure
     });
   });
 
-/** Removes a photo record from a Practitioner. */
-export const deletePractitionerPhotoAction = authenticatedProcedure
+/** Removes a photo record from a Practitioner. No current consumer; admin-only. */
+export const deletePractitionerPhotoAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerPhotoActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerPhotoAction }) => {

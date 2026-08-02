@@ -4,8 +4,11 @@
  * Layer: presentation / actions
  * Resource: Practitioner (FHIR R4) — /communications sub-resource
  *
- * All actions use authenticatedProcedure. Mutating actions include transportOptions
- * for cache revalidation; list does not.
+ * add/patch/delete have no consumer anywhere (confirmed via a full-repo
+ * grep — DoctorProfileForm.tsx only uses the atomic /full endpoints) so they
+ * use adminProcedure. list stays authenticatedProcedure — a read with no
+ * reason to restrict. Mutating actions include transportOptions for cache
+ * revalidation; list does not.
  */
 
 "use server";
@@ -30,10 +33,10 @@ import {
   type TPatchPractitionerCommunicationControllerOutput,
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { authenticatedProcedure } from "../procedures";
+import { authenticatedProcedure, adminProcedure } from "../procedures";
 
-/** Adds a language preference to a Practitioner. */
-export const addPractitionerCommunicationAction = authenticatedProcedure
+/** Adds a language preference to a Practitioner. No current consumer; admin-only. */
+export const addPractitionerCommunicationAction = adminProcedure
   .createServerAction()
   .input(AddPractitionerCommunicationActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TAddPractitionerCommunicationAction }) => {
@@ -54,8 +57,8 @@ export const listPractitionerCommunicationsAction = authenticatedProcedure
     });
   });
 
-/** Patches a language preference on a Practitioner. */
-export const patchPractitionerCommunicationAction = authenticatedProcedure
+/** Patches a language preference on a Practitioner. No current consumer; admin-only. */
+export const patchPractitionerCommunicationAction = adminProcedure
   .createServerAction()
   .input(PatchPractitionerCommunicationActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TPatchPractitionerCommunicationAction }) => {
@@ -65,8 +68,8 @@ export const patchPractitionerCommunicationAction = authenticatedProcedure
     });
   });
 
-/** Removes a communication record from a Practitioner. */
-export const deletePractitionerCommunicationAction = authenticatedProcedure
+/** Removes a communication record from a Practitioner. No current consumer; admin-only. */
+export const deletePractitionerCommunicationAction = adminProcedure
   .createServerAction()
   .input(DeletePractitionerCommunicationActionSchema, { skipInputParsing: true })
   .handler(async ({ input }: { input: TDeletePractitionerCommunicationAction }) => {
