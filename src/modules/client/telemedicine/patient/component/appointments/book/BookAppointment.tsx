@@ -38,6 +38,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
@@ -80,6 +81,7 @@ import type { TSlotResponse } from "@/modules/entities/schemas/slot";
 import { Link } from "@/i18n/navigation";
 import { getProfileInitials } from "@/modules/shared/helper";
 import { useServerActionQuery } from "@/lib/zsa-query";
+import { patientAppointmentKeys } from "../list/appointmentQueries";
 
 // ── Prop types ────────────────────────────────────────────────────────────────
 
@@ -167,6 +169,8 @@ export function BookAppointment({
   orgId,
   intakeId,
 }: BookAppointmentProps) {
+  const queryClient = useQueryClient();
+
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
 
@@ -354,6 +358,10 @@ export function BookAppointment({
       return;
     }
 
+    // Stale cached list would otherwise still be "fresh" (staleTime) when the
+    // patient lands back on the appointments page, hiding the new booking.
+    void queryClient.invalidateQueries({ queryKey: patientAppointmentKeys.all });
+
     // Link the pre-booking intake to this FHIR appointment when present
     if (intakeId && bookedAppointment?.id) {
       await linkIntakeToAppointmentAction({
@@ -374,7 +382,7 @@ export function BookAppointment({
     }
 
     setIsSuccessOpen(true);
-  }, [selectedRole, selectedSlot, patientFhirId, userId, orgId, intakeId]);
+  }, [selectedRole, selectedSlot, patientFhirId, userId, orgId, intakeId, queryClient]);
 
   /** Resets all wizard state and closes the success dialog. */
   const resetBooking = useCallback(() => {
