@@ -115,9 +115,9 @@ export const deleteSlotAction = adminProcedure
 
 /**
  * Bulk-generates free Slots for a Schedule within a time window, one per
- * slot_duration_minutes interval. Partial-failure model — check
- * generated_count/failed_count/errors in the result rather than assuming an
- * all-or-nothing outcome. Admin-only, no existing consumer to preserve.
+ * slot_duration_minutes interval. Atomic on the fhir-gql side — either every
+ * slot in the window is created, or the call throws and none are.
+ * Admin-only, no existing consumer to preserve.
  */
 export const generateSlotsAction = adminProcedure
   .createServerAction()

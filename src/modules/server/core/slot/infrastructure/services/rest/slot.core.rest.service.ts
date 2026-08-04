@@ -211,7 +211,7 @@ export class SlotCoreRestService {
    * time window. Registered before /{resource_id} on the fhir-gql side so
    * "generate" is never mistaken for an integer path param.
    * @param dto - schedule_id, generation window, duration, and optional overrides.
-   * @returns Summary with generated_count, slot_ids, failed_count, and errors.
+   * @returns Summary with generated_count, slot_ids, and the generation window used.
    */
   async generate(dto: TGenerateSlots): Promise<TSlotGenerateResponse> {
     const startTimeMs = Date.now();
@@ -231,7 +231,6 @@ export class SlotCoreRestService {
         context: {
           operationId,
           generatedCount: data.generated_count,
-          failedCount: data.failed_count,
         },
       });
       return data;

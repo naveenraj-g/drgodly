@@ -69,10 +69,10 @@ export interface ISlotService {
 
   /**
    * Bulk-generates free Slots for a Schedule within a time window, one per
-   * slot_duration_minutes interval. Partial-failure model — successfully
-   * created slots are not rolled back if later windows in the batch fail.
+   * slot_duration_minutes interval. Atomic — either every slot in the window
+   * is created, or none are and the call throws.
    * @param dto - schedule_id, generation window, duration, and optional overrides.
-   * @returns Summary with generated_count, slot_ids, failed_count, and errors.
+   * @returns Summary with generated_count, slot_ids, and the generation window used.
    * @throws NotFoundError when schedule_id does not exist.
    * @throws ValidationError when the window falls outside the Schedule's
    *         planning horizon or no slots fit in the window.

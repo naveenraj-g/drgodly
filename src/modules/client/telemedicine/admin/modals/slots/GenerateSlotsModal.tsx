@@ -8,9 +8,10 @@
  * server action (useServerAction). The form component is a dumb shell that
  * reads from FormProvider via useFormContext() and renders field layout only.
  *
- * Partial-failure model — fhir-gql does NOT roll back successfully created
- * slots if later windows in the batch fail, so success/error toasts here
- * report generated_count/failed_count/errors rather than a flat pass/fail.
+ * fhir-gql generates every slot in a single atomic transaction — either all
+ * slots in the window are created or the action call fails outright, so the
+ * only outcomes surfaced here are a success toast with generated_count, or
+ * the ZSA error path via handleZSAError.
  *
  * Opens when the Zustand admin store's type === "generateSlots".
  * No props required — subscribes to the store directly.
@@ -71,18 +72,9 @@ export function GenerateSlotsModal() {
     onSuccess: ({ data: result }) => {
       void queryClient.invalidateQueries({ queryKey: slotKeys.all });
 
-      if (result.failed_count > 0) {
-        toast.warning(
-          `Generated ${result.generated_count} slot${result.generated_count === 1 ? "" : "s"}, ${result.failed_count} failed`,
-          {
-            description: result.errors.slice(0, 3).join("; "),
-          },
-        );
-      } else {
-        toast.success(
-          `Generated ${result.generated_count} slot${result.generated_count === 1 ? "" : "s"} successfully`,
-        );
-      }
+      toast.success(
+        `Generated ${result.generated_count} slot${result.generated_count === 1 ? "" : "s"} successfully`,
+      );
 
       form.reset();
       handleCloseModal();
@@ -135,8 +127,8 @@ export function GenerateSlotsModal() {
           <SheetTitle>Generate Slots</SheetTitle>
           <SheetDescription>
             Auto-generate one free slot per interval across a time window for
-            an existing schedule. Successfully created slots are kept even if
-            later windows in the batch fail.
+            an existing schedule. Slots are created atomically — either the
+            whole window succeeds, or none of it does.
           </SheetDescription>
         </SheetHeader>
 

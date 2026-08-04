@@ -22,7 +22,7 @@ export type TGenerateSlotsControllerOutput = ReturnType<typeof presenter>;
  * Parses the raw input, delegates to generateSlotsUseCase, and presents the result.
  *
  * @param input - Raw unknown value from the server action.
- * @returns Summary with generated_count, slot_ids, failed_count, and errors.
+ * @returns Summary with generated_count, slot_ids, and the generation window used.
  * @throws InputParseError on schema validation failure.
  */
 export async function generateSlotsController(

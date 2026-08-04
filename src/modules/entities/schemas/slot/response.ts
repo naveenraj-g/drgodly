@@ -114,8 +114,9 @@ export type TPaginatedSlotResponse = z.infer<typeof PaginatedSlotResponseSchema>
 
 /**
  * Response from POST /slots/generate.
- * Partial-failure model — successfully created slots are not rolled back if
- * later windows in the batch fail, so both counts must be surfaced to the caller.
+ * fhir-gql generates every slot in a single atomic transaction — either all
+ * slots in the window are created, or none are and the request fails with a
+ * normal error response. There is no partial-success/failed_count shape.
  */
 export const SlotGenerateResponseSchema = z.object({
   schedule_id: z.number(),
@@ -124,8 +125,5 @@ export const SlotGenerateResponseSchema = z.object({
   generation_start: z.string(),
   generation_end: z.string(),
   slot_duration_minutes: z.number(),
-  failed_count: z.number(),
-  /** One error string per failure — "{start_iso}: {reason}". */
-  errors: z.array(z.string()),
 });
 export type TSlotGenerateResponse = z.infer<typeof SlotGenerateResponseSchema>;

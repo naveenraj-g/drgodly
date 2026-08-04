@@ -17,7 +17,7 @@ import {
  * requested window for the given Schedule.
  *
  * @param dto - Payload validated by GenerateSlotsValidationSchema.
- * @returns Summary with generated_count, slot_ids, failed_count, and errors.
+ * @returns Summary with generated_count, slot_ids, and the generation window used.
  */
 export async function generateSlotsUseCase(
   dto: TGenerateSlots,
