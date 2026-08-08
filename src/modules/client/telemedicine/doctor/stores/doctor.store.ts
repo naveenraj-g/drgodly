@@ -17,7 +17,9 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 export type DoctorModalType =
   | "confirmAppointment"
   | "cancelAppointment"
-  | "rescheduleAppointment";
+  | "rescheduleAppointment"
+  | "uploadOrderResult"
+  | "uploadEncounterDocument";
 
 // ── Modal data payload ─────────────────────────────────────────────────────────
 
@@ -28,6 +30,17 @@ export type DoctorModalType =
 export interface DoctorModalData {
   /** Target appointment row — used by confirm and cancel modals. */
   appointment?: TAppointmentResponse;
+
+  // ── Clinical Records uploads ──────────────────────────────────────────────
+
+  /** FHIR Patient.id — subject of uploaded documents and the upload path root. */
+  patientFhirId?: number;
+  /** FHIR ServiceRequest.id the uploaded result belongs to. */
+  serviceRequestId?: number;
+  /** Human-readable order name, shown in the upload dialog description. */
+  serviceRequestCode?: string;
+  /** FHIR Encounter.id that an uploaded document is attached to. */
+  encounterId?: number;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

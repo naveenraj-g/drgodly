@@ -60,9 +60,17 @@ export type TCompleteConsultation = z.infer<typeof CompleteConsultationValidatio
 // ── Save clinical data ────────────────────────────────────────────────────────
 
 /**
- * Payload for writing the FHIR clinical resources extracted from the SOAP note
- * by the clinical-extraction-agent. Written in the post-consultation review step.
- * Accepts unknown[] because the agent returns FHIR R4 objects with variable fields.
+ * Payload for writing the staged clinical data for an appointment.
+ *
+ * Two writers use this:
+ *   - the clinical-extraction-agent, right after a consultation ends
+ *   - the doctor's Clinical Records workspace, which autosaves edits as a draft
+ *     before they are published to the EMR
+ *
+ * Every field is optional so a caller can update just the slice it owns —
+ * omitted fields leave the existing staged value untouched.
+ * The resource arrays accept unknown[] because the agent returns FHIR R4
+ * objects with variable fields.
  */
 export const SaveClinicalDataValidationSchema = z.object({
   fhir_appointment_id: z.number().int().positive(),
@@ -70,6 +78,8 @@ export const SaveClinicalDataValidationSchema = z.object({
   medication_requests: z.array(z.unknown()).optional(),
   observations: z.array(z.unknown()).optional(),
   conditions: z.array(z.unknown()).optional(),
+  /** Doctor-edited SOAP note, staged as a draft before publishing to the EMR. */
+  soap_note: SoapNoteSchema.optional(),
 });
 export type TSaveClinicalData = z.infer<typeof SaveClinicalDataValidationSchema>;
 

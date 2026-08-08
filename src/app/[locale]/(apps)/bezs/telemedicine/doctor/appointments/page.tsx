@@ -14,8 +14,11 @@
  *  Client → useQuery → fetchDoctorAppointments → re-renders on page change
  */
 
+import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
+import { Button } from "@/components/ui/button";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
@@ -68,11 +71,25 @@ export default async function DoctorAppointmentsPage() {
   return (
     <div className="space-y-6 w-full">
       {/* ── Page header ── */}
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Appointments</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage patient appointments for your practice.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold">Appointments</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage patient appointments for your practice.
+          </p>
+        </div>
+
+        {/*
+         * In-app entry point to Clinical Records. The doctor sidebar comes from
+         * the Bezs menu service rather than this repo, so this link is what
+         * makes the section reachable until a menu entry is added there.
+         */}
+        <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
+          <Link href={`${base}/clinical-records`}>
+            <ClipboardList className="size-4" />
+            Clinical Records
+          </Link>
+        </Button>
       </div>
 
       {/* ── Appointments table ── */}

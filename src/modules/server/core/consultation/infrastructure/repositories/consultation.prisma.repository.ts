@@ -219,10 +219,14 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
   }
 
   /**
-   * Writes the FHIR clinical resources extracted from the SOAP note.
-   * Called in the post-consultation review step.
+   * Writes staged clinical data for an appointment.
    *
-   * @param dto - fhir_appointment_id + resource arrays.
+   * Called both by the clinical-extraction-agent right after a consultation and
+   * by the doctor's Clinical Records workspace when autosaving a draft. Fields
+   * omitted from the DTO are passed as `undefined`, which Prisma treats as
+   * "leave unchanged" — so each caller can update only the slice it owns.
+   *
+   * @param dto - fhir_appointment_id plus any of the resource arrays / soap_note.
    * @returns The updated Consultation record.
    * @throws NotFoundError if no consultation exists for this appointment.
    */
@@ -248,6 +252,7 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
             : undefined,
           observations: dto.observations ? pj(dto.observations) : undefined,
           conditions: dto.conditions ? pj(dto.conditions) : undefined,
+          soap_note: dto.soap_note ? pj(dto.soap_note) : undefined,
         },
       });
 

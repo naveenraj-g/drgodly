@@ -20,7 +20,9 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { CalendarDays, Loader2, MousePointerClick } from "lucide-react";
+import { CalendarDays, ClipboardList, Loader2, MousePointerClick } from "lucide-react";
+import { Link } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TodayAppointmentList } from "./TodayAppointmentList";
 import { ConsultationInsights } from "./ConsultationInsights";
@@ -94,12 +96,26 @@ export function DoctorDashboard({
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">{todayLabel}</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CalendarDays className="size-4" />
-          <span>
-            <strong className="text-foreground">{appointments.length}</strong>{" "}
-            appointment{appointments.length !== 1 ? "s" : ""} today
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CalendarDays className="size-4" />
+            <span>
+              <strong className="text-foreground">{appointments.length}</strong>{" "}
+              appointment{appointments.length !== 1 ? "s" : ""} today
+            </span>
+          </div>
+
+          {/*
+           * In-app entry point to Clinical Records. The doctor sidebar is built
+           * from the Bezs menu service rather than this repo, so this link is
+           * what makes the section reachable until a menu entry is added there.
+           */}
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href="/bezs/telemedicine/doctor/clinical-records">
+              <ClipboardList className="size-4" />
+              Clinical Records
+            </Link>
+          </Button>
         </div>
       </div>
 
