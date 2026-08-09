@@ -20,9 +20,9 @@ import { useFormContext, Controller } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SheetFooter } from "@/components/ui/sheet";
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import { FormSwitch, FormTextarea } from "@/modules/client/shared/components/CustomFormFields";
 import type { TEditScheduleFormSchema } from "@/modules/entities/schemas/schedule";
 
@@ -71,7 +71,11 @@ export function EditScheduleForm({
               control={form.control}
               name="planning_horizon_start"
               render={({ field }) => (
-                <Input {...field} value={field.value ?? ""} type="datetime-local" />
+                <DateTimePicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Pick start date & time…"
+                />
               )}
             />
           </Field>
@@ -81,7 +85,11 @@ export function EditScheduleForm({
               control={form.control}
               name="planning_horizon_end"
               render={({ field }) => (
-                <Input {...field} value={field.value ?? ""} type="datetime-local" />
+                <DateTimePicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Pick end date & time…"
+                />
               )}
             />
           </Field>

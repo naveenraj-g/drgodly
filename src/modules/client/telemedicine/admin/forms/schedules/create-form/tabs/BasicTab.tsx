@@ -1,12 +1,16 @@
 /**
  * BasicTab — core Schedule fields: active, comment, planning horizon.
+ *
+ * The planning horizon uses DateTimePicker rather than a native datetime-local
+ * input so the value is stored as an absolute instant — see DateTimePicker's
+ * header for why naive wall-clock strings break in production.
  */
 
 "use client";
 
 import { useFormContext, Controller } from "react-hook-form";
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import {
   FormSwitch,
   FormTextarea,
@@ -35,7 +39,11 @@ export function BasicTab() {
             control={form.control}
             name="planning_horizon_start"
             render={({ field }) => (
-              <Input {...field} value={field.value ?? ""} type="datetime-local" />
+              <DateTimePicker
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                placeholder="Pick start date & time…"
+              />
             )}
           />
         </Field>
@@ -45,7 +53,11 @@ export function BasicTab() {
             control={form.control}
             name="planning_horizon_end"
             render={({ field }) => (
-              <Input {...field} value={field.value ?? ""} type="datetime-local" />
+              <DateTimePicker
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                placeholder="Pick end date & time…"
+              />
             )}
           />
         </Field>

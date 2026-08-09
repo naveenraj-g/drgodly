@@ -22,7 +22,7 @@ import { useFormContext, Controller } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import { SheetFooter } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { Field, FieldLabel, FieldGroup } from "@/components/ui/field";
@@ -107,7 +107,11 @@ export function EditSlotForm({ onSubmit, onCancel, isPending }: EditSlotFormProp
               control={form.control}
               name="start"
               render={({ field }) => (
-                <Input {...field} value={field.value ?? ""} type="datetime-local" />
+                <DateTimePicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Pick start date & time…"
+                />
               )}
             />
           </Field>
@@ -117,7 +121,11 @@ export function EditSlotForm({ onSubmit, onCancel, isPending }: EditSlotFormProp
               control={form.control}
               name="end"
               render={({ field }) => (
-                <Input {...field} value={field.value ?? ""} type="datetime-local" />
+                <DateTimePicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Pick end date & time…"
+                />
               )}
             />
           </Field>

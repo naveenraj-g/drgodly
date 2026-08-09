@@ -15,6 +15,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -150,16 +151,15 @@ export function ObservationItem({ item, onChange, onRemove }: ObservationItemPro
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Effective Date/Time</Label>
-            <Input
-              type="datetime-local"
-              value={
-                item.effectiveDatetime
-                  ? item.effectiveDatetime.substring(0, 16)
-                  : ""
+            {/* DateTimePicker renders the stored instant in local time. The old
+                native input needed effectiveDatetime.substring(0, 16) to be
+                accepted at all, which silently discarded the timezone. */}
+            <DateTimePicker
+              value={item.effectiveDatetime ?? ""}
+              onChange={(value) =>
+                onChange({ ...item, effectiveDatetime: value || undefined })
               }
-              onChange={(e) =>
-                onChange({ ...item, effectiveDatetime: e.target.value || undefined })
-              }
+              placeholder="Pick date & time…"
               className="text-sm h-9"
             />
           </div>

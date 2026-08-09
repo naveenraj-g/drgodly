@@ -15,6 +15,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -157,16 +158,15 @@ export function ServiceRequestItem({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Occurrence Date</Label>
-            <Input
-              type="datetime-local"
-              value={
-                item.occurrenceDatetime
-                  ? item.occurrenceDatetime.substring(0, 16)
-                  : ""
+            {/* DateTimePicker renders the stored instant in local time. The old
+                native input needed occurrenceDatetime.substring(0, 16) to be
+                accepted at all, which silently discarded the timezone. */}
+            <DateTimePicker
+              value={item.occurrenceDatetime ?? ""}
+              onChange={(value) =>
+                onChange({ ...item, occurrenceDatetime: value || undefined })
               }
-              onChange={(e) =>
-                onChange({ ...item, occurrenceDatetime: e.target.value || undefined })
-              }
+              placeholder="Pick date & time…"
               className="text-sm h-9"
             />
           </div>

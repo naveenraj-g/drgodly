@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useFormContext, useWatch, Controller } from "react-hook-form";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import { Separator } from "@/components/ui/separator";
 import { FormSwitch } from "@/modules/client/shared/components/CustomFormFields";
 import { TerminologySelect } from "@/modules/client/shared/components/TerminologySelect";
@@ -98,7 +99,11 @@ export function BasicTab() {
           control={form.control}
           name="deceased_datetime"
           render={({ field }) => (
-            <Input {...field} value={field.value ?? ""} type="datetime-local" />
+            <DateTimePicker
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              placeholder="Pick date & time…"
+            />
           )}
         />
       </Field>
