@@ -125,40 +125,37 @@ export interface PatientAppointmentListProps {
   /** Past appointments, sorted newest-first (split server-side). */
   past: TAppointmentResponse[];
   /**
-   * Appointment IDs that have at least one Encounter — only these can open the
-   * clinical workspace, since every clinical resource is linked to an encounter.
+   * Appointment IDs that have at least one Encounter. Drives the row's hint —
+   * every row links into the workspace route either way, which renders the
+   * read-only visit view when there is no encounter to document against.
    */
   appointmentIdsWithEncounter: number[];
   /** Base href for the clinical workspace, e.g. ".../clinical-records/10023". */
   workspaceBaseHref: string;
-  /** Base href for the read-only appointment detail page. */
-  appointmentBaseHref: string;
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 interface AppointmentCardProps {
   appointment: TAppointmentResponse;
-  /** Whether an Encounter exists — gates the clinical workspace link. */
+  /** Whether an Encounter exists — drives the row's hint, not its destination. */
   hasEncounter: boolean;
   workspaceBaseHref: string;
-  appointmentBaseHref: string;
 }
 
 /**
- * One appointment row. Links to the clinical workspace when an encounter exists,
- * otherwise to the read-only detail page with an explanatory hint.
+ * One appointment row. Always links into the Clinical Records route; that route
+ * decides whether to show the editable workspace or the read-only visit view,
+ * so the doctor never leaves the section mid-drill-down.
  *
  * @param appointment - The appointment to render.
- * @param hasEncounter - Whether a clinical record can be opened for it.
- * @param workspaceBaseHref - Base path for the workspace route.
- * @param appointmentBaseHref - Base path for the read-only detail route.
+ * @param hasEncounter - Whether a clinical record exists for it.
+ * @param workspaceBaseHref - Base path for the route.
  */
 function AppointmentCard({
   appointment,
   hasEncounter,
   workspaceBaseHref,
-  appointmentBaseHref,
 }: AppointmentCardProps) {
   const startTime = fmtTime(appointment.start);
   const endTime = fmtTime(appointment.end);
@@ -173,77 +170,74 @@ function AppointmentCard({
     null;
   const status = appointment.status ?? "unknown";
 
-  const href = hasEncounter
-    ? `${workspaceBaseHref}/${appointment.id}`
-    : `${appointmentBaseHref}/${appointment.id}`;
+  const href = `${workspaceBaseHref}/${appointment.id}`;
 
   return (
     <Card
       className={
         hasEncounter
-          ? "transition-colors hover:border-primary/50 hover:bg-muted/30"
-          : "transition-colors hover:bg-muted/20"
+          ? "h-full transition-colors hover:border-primary/50 hover:bg-muted/30"
+          : "h-full transition-colors hover:bg-muted/20"
       }
     >
-      <Link href={href} className="block">
-        <CardContent className="px-4 py-3 flex items-start gap-4">
-          <div className="flex-1 min-w-0 space-y-2">
-            {/* Date — primary identifier */}
-            <div className="flex items-center gap-1.5 text-sm font-semibold">
-              <CalendarDays className="size-3.5 text-primary shrink-0" />
-              {fmtDate(appointment.start)}
+      {/* h-full on both card and link so cards in a grid row match height */}
+      <Link href={href} className="block h-full">
+        <CardContent className="flex h-full flex-col gap-2.5 px-4 py-3">
+          {/* ── Date + status ── */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
+              <CalendarDays className="size-3.5 shrink-0 text-primary" />
+              <span className="truncate">{fmtDate(appointment.start)}</span>
             </div>
-
-            {/* Time + duration */}
-            {(startTime ?? duration) && (
-              <div className="flex items-center gap-3 flex-wrap">
-                {startTime && (
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Clock className="size-3 shrink-0" />
-                    {endTime ? `${startTime} – ${endTime}` : startTime}
-                  </span>
-                )}
-                {duration && (
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Timer className="size-3 shrink-0" />
-                    {duration}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Appointment type */}
-            {apptType && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Stethoscope className="size-3 shrink-0" />
-                {apptType}
-              </div>
-            )}
-
-            {/* Clinical record availability */}
-            <div className="flex items-center gap-1.5 text-xs">
-              {hasEncounter ? (
-                <span className="flex items-center gap-1.5 font-medium text-primary">
-                  <ClipboardList className="size-3 shrink-0" />
-                  Open clinical record
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 text-muted-foreground/70">
-                  <FileClock className="size-3 shrink-0" />
-                  Consultation not completed — no clinical record yet
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 mt-0.5">
             <Badge
               variant={STATUS_VARIANT[status] ?? "outline"}
-              className="text-xs font-normal capitalize"
+              className="shrink-0 text-xs font-normal capitalize"
             >
               {status}
             </Badge>
-            <ChevronRight className="size-4 text-muted-foreground" />
+          </div>
+
+          {/* ── Time + duration ── */}
+          {(startTime ?? duration) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {startTime && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="size-3 shrink-0" />
+                  {endTime ? `${startTime} – ${endTime}` : startTime}
+                </span>
+              )}
+              {duration && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Timer className="size-3 shrink-0" />
+                  {duration}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* ── Appointment type ── */}
+          {apptType && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Stethoscope className="size-3 shrink-0" />
+              <span className="truncate">{apptType}</span>
+            </div>
+          )}
+
+          {/* ── Footer: record availability — mt-auto pins it to the card bottom
+                 so the call to action lines up across a row ── */}
+          <div className="mt-auto flex items-center gap-1.5 border-t pt-2.5 text-xs">
+            {hasEncounter ? (
+              <span className="flex min-w-0 items-center gap-1.5 font-medium text-primary">
+                <ClipboardList className="size-3 shrink-0" />
+                <span className="truncate">Open clinical record</span>
+              </span>
+            ) : (
+              <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground/70">
+                <FileClock className="size-3 shrink-0" />
+                <span className="truncate">View visit details</span>
+              </span>
+            )}
+            <ChevronRight className="ml-auto size-4 shrink-0 text-muted-foreground" />
           </div>
         </CardContent>
       </Link>
@@ -259,15 +253,13 @@ function AppointmentCard({
  * @param upcoming - Future appointments, soonest-first.
  * @param past - Past appointments, newest-first.
  * @param appointmentIdsWithEncounter - IDs that have a clinical record.
- * @param workspaceBaseHref - Base path for the clinical workspace.
- * @param appointmentBaseHref - Base path for read-only appointment detail.
+ * @param workspaceBaseHref - Base path for the Clinical Records route.
  */
 export function PatientAppointmentList({
   upcoming,
   past,
   appointmentIdsWithEncounter,
   workspaceBaseHref,
-  appointmentBaseHref,
 }: PatientAppointmentListProps) {
   if (upcoming.length === 0 && past.length === 0) {
     return (
@@ -292,14 +284,15 @@ export function PatientAppointmentList({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {title} ({rows.length})
         </p>
-        <div className="space-y-3">
+        {/* One column on phones, two from sm, three on wide screens — the cards
+            carry little enough text to stay readable at a third of the width. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((appt) => (
             <AppointmentCard
               key={appt.id}
               appointment={appt}
               hasEncounter={encounterIds.has(appt.id)}
               workspaceBaseHref={workspaceBaseHref}
-              appointmentBaseHref={appointmentBaseHref}
             />
           ))}
         </div>

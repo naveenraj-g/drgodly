@@ -1,23 +1,20 @@
 /**
- * DiagnosesTab — Conditions and Observations for the visit.
+ * DiagnosesTab — diagnoses and findings for the visit.
  *
  * Layer: client / telemedicine / doctor / component / clinical-records / tabs
  *
- * Wraps the existing ConditionList / ObservationList editors from the
- * post-consultation review in section cards. Both are fully controlled — this
- * tab holds no state of its own; ClinicalWorkspace owns it so the draft
- * autosave sees every keystroke.
+ * Two ClinicalEntryList sections. Both are fully controlled — this tab holds no
+ * state; ClinicalWorkspace owns it so the staging autosave sees every edit.
  */
 
 "use client";
 
 import { Activity, AlertCircle } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ConditionList } from "../../appointment-review/clinical/conditions/ConditionList";
-import { ObservationList } from "../../appointment-review/clinical/observations/ObservationList";
+import { ClinicalEntryList } from "../entries/ClinicalEntryList";
+import { ConditionFields } from "../entries/fields/ConditionFields";
+import { ObservationFields } from "../entries/fields/ObservationFields";
+import { conditionSummary, observationSummary } from "../entries/summaries";
 import type {
   ConditionFormItem,
   ObservationFormItem,
@@ -36,10 +33,35 @@ interface DiagnosesTabProps {
   onObservationsChange: (items: ObservationFormItem[]) => void;
 }
 
+// ── Blank-entry factories ─────────────────────────────────────────────────────
+
+/** Creates a blank diagnosis. SNOMED is the default system for conditions. */
+function emptyCondition(): ConditionFormItem {
+  return {
+    id: crypto.randomUUID(),
+    display: "",
+    terminologySystem: "SNOMED",
+    clinicalStatus: "active",
+    verificationStatus: "confirmed",
+  };
+}
+
+/** Creates a blank finding. LOINC is the default system for observations. */
+function emptyObservation(): ObservationFormItem {
+  return {
+    id: crypto.randomUUID(),
+    display: "",
+    terminologySystem: "LOINC",
+    value: null,
+    unit: null,
+    status: "final",
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * Renders the Conditions and Observations editors as two sections.
+ * Diagnoses and findings sections.
  *
  * @param conditions - Current condition items.
  * @param onConditionsChange - Condition list change handler.
@@ -54,41 +76,35 @@ export function DiagnosesTab({
 }: DiagnosesTabProps) {
   return (
     <div className="space-y-5">
-      {/* ── Conditions ── */}
-      <Card>
-        <CardContent className="px-4 py-3.5 space-y-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="size-4 text-primary" />
-            <p className="text-sm font-semibold">Diagnoses</p>
-            <Badge variant="secondary" className="text-xs font-normal">
-              {conditions.length}
-            </Badge>
-            <span className="ml-auto text-xs text-muted-foreground">
-              Confirm a terminology code for each entry
-            </span>
-          </div>
-          <Separator />
-          <ConditionList items={conditions} onChange={onConditionsChange} />
-        </CardContent>
-      </Card>
+      <ClinicalEntryList
+        items={conditions}
+        onChange={onConditionsChange}
+        icon={AlertCircle}
+        title="Diagnoses"
+        addLabel="Add diagnosis"
+        emptyLabel="No diagnoses recorded for this visit."
+        hint="Each entry needs a terminology code"
+        createItem={emptyCondition}
+        summary={conditionSummary}
+        renderFields={(item, onItemChange) => (
+          <ConditionFields item={item} onChange={onItemChange} />
+        )}
+      />
 
-      {/* ── Observations ── */}
-      <Card>
-        <CardContent className="px-4 py-3.5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Activity className="size-4 text-primary" />
-            <p className="text-sm font-semibold">Findings &amp; Vitals</p>
-            <Badge variant="secondary" className="text-xs font-normal">
-              {observations.length}
-            </Badge>
-            <span className="ml-auto text-xs text-muted-foreground">
-              Numeric values are stored as quantities, text as strings
-            </span>
-          </div>
-          <Separator />
-          <ObservationList items={observations} onChange={onObservationsChange} />
-        </CardContent>
-      </Card>
+      <ClinicalEntryList
+        items={observations}
+        onChange={onObservationsChange}
+        icon={Activity}
+        title="Findings & Vitals"
+        addLabel="Add finding"
+        emptyLabel="No findings recorded for this visit."
+        hint="Numeric values store as quantities"
+        createItem={emptyObservation}
+        summary={observationSummary}
+        renderFields={(item, onItemChange) => (
+          <ObservationFields item={item} onChange={onItemChange} />
+        )}
+      />
     </div>
   );
 }

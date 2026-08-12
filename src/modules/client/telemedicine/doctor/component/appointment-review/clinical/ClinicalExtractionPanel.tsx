@@ -22,6 +22,10 @@ import { ConditionList } from "./conditions/ConditionList";
 import { ObservationList } from "./observations/ObservationList";
 import { MedicationList } from "./medications/MedicationList";
 import { ServiceRequestList } from "./service-requests/ServiceRequestList";
+import {
+  fetchClinicalExtraction,
+  type ClinicalExtractionResult,
+} from "../../clinical-records/reExtract";
 import type {
   SoapNote,
   ConditionFormItem,
@@ -32,25 +36,13 @@ import type {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-/** Shape returned by /api/clinical-extraction-agent. */
-export interface ClinicalExtractionResult {
-  conditions: Array<{ display: string; terminologySystem: string }>;
-  observations: Array<{
-    display: string;
-    terminologySystem: string;
-    value?: string | null;
-    unit?: string | null;
-  }>;
-  medicationRequests: Array<{
-    display: string;
-    terminologySystem: string;
-    dose?: string | null;
-    frequency?: string | null;
-    duration?: string | null;
-    route?: string | null;
-  }>;
-  serviceRequests: Array<{ display: string; terminologySystem: string }>;
-}
+/*
+ * The result shape and the agent call live in clinical-records/reExtract.ts and
+ * are shared with the Clinical Records workspace, which offers the same
+ * re-extract action. Re-exported here so existing importers of this module keep
+ * working unchanged.
+ */
+export type { ClinicalExtractionResult };
 
 interface ClinicalExtractionPanelProps {
   /** Current SOAP note — sent to the re-extraction agent. */
@@ -71,32 +63,6 @@ interface ClinicalExtractionPanelProps {
   onServiceRequestsChange: (items: ServiceRequestFormItem[]) => void;
   /** Called with the full re-extraction result so the parent can reset all lists. */
   onReExtract: (result: ClinicalExtractionResult) => void;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Calls /api/clinical-extraction-agent with the current SOAP note.
- *
- * @param soap - Current SOAP note object.
- * @param assessment - Optional raw AI assessment.
- * @returns Parsed ClinicalExtractionResult.
- * @throws Error when the request fails.
- */
-async function fetchClinicalExtraction(
-  soap: Record<string, unknown>,
-  assessment?: unknown,
-): Promise<ClinicalExtractionResult> {
-  const res = await fetch("/api/clinical-extraction-agent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ soap, assessment: assessment ?? null }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Clinical extraction failed (${res.status}): ${text}`);
-  }
-  return res.json();
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -131,10 +97,7 @@ export function ClinicalExtractionPanel({
   const handleReExtract = () => {
     startTransition(async () => {
       try {
-        const result = await fetchClinicalExtraction(
-          soap as unknown as Record<string, unknown>,
-          assessment,
-        );
+        const result = await fetchClinicalExtraction(soap, assessment);
         onReExtract(result);
         toast.success("Clinical data re-extracted from updated SOAP note.");
       } catch (err) {

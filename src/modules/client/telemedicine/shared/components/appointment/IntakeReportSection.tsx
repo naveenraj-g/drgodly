@@ -36,110 +36,22 @@ import {
   Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  riskBadgeClass,
+  safeParseReport,
+  type DiagnosticItem,
+  type IntakeReport,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/intakeReport";
 import { type TIntakeResponse } from "@/modules/entities/schemas/intake";
 
-// ── Local typed interfaces (mirror MVP IntakeInsights shapes) ─────────────────
+// ── Report typing + parsing ───────────────────────────────────────────────────
 
-/**
- * A single differential diagnosis entry from the AI assessment agent.
- * Agent returns an array of these objects under `differential_diagnosis`.
+/*
+ * The report shapes, the { status, data } envelope unwrapping and the risk-badge
+ * colours live in clinical-records/intakeReport.ts and are shared with the
+ * Clinical Records intake tab — the unwrapping in particular is easy to get
+ * subtly wrong, so there is one implementation rather than two.
  */
-interface DifferentialItem {
-  condition?: string;
-  rationale?: string;
-  likelihood?: string;
-}
-
-/**
- * A single diagnostic test or study from the AI assessment agent.
- * Used in `diagnostic_plan.laboratory_tests`, `.imaging`, and `.other`.
- */
-interface DiagnosticItem {
-  test?: string;
-  study?: string;
-  purpose?: string;
-}
-
-/**
- * A single treatment recommendation from the AI assessment agent.
- * Agent returns an array of these under `treatment_plan`.
- */
-interface TreatmentItem {
-  condition?: string;
-  recommendation?: string;
-  rationale?: string;
-  route?: string;
-  duration?: string;
-}
-
-/**
- * Typed representation of the AI clinical report JSON.
- * All fields optional — the agent may omit any section.
- */
-interface IntakeReport {
-  clinical_overview?: string;
-  risk_level?: string;
-  differential_diagnosis?: DifferentialItem[];
-  diagnostic_plan?: {
-    laboratory_tests?: DiagnosticItem[];
-    imaging?: DiagnosticItem[];
-    other?: DiagnosticItem[];
-  };
-  treatment_plan?: TreatmentItem[];
-  procedures?: string;
-  red_flags?: string[];
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Safely parses the intake report field, which may arrive as a JSON string,
- * a plain object, or wrapped in a `{ status, data: { ... } }` envelope from
- * the assessment-plan-agent API response.
- *
- * @param raw - Raw report value from the Intake record.
- * @returns Typed IntakeReport or null if the value cannot be parsed.
- */
-function safeParseReport(raw: unknown): IntakeReport | null {
-  if (raw == null) return null;
-  try {
-    const obj: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (typeof obj !== "object" || Array.isArray(obj) || obj === null)
-      return null;
-    const envelope = obj as Record<string, unknown>;
-    // Unwrap { status, data: { ... } } envelope from the agent API
-    if (
-      envelope.data &&
-      typeof envelope.data === "object" &&
-      !Array.isArray(envelope.data)
-    ) {
-      return envelope.data as IntakeReport;
-    }
-    return obj as IntakeReport;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Maps a risk level string to Tailwind colour classes for the Badge.
- *
- * @param level - Risk level string from the agent (case-insensitive).
- * @returns Combined Tailwind class string for the Badge variant.
- */
-function riskBadgeClass(level?: string): string {
-  switch (level?.toUpperCase()) {
-    case "HIGH":
-      return "bg-red-100 text-red-800 border-red-200 hover:bg-red-100";
-    case "MODERATE":
-    case "MEDIUM":
-      return "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100";
-    case "LOW":
-      return "bg-green-100 text-green-800 border-green-200 hover:bg-green-100";
-    default:
-      return "";
-  }
-}
 
 // ── ReportView ────────────────────────────────────────────────────────────────
 

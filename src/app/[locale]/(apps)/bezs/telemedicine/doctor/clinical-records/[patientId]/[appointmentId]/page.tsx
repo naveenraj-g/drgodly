@@ -28,6 +28,7 @@ import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { getAppointmentByIdAction } from "@/modules/server/presentation/actions/appointment";
 import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
+import { getIntakeByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/intake";
 import { listEncountersAction } from "@/modules/server/presentation/actions/encounter/core.actions";
 import { listConditionsAction } from "@/modules/server/presentation/actions/condition/core.actions";
 import { listObservationsAction } from "@/modules/server/presentation/actions/observation/core.actions";
@@ -37,6 +38,7 @@ import { listDiagnosticReportsAction } from "@/modules/server/presentation/actio
 import { listDocumentReferencesAction } from "@/modules/server/presentation/actions/document-reference";
 import { getParticipantName } from "@/modules/server/presentation/helpers/doctorPatients";
 import { ClinicalWorkspace } from "@/modules/client/telemedicine/doctor/component/clinical-records/ClinicalWorkspace";
+import { VisitOverview } from "@/modules/client/telemedicine/doctor/component/clinical-records/VisitOverview";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -81,16 +83,20 @@ export default async function ClinicalWorkspacePage({
     return <WorkspaceError backHref={backHref} message="Invalid record reference." />;
   }
 
-  /* Appointment, staging row and encounters are independent — fetch together. */
-  const [[appointment], [consultation], [encountersPage]] = await Promise.all([
-    getAppointmentByIdAction({ payload: { id: numericAppointmentId } }),
-    getConsultationByFhirAppointmentIdAction({
-      payload: { fhir_appointment_id: numericAppointmentId },
-    }),
-    listEncountersAction({
-      payload: { appointment_id: numericAppointmentId, limit: 50 },
-    }),
-  ]);
+  /* Appointment, staging row, intake and encounters are independent — fetch together. */
+  const [[appointment], [consultation], [intake], [encountersPage]] =
+    await Promise.all([
+      getAppointmentByIdAction({ payload: { id: numericAppointmentId } }),
+      getConsultationByFhirAppointmentIdAction({
+        payload: { fhir_appointment_id: numericAppointmentId },
+      }),
+      getIntakeByFhirAppointmentIdAction({
+        payload: { fhir_appointment_id: numericAppointmentId },
+      }),
+      listEncountersAction({
+        payload: { appointment_id: numericAppointmentId, limit: 50 },
+      }),
+    ]);
 
   if (!appointment) {
     return <WorkspaceError backHref={backHref} message="Appointment not found." />;
@@ -102,11 +108,35 @@ export default async function ClinicalWorkspacePage({
   /* Resources are linked to a single encounter; the first is the visit's own. */
   const encounterId = encounters[0]?.id ?? null;
 
+  /* Display info from the appointment participants. */
+  const patientName = getParticipantName(appointment, "Patient");
+  const doctorName = getParticipantName(appointment, "Practitioner");
+
+  /* Live transcript captured during the consultation, if there was one. */
+  const transcript = consultation?.virtual_conversation ?? [];
+
   /*
-   * Published records + attachments for the encounter. Skipped entirely when the
-   * consultation produced no encounter — there is nothing to query by, and the
-   * workspace renders in draft-only mode.
+   * No encounter means the consultation never completed, so there is nothing to
+   * document against — every clinical resource links to an encounter. Show the
+   * read-only visit view instead of the workspace, rather than sending the
+   * doctor out to the old appointment detail page.
    */
+  if (encounterId == null) {
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        <BackLink href={backHref} />
+        <VisitOverview
+          appointment={appointment}
+          patientName={patientName}
+          doctorName={doctorName}
+          intake={intake ?? null}
+          transcript={transcript}
+        />
+      </div>
+    );
+  }
+
+  /* Published records + attachments for the encounter. */
   const [
     [conditionsPage],
     [observationsPage],
@@ -114,35 +144,23 @@ export default async function ClinicalWorkspacePage({
     [serviceRequestsPage],
     [diagnosticReportsPage],
     [documentsPage],
-  ] = encounterId
-    ? await Promise.all([
-        listConditionsAction({ payload: { encounter_id: encounterId, limit: 200 } }),
-        listObservationsAction({ payload: { encounter_id: encounterId, limit: 200 } }),
-        listMedicationRequestsAction({
-          payload: { encounter_id: encounterId, limit: 200 },
-        }),
-        listServiceRequestsAction({
-          payload: { encounter_id: encounterId, limit: 200 },
-        }),
-        listDiagnosticReportsAction({
-          payload: { encounter_id: encounterId, limit: 200 },
-        }),
-        listDocumentReferencesAction({
-          payload: { encounter_id: encounterId, limit: 200 },
-        }),
-      ])
-    : [
-        [null] as [null],
-        [null] as [null],
-        [null] as [null],
-        [null] as [null],
-        [null] as [null],
-        [null] as [null],
-      ];
+  ] = await Promise.all([
+    listConditionsAction({ payload: { encounter_id: encounterId, limit: 200 } }),
+    listObservationsAction({ payload: { encounter_id: encounterId, limit: 200 } }),
+    listMedicationRequestsAction({
+      payload: { encounter_id: encounterId, limit: 200 },
+    }),
+    listServiceRequestsAction({
+      payload: { encounter_id: encounterId, limit: 200 },
+    }),
+    listDiagnosticReportsAction({
+      payload: { encounter_id: encounterId, limit: 200 },
+    }),
+    listDocumentReferencesAction({
+      payload: { encounter_id: encounterId, limit: 200 },
+    }),
+  ]);
 
-  /* Display info from the appointment participants. */
-  const patientName = getParticipantName(appointment, "Patient");
-  const doctorName = getParticipantName(appointment, "Practitioner");
   const appointmentDate = appointment.start
     ? new Date(appointment.start).toLocaleDateString("en-US", {
         year: "numeric",
@@ -153,18 +171,7 @@ export default async function ClinicalWorkspacePage({
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 w-full">
-      {/* ── Back link ── */}
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 -ml-2 text-muted-foreground print:hidden"
-      >
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" />
-          Back to Appointments
-        </Link>
-      </Button>
+      <BackLink href={backHref} />
 
       <ClinicalWorkspace
         appointmentId={numericAppointmentId}
@@ -202,6 +209,9 @@ export default async function ClinicalWorkspacePage({
           soapNote: consultation?.soap_note ?? null,
         }}
         aiSoapNote={consultation?.full_report?.soap_report ?? null}
+        intake={intake ?? null}
+        transcript={transcript}
+        aiAssessment={consultation?.full_report?.assessment_plan ?? null}
       />
 
       {/* Upload modal singletons — controlled by the doctor Zustand store */}
@@ -210,7 +220,30 @@ export default async function ClinicalWorkspacePage({
   );
 }
 
-// ── Error state ───────────────────────────────────────────────────────────────
+// ── Shared bits ───────────────────────────────────────────────────────────────
+
+/**
+ * Back link to the patient's appointment list.
+ * Shared by all three states this route can render (workspace, visit overview,
+ * error) so they navigate identically.
+ *
+ * @param href - Target of the back link.
+ */
+function BackLink({ href }: { href: string }) {
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      size="sm"
+      className="gap-1.5 -ml-2 text-muted-foreground print:hidden"
+    >
+      <Link href={href}>
+        <ArrowLeft className="size-4" />
+        Back to Appointments
+      </Link>
+    </Button>
+  );
+}
 
 /**
  * Minimal error card with a back link.
@@ -227,17 +260,7 @@ function WorkspaceError({
 }) {
   return (
     <div className="max-w-md mx-auto mt-16 space-y-4">
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 -ml-2 text-muted-foreground"
-      >
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" />
-          Back to Appointments
-        </Link>
-      </Button>
+      <BackLink href={backHref} />
       <Card>
         <CardContent className="py-12 text-center text-sm text-muted-foreground">
           {message}

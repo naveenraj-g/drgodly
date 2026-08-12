@@ -113,7 +113,9 @@ export default async function PatientClinicalRecordsPage({
   const { upcoming, past } = splitAppointmentsByTime(appointments);
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 w-full">
+    /* Wider than the other Clinical Records pages so the appointment grid has
+       room for three columns — it caps at 1152px, giving ~370px per card. */
+    <div className="mx-auto w-full max-w-6xl space-y-5">
       {/* ── Back link ── */}
       <Button
         asChild
@@ -140,7 +142,6 @@ export default async function PatientClinicalRecordsPage({
         past={past}
         appointmentIdsWithEncounter={appointmentIdsWithEncounter}
         workspaceBaseHref={`${backHref}/${numericPatientId}`}
-        appointmentBaseHref={`${base}/appointments`}
       />
     </div>
   );

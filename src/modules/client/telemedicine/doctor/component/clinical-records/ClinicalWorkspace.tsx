@@ -26,17 +26,30 @@ import { useCallback, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
+  Brain,
   CalendarDays,
   CheckCircle2,
   CloudUpload,
   FileStack,
+  FileText,
   FlaskConical,
   Loader2,
   Pill,
+  Sparkles,
   Stethoscope,
   User,
 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -60,11 +73,18 @@ import {
   normaliseServiceRequests,
   seedSoapNote,
 } from "./clinicalDraft";
+import {
+  countPublished,
+  fetchClinicalExtraction,
+  toFormItems,
+} from "./reExtract";
+import { ConsultationNoteCanvas } from "./note/ConsultationNoteCanvas";
 import { SummaryTab } from "./tabs/SummaryTab";
 import { DiagnosesTab } from "./tabs/DiagnosesTab";
 import { PrescriptionsTab } from "./tabs/PrescriptionsTab";
 import { OrdersTab } from "./tabs/OrdersTab";
 import { DocumentsTab } from "./tabs/DocumentsTab";
+import { IntakeTab } from "./tabs/IntakeTab";
 
 import type {
   ConditionFormItem,
@@ -81,6 +101,8 @@ import type { TMedicationRequestResponse } from "@/modules/entities/schemas/medi
 import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 import type { TDocumentReferenceResponse } from "@/modules/entities/schemas/document-reference";
+import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
+import type { TConsultationTranscriptMessage } from "@/modules/entities/schemas/consultation";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -137,6 +159,12 @@ export interface ClinicalWorkspaceProps {
   staged: StagedClinicalDraft;
   /** SOAP note from the AI full report — the first-visit seed. */
   aiSoapNote: unknown;
+  /** Intake record for the Intake tab, or null when the patient completed none. */
+  intake: TIntakeResponse | null;
+  /** Live consultation transcript for the Intake tab, possibly empty. */
+  transcript: TConsultationTranscriptMessage[];
+  /** Raw AI assessment passed to the extraction agent as extra context. */
+  aiAssessment?: unknown;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -164,6 +192,9 @@ export function ClinicalWorkspace({
   documents,
   staged,
   aiSoapNote,
+  intake,
+  transcript,
+  aiAssessment,
 }: ClinicalWorkspaceProps) {
   const router = useRouter();
 
@@ -291,6 +322,57 @@ export function ClinicalWorkspace({
     [soap, conditions, observations, medications, serviceRequests, scheduleSave],
   );
 
+  // ── Re-extract ──────────────────────────────────────────────────────────────
+
+  /** True while the extraction agent request is in flight. */
+  const [isExtracting, setIsExtracting] = useState(false);
+  /** Open state for the confirm shown when published entries would be replaced. */
+  const [confirmReExtract, setConfirmReExtract] = useState(false);
+
+  /** How many current entries already exist in the EMR. */
+  const publishedCount = countPublished({
+    conditions,
+    observations,
+    medications,
+    serviceRequests,
+  });
+
+  /**
+   * Re-runs the extraction agent over the current note and replaces all four
+   * lists with the result. Staged through commit() like any other edit.
+   */
+  const runReExtract = useCallback(async () => {
+    setIsExtracting(true);
+    try {
+      const result = await fetchClinicalExtraction(soap, aiAssessment);
+      const next = toFormItems(result);
+      commit({
+        conditions: next.conditions,
+        observations: next.observations,
+        medications: next.medications,
+        serviceRequests: next.serviceRequests,
+      });
+      toast.success("Clinical entries regenerated from the note.");
+    } catch (err) {
+      console.error("[ClinicalWorkspace] re-extract failed:", err);
+      toast.error("Could not regenerate entries. Please try again.");
+    } finally {
+      setIsExtracting(false);
+    }
+  }, [soap, aiAssessment, commit]);
+
+  /**
+   * Entry point for the header action — confirms first when the replacement
+   * would discard entries that are already in the EMR.
+   */
+  function handleReExtractClick() {
+    if (publishedCount > 0) {
+      setConfirmReExtract(true);
+      return;
+    }
+    void runReExtract();
+  }
+
   // ── Publish ─────────────────────────────────────────────────────────────────
 
   /**
@@ -391,6 +473,22 @@ export function ClinicalWorkspace({
               {isPublished ? "Published" : "Draft"}
             </Badge>
 
+            {/* Regenerates all four entry lists from the current note */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleReExtractClick}
+              disabled={isExtracting || isPublishing}
+            >
+              {isExtracting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              {isExtracting ? "Extracting…" : "Re-extract"}
+            </Button>
+
             <Button
               size="sm"
               className="gap-2"
@@ -409,11 +507,11 @@ export function ClinicalWorkspace({
       </div>
 
       {/* ── Tabs ── */}
-      <Tabs defaultValue="summary" className="w-full">
+      <Tabs defaultValue="note" className="w-full">
         <TabsList className="w-full justify-start overflow-x-auto print:hidden">
-          <TabsTrigger value="summary" className="gap-1.5">
-            <Stethoscope className="size-3.5" />
-            Summary
+          <TabsTrigger value="note" className="gap-1.5">
+            <FileText className="size-3.5" />
+            Note
           </TabsTrigger>
           <TabsTrigger value="diagnoses" className="gap-1.5">
             <CheckCircle2 className="size-3.5" />
@@ -431,15 +529,28 @@ export function ClinicalWorkspace({
             <FileStack className="size-3.5" />
             Documents
           </TabsTrigger>
+          <TabsTrigger value="intake" className="gap-1.5">
+            <Brain className="size-3.5" />
+            Intake
+          </TabsTrigger>
+          <TabsTrigger value="visit" className="gap-1.5">
+            <Stethoscope className="size-3.5" />
+            Visit
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="summary" className="mt-4">
-          <SummaryTab
-            appointment={appointment}
-            encounters={encounters}
+        <TabsContent value="note" className="mt-4">
+          <ConsultationNoteCanvas
             soap={soap}
-            onSoapChange={(next) => commit({ soap: next })}
+            onChange={(next) => commit({ soap: next })}
+            patientName={patientName}
+            doctorName={doctorName}
+            appointmentDate={appointmentDate}
           />
+        </TabsContent>
+
+        <TabsContent value="visit" className="mt-4">
+          <SummaryTab appointment={appointment} encounters={encounters} />
         </TabsContent>
 
         <TabsContent value="diagnoses" className="mt-4">
@@ -477,7 +588,35 @@ export function ClinicalWorkspace({
             encounterId={encounterId}
           />
         </TabsContent>
+
+        <TabsContent value="intake" className="mt-4">
+          <IntakeTab intake={intake} transcript={transcript} />
+        </TabsContent>
       </Tabs>
+
+      {/* ── Re-extract confirm ── */}
+      <AlertDialog open={confirmReExtract} onOpenChange={setConfirmReExtract}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace clinical entries?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Re-extracting rebuilds all diagnoses, findings, prescriptions and
+              orders from the note.{" "}
+              <strong>
+                {publishedCount} {publishedCount === 1 ? "entry" : "entries"}
+              </strong>{" "}
+              already in the EMR will be replaced with new records when you next
+              publish, and any manual edits will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void runReExtract()}>
+              Replace entries
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

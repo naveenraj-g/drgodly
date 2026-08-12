@@ -27,10 +27,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ServiceRequestList } from "../../appointment-review/clinical/service-requests/ServiceRequestList";
+import { ClinicalEntryList } from "../entries/ClinicalEntryList";
+import { ServiceRequestFields } from "../entries/fields/ServiceRequestFields";
+import { serviceRequestSummary } from "../entries/summaries";
 import { doctorStore } from "../../../stores/doctor.store";
 import type { ServiceRequestFormItem } from "../../appointment-review/types";
 import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
+
+// ── Blank-entry factory ───────────────────────────────────────────────────────
+
+/** Creates a blank order. LOINC is the default system for tests. */
+function emptyServiceRequest(): ServiceRequestFormItem {
+  return {
+    id: crypto.randomUUID(),
+    display: "",
+    terminologySystem: "LOINC",
+    status: "active",
+    intent: "order",
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -167,22 +182,19 @@ export function OrdersTab({
   return (
     <div className="space-y-5">
       {/* ── Orders editor ── */}
-      <Card>
-        <CardContent className="px-4 py-3.5 space-y-3">
-          <div className="flex items-center gap-2">
-            <FlaskConical className="size-4 text-primary" />
-            <p className="text-sm font-semibold">Orders &amp; Investigations</p>
-            <Badge variant="secondary" className="text-xs font-normal">
-              {serviceRequests.length}
-            </Badge>
-          </div>
-          <Separator />
-          <ServiceRequestList
-            items={serviceRequests}
-            onChange={onServiceRequestsChange}
-          />
-        </CardContent>
-      </Card>
+      <ClinicalEntryList
+        items={serviceRequests}
+        onChange={onServiceRequestsChange}
+        icon={FlaskConical}
+        title="Orders & Investigations"
+        addLabel="Add order"
+        emptyLabel="No orders for this visit."
+        createItem={emptyServiceRequest}
+        summary={serviceRequestSummary}
+        renderFields={(item, onItemChange) => (
+          <ServiceRequestFields item={item} onChange={onItemChange} />
+        )}
+      />
 
       {/* ── Results per order ── */}
       <Card>

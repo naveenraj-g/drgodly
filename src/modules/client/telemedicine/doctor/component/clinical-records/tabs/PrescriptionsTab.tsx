@@ -1,14 +1,14 @@
 /**
- * PrescriptionsTab — MedicationRequest editor plus a printable prescription view.
+ * PrescriptionsTab — MedicationRequest entries plus a printable Rx sheet.
  *
  * Layer: client / telemedicine / doctor / component / clinical-records / tabs
  *
  * Two modes over the same list:
- *   Edit    — the existing MedicationList editor (terminology, dose, frequency…)
- *   Preview — a clean, print-friendly Rx sheet the doctor can hand to the patient
+ *   Edit    — compact entry rows with a detail drawer per prescription
+ *   Preview — a clean, print-friendly sheet the doctor can hand to the patient
  *
- * Preview reads the same form state, so what prints is exactly what will be
- * published. It deliberately renders only the fields a pharmacist needs.
+ * Preview reads the same state, so what prints is exactly what will publish. It
+ * deliberately shows only the fields a pharmacist needs.
  */
 
 "use client";
@@ -16,21 +16,21 @@
 import { useState } from "react";
 import { Pencil, Pill, Printer, ScrollText } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MedicationList } from "../../appointment-review/clinical/medications/MedicationList";
+import { ClinicalEntryList } from "../entries/ClinicalEntryList";
+import { MedicationFields } from "../entries/fields/MedicationFields";
+import { medicationSummary } from "../entries/summaries";
 import type { MedicationFormItem } from "../../appointment-review/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Resolves the effective value of a dosage field, preferring the doctor's edit
- * over the AI-suggested original.
+ * Resolves a dosage field, preferring the doctor's edit over the AI original.
  *
  * @param edited - Doctor-edited value, if any.
- * @param original - Original AI/FHIR value.
+ * @param original - Original value.
  * @returns The value to display, or null when neither is set.
  */
 function effective(
@@ -41,10 +41,10 @@ function effective(
 }
 
 /**
- * Builds the one-line "Sig" a pharmacist reads: dose, route, frequency, duration.
+ * Builds the one-line "Sig" a pharmacist reads.
  *
- * @param item - The medication form item.
- * @returns Assembled sig line, or a placeholder when nothing is recorded.
+ * @param item - The medication entry.
+ * @returns Assembled sig, or a placeholder when nothing is recorded.
  */
 function buildSig(item: MedicationFormItem): string {
   const parts = [
@@ -56,6 +56,21 @@ function buildSig(item: MedicationFormItem): string {
   return parts.length ? parts.join(" · ") : "No dosage recorded";
 }
 
+/** Creates a blank prescription. RxNorm is the default system for drugs. */
+function emptyMedication(): MedicationFormItem {
+  return {
+    id: crypto.randomUUID(),
+    display: "",
+    terminologySystem: "RXNORM",
+    dose: null,
+    frequency: null,
+    duration: null,
+    route: null,
+    status: "active",
+    intent: "order",
+  };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface PrescriptionsTabProps {
@@ -63,26 +78,18 @@ interface PrescriptionsTabProps {
   medications: MedicationFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onMedicationsChange: (items: MedicationFormItem[]) => void;
-  /** Patient display name — shown on the printable sheet. */
+  /** Patient display name for the printable sheet. */
   patientName: string;
-  /** Prescribing doctor's display name — shown on the printable sheet. */
+  /** Prescriber display name for the printable sheet. */
   doctorName: string;
-  /** Formatted appointment date — shown on the printable sheet. */
+  /** Formatted appointment date for the printable sheet. */
   appointmentDate: string | null;
 }
 
 // ── Preview ───────────────────────────────────────────────────────────────────
 
-interface RxPreviewProps {
-  medications: MedicationFormItem[];
-  patientName: string;
-  doctorName: string;
-  appointmentDate: string | null;
-}
-
 /**
  * Print-friendly prescription sheet.
- * `print:` utilities strip the surrounding chrome so only this block prints.
  *
  * @param medications - Medications to list.
  * @param patientName - Patient the Rx is for.
@@ -94,7 +101,12 @@ function RxPreview({
   patientName,
   doctorName,
   appointmentDate,
-}: RxPreviewProps) {
+}: {
+  medications: MedicationFormItem[];
+  patientName: string;
+  doctorName: string;
+  appointmentDate: string | null;
+}) {
   if (medications.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
@@ -105,7 +117,7 @@ function RxPreview({
   }
 
   return (
-    <div className="rounded-md border bg-background p-6 space-y-5 print:border-0 print:p-0">
+    <div className="space-y-5 rounded-md border bg-background p-6 print:border-0 print:p-0">
       {/* Letterhead */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-0.5">
@@ -119,7 +131,7 @@ function RxPreview({
             </p>
           )}
         </div>
-        <div className="text-right space-y-0.5">
+        <div className="space-y-0.5 text-right">
           <p className="text-sm font-medium">{doctorName}</p>
           <p className="text-xs text-muted-foreground">Prescriber</p>
         </div>
@@ -127,24 +139,25 @@ function RxPreview({
 
       <Separator />
 
-      {/* Rx lines */}
       <ol className="space-y-4">
         {medications.map((m, i) => (
           <li key={m.id} className="flex gap-3">
-            <span className="text-sm font-mono text-muted-foreground pt-0.5">
+            <span className="pt-0.5 font-mono text-sm text-muted-foreground">
               {i + 1}.
             </span>
-            <div className="flex-1 min-w-0 space-y-1">
-              <p className="text-sm font-medium">{m.display || "Unnamed medication"}</p>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm font-medium">
+                {m.display || "Unnamed medication"}
+              </p>
               <p className="text-sm text-muted-foreground">{buildSig(m)}</p>
 
               {m.patientInstruction && (
-                <p className="text-xs text-muted-foreground italic">
+                <p className="text-xs italic text-muted-foreground">
                   {m.patientInstruction}
                 </p>
               )}
 
-              <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 {m.dispenseQuantityValue && (
                   <span>
                     Qty: {m.dispenseQuantityValue}
@@ -179,11 +192,7 @@ function RxPreview({
 /**
  * Prescription management with an edit/preview toggle.
  *
- * @param medications - Current medication items.
- * @param onMedicationsChange - Medication list change handler.
- * @param patientName - Patient name for the printable sheet.
- * @param doctorName - Prescriber name for the printable sheet.
- * @param appointmentDate - Visit date for the printable sheet.
+ * @param props - See PrescriptionsTabProps.
  */
 export function PrescriptionsTab({
   medications,
@@ -195,15 +204,45 @@ export function PrescriptionsTab({
   /** False = edit the list, true = show the printable sheet. */
   const [previewing, setPreviewing] = useState(false);
 
+  if (!previewing) {
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setPreviewing(true)}
+          >
+            <ScrollText className="size-3.5" />
+            Preview prescription
+          </Button>
+        </div>
+
+        <ClinicalEntryList
+          items={medications}
+          onChange={onMedicationsChange}
+          icon={Pill}
+          title="Prescriptions"
+          addLabel="Add medication"
+          emptyLabel="No prescriptions for this visit."
+          createItem={emptyMedication}
+          summary={medicationSummary}
+          renderFields={(item, onItemChange) => (
+            <MedicationFields item={item} onChange={onItemChange} />
+          )}
+        />
+      </div>
+    );
+  }
+
   return (
     <Card className="print:border-0 print:shadow-none">
-      <CardContent className="px-4 py-3.5 space-y-3">
+      <CardContent className="space-y-3 px-4 py-3.5">
         <div className="flex items-center gap-2 print:hidden">
           <Pill className="size-4 text-primary" />
-          <p className="text-sm font-semibold">Prescriptions</p>
-          <Badge variant="secondary" className="text-xs font-normal">
-            {medications.length}
-          </Badge>
+          <p className="text-sm font-semibold">Prescription preview</p>
 
           <div className="ml-auto flex items-center gap-1.5">
             <Button
@@ -211,48 +250,32 @@ export function PrescriptionsTab({
               variant="outline"
               size="sm"
               className="gap-1.5 text-xs"
-              onClick={() => setPreviewing((p) => !p)}
+              onClick={() => setPreviewing(false)}
             >
-              {previewing ? (
-                <>
-                  <Pencil className="size-3.5" />
-                  Edit
-                </>
-              ) : (
-                <>
-                  <ScrollText className="size-3.5" />
-                  Preview
-                </>
-              )}
+              <Pencil className="size-3.5" />
+              Edit
             </Button>
-
-            {previewing && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => window.print()}
-              >
-                <Printer className="size-3.5" />
-                Print
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => window.print()}
+            >
+              <Printer className="size-3.5" />
+              Print
+            </Button>
           </div>
         </div>
 
         <Separator className="print:hidden" />
 
-        {previewing ? (
-          <RxPreview
-            medications={medications}
-            patientName={patientName}
-            doctorName={doctorName}
-            appointmentDate={appointmentDate}
-          />
-        ) : (
-          <MedicationList items={medications} onChange={onMedicationsChange} />
-        )}
+        <RxPreview
+          medications={medications}
+          patientName={patientName}
+          doctorName={doctorName}
+          appointmentDate={appointmentDate}
+        />
       </CardContent>
     </Card>
   );
