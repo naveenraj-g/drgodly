@@ -80,6 +80,21 @@ export const SaveClinicalDataValidationSchema = z.object({
   conditions: z.array(z.unknown()).optional(),
   /** Doctor-edited SOAP note, staged as a draft before publishing to the EMR. */
   soap_note: SoapNoteSchema.optional(),
+  /**
+   * Set by the review page when the doctor approves. The repository stamps
+   * published_at/published_by from the server clock and session — the client
+   * sends intent only, never the timestamp or the approver, so neither can be
+   * forged and the approval time is not a client clock reading.
+   *
+   * Omitted or false leaves an existing stamp untouched: an autosave from the
+   * clinical workspace must never silently un-approve a reviewed record.
+   */
+  mark_published: z.boolean().optional(),
+  /**
+   * Approving doctor's user ID. Injected by the server action from the session
+   * — anything a client puts here is overwritten before validation.
+   */
+  published_by: z.string().optional(),
 });
 export type TSaveClinicalData = z.infer<typeof SaveClinicalDataValidationSchema>;
 

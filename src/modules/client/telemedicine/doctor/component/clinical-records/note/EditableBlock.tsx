@@ -38,6 +38,12 @@ interface EditableBlockProps {
   multiline?: boolean;
   /** Renders the committed text larger, for a section's lead line. */
   emphasis?: boolean;
+  /**
+   * Renders the text as plain prose with no editing affordance at all — no
+   * click target, no hover, no placeholder prompt. Used where the note is a
+   * record of what was approved rather than something being written.
+   */
+  readOnly?: boolean;
   className?: string;
 }
 
@@ -54,6 +60,7 @@ export function EditableBlock({
   placeholder = "click to add",
   multiline = false,
   emphasis = false,
+  readOnly = false,
   className,
 }: EditableBlockProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -103,6 +110,26 @@ export function EditableBlock({
       ev.preventDefault();
       commit();
     }
+  }
+
+  /* Read-only renders before any edit machinery is reachable. An em dash
+     rather than the "‹ click to add ›" prompt: an empty field in a finalised
+     note means nothing was recorded, not that someone should fill it in. */
+  if (readOnly) {
+    if (value.trim().length === 0) {
+      return <p className="text-sm text-muted-foreground">—</p>;
+    }
+    return (
+      <p
+        className={cn(
+          "whitespace-pre-wrap leading-relaxed",
+          emphasis ? "text-[15px] font-medium" : "text-sm",
+          className,
+        )}
+      >
+        {value}
+      </p>
+    );
   }
 
   if (isEditing) {

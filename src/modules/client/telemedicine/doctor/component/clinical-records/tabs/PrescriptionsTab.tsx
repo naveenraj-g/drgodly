@@ -78,6 +78,10 @@ interface PrescriptionsTabProps {
   medications: MedicationFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onMedicationsChange: (items: MedicationFormItem[]) => void;
+  /** Writes one medication to the EMR, resolving to its FHIR id. */
+  onPersistMedication: (item: MedicationFormItem) => Promise<number>;
+  /** Removes one medication from the EMR. */
+  onDeleteMedication: (item: MedicationFormItem) => Promise<void>;
   /** Patient display name for the printable sheet. */
   patientName: string;
   /** Prescriber display name for the printable sheet. */
@@ -197,6 +201,8 @@ function RxPreview({
 export function PrescriptionsTab({
   medications,
   onMedicationsChange,
+  onPersistMedication,
+  onDeleteMedication,
   patientName,
   doctorName,
   appointmentDate,
@@ -229,6 +235,8 @@ export function PrescriptionsTab({
           emptyLabel="No prescriptions for this visit."
           createItem={emptyMedication}
           summary={medicationSummary}
+          onPersistItem={onPersistMedication}
+          onDeleteItem={onDeleteMedication}
           renderFields={(item, onItemChange) => (
             <MedicationFields item={item} onChange={onItemChange} />
           )}

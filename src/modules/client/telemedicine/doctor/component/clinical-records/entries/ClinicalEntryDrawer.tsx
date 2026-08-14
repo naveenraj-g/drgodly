@@ -14,7 +14,7 @@
 
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,6 +40,17 @@ interface ClinicalEntryDrawerProps {
   onClose: () => void;
   /** Removes the entry; omitted when there is no entry open. */
   onRemove?: () => void;
+  /**
+   * Saves the entry to the EMR and closes.
+   *
+   * When provided, the drawer is a save-on-confirm editor: edits are held in
+   * the form until the doctor commits them, so one deliberate action writes to
+   * the patient record rather than every keystroke. When omitted the drawer is
+   * a plain editor whose changes are already held by the caller.
+   */
+  onSave?: () => void;
+  /** True while a save is in flight — disables both footer actions. */
+  isSaving?: boolean;
   /** Resource-specific field groups. */
   children: React.ReactNode;
 }
@@ -57,6 +68,8 @@ export function ClinicalEntryDrawer({
   isPublished = false,
   onClose,
   onRemove,
+  onSave,
+  isSaving = false,
   children,
 }: ClinicalEntryDrawerProps) {
   return (
@@ -72,9 +85,13 @@ export function ClinicalEntryDrawer({
             {title.trim().length > 0 ? title : "Untitled entry"}
           </SheetTitle>
           <SheetDescription>
-            {isPublished
-              ? "Already in the EMR — changes are applied when you publish."
-              : "Not yet in the EMR — publish to save it to the patient record."}
+            {onSave
+              ? isPublished
+                ? "In the patient record — saving applies your changes."
+                : "Not saved yet — saving adds it to the patient record."
+              : isPublished
+                ? "Already in the EMR — changes are applied when you publish."
+                : "Not yet in the EMR — publish to save it to the patient record."}
           </SheetDescription>
         </SheetHeader>
 
@@ -90,6 +107,7 @@ export function ClinicalEntryDrawer({
               size="sm"
               className="gap-1.5 text-muted-foreground hover:text-destructive"
               onClick={onRemove}
+              disabled={isSaving}
             >
               <Trash2 className="size-3.5" />
               Remove
@@ -98,8 +116,14 @@ export function ClinicalEntryDrawer({
             <span />
           )}
 
-          <Button type="button" size="sm" onClick={onClose}>
-            Done
+          <Button
+            type="button"
+            size="sm"
+            onClick={onSave ?? onClose}
+            disabled={isSaving}
+          >
+            {isSaving && <Loader2 className="size-3.5 animate-spin" />}
+            {onSave ? (isSaving ? "Saving…" : "Save") : "Done"}
           </Button>
         </SheetFooter>
       </SheetContent>

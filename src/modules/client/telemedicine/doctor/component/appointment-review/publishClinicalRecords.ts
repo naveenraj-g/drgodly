@@ -45,7 +45,17 @@ import {
   updateServiceRequestAction,
   deleteServiceRequestAction,
 } from "@/modules/server/presentation/actions/service-request/core.actions";
-import { parseDuration } from "./fromFhir";
+import {
+  conditionCreatePayload,
+  conditionUpdatePayload,
+  medicationCreatePayload,
+  medicationUpdatePayload,
+  observationCreatePayload,
+  observationUpdatePayload,
+  serviceRequestCreatePayload,
+  serviceRequestUpdatePayload,
+  type ClinicalWriteContext,
+} from "./clinicalPayloads";
 import type {
   ConditionFormItem,
   MedicationFormItem,
@@ -132,280 +142,67 @@ export async function publishClinicalRecords({
     (id) => !currentServiceRequestFhirIds.has(id),
   );
 
+  /* Subject + encounter every CREATE attaches to. */
+  const ctx: ClinicalWriteContext = { subject, encounterId };
+
   await Promise.all([
     /* ══ Conditions ══════════════════════════════════════════════════════════ */
-
-    /* DELETE removed conditions */
     ...deletedConditionIds.map((id) => deleteConditionAction({ payload: { id } })),
-
-    /* UPDATE existing conditions — scalar fields only; child arrays are immutable */
     ...conditions
       .filter((c) => c.fhirId)
-      .map((c) =>
-        updateConditionAction({
-          payload: {
-            id: c.fhirId!,
-            code_code: c.resolved?.code,
-            code_system: c.resolved?.system,
-            code_display: c.resolved?.display ?? c.display,
-            code_text: c.display,
-            clinical_status_code: c.clinicalStatus ?? "active",
-            verification_status_code: c.verificationStatus ?? "confirmed",
-            severity_code: c.severity ?? undefined,
-            onset_datetime: c.onsetDatetime ?? undefined,
-            abatement_datetime: c.abatementDatetime ?? undefined,
-          },
-        }),
-      ),
-
-    /* CREATE new conditions — include child arrays (category, note) */
+      .map((c) => updateConditionAction({ payload: conditionUpdatePayload(c) })),
     ...conditions
       .filter((c) => !c.fhirId)
       .map((c) =>
-        createConditionAction({
-          payload: {
-            clinical_status_code: c.clinicalStatus ?? "active",
-            verification_status_code: c.verificationStatus ?? "confirmed",
-            severity_code: c.severity ?? undefined,
-            code_code: c.resolved?.code,
-            code_system: c.resolved?.system,
-            code_display: c.resolved?.display ?? c.display,
-            code_text: c.display,
-            subject,
-            encounter_id: encounterId,
-            onset_datetime: c.onsetDatetime ?? undefined,
-            abatement_datetime: c.abatementDatetime ?? undefined,
-            ...(c.category ? { category: [{ coding_code: c.category }] } : {}),
-            ...(c.note ? { note: [{ text: c.note }] } : {}),
-          },
-        }),
+        createConditionAction({ payload: conditionCreatePayload(c, ctx) }),
       ),
 
     /* ══ Observations ════════════════════════════════════════════════════════ */
-
-    /* DELETE removed observations */
     ...deletedObservationIds.map((id) =>
       deleteObservationAction({ payload: { id } }),
     ),
-
-    /* UPDATE existing observations — child arrays (category/interpretation/ref_range/note) are immutable */
     ...observations
       .filter((o) => o.fhirId)
-      .map((o) => {
-        const rawValue = o.editedValue ?? o.value ?? null;
-        const numericValue = rawValue !== null ? parseFloat(rawValue) : undefined;
-        const isNumeric = numericValue !== undefined && !isNaN(numericValue);
-        return updateObservationAction({
-          payload: {
-            id: o.fhirId!,
-            status: o.status ?? "final",
-            code_code: o.resolved?.code,
-            code_system: o.resolved?.system,
-            code_display: o.resolved?.display ?? o.display,
-            code_text: o.display,
-            effective_date_time: o.effectiveDatetime ?? undefined,
-            ...(isNumeric
-              ? {
-                  value_quantity_value: numericValue,
-                  value_quantity_unit: o.editedUnit ?? o.unit ?? undefined,
-                }
-              : {
-                  value_string: rawValue ?? o.display,
-                }),
-          },
-        });
-      }),
-
-    /* CREATE new observations — include all child arrays */
+      .map((o) =>
+        updateObservationAction({ payload: observationUpdatePayload(o) }),
+      ),
     ...observations
       .filter((o) => !o.fhirId)
-      .map((o) => {
-        const rawValue = o.editedValue ?? o.value ?? null;
-        const numericValue = rawValue !== null ? parseFloat(rawValue) : undefined;
-        const isNumeric = numericValue !== undefined && !isNaN(numericValue);
-
-        const refRangeLowNum = o.refRangeLow ? parseFloat(o.refRangeLow) : undefined;
-        const refRangeHighNum = o.refRangeHigh ? parseFloat(o.refRangeHigh) : undefined;
-        const hasRefRange =
-          (refRangeLowNum !== undefined && !isNaN(refRangeLowNum)) ||
-          (refRangeHighNum !== undefined && !isNaN(refRangeHighNum));
-
-        return createObservationAction({
-          payload: {
-            status: o.status ?? "final",
-            code_code: o.resolved?.code,
-            code_system: o.resolved?.system,
-            code_display: o.resolved?.display ?? o.display,
-            code_text: o.display,
-            effective_date_time: o.effectiveDatetime ?? undefined,
-            ...(isNumeric
-              ? {
-                  value_quantity_value: numericValue,
-                  value_quantity_unit: o.editedUnit ?? o.unit ?? undefined,
-                }
-              : {
-                  value_string: rawValue ?? o.display,
-                }),
-            subject,
-            encounter_id: encounterId,
-            ...(o.category ? { category: [{ coding_code: o.category }] } : {}),
-            ...(o.interpretation
-              ? { interpretation: [{ coding_code: o.interpretation }] }
-              : {}),
-            ...(hasRefRange
-              ? {
-                  reference_range: [
-                    {
-                      ...(refRangeLowNum !== undefined && !isNaN(refRangeLowNum)
-                        ? { low_value: refRangeLowNum, low_unit: o.refRangeUnit }
-                        : {}),
-                      ...(refRangeHighNum !== undefined && !isNaN(refRangeHighNum)
-                        ? { high_value: refRangeHighNum, high_unit: o.refRangeUnit }
-                        : {}),
-                    },
-                  ],
-                }
-              : {}),
-            ...(o.note ? { note: [{ text: o.note }] } : {}),
-          },
-        });
-      }),
+      .map((o) =>
+        createObservationAction({ payload: observationCreatePayload(o, ctx) }),
+      ),
 
     /* ══ Medication requests ══════════════════════════════════════════════════ */
-
-    /* DELETE removed medications */
     ...deletedMedicationIds.map((id) =>
       deleteMedicationRequestAction({ payload: { id } }),
     ),
-
-    /* UPDATE existing medications — scalar + dispense fields; dosage_instruction children are immutable */
     ...medications
       .filter((m) => m.fhirId)
       .map((m) =>
-        updateMedicationRequestAction({
-          payload: {
-            id: m.fhirId!,
-            status: m.status ?? "active",
-            intent: m.intent ?? "order",
-            medication_code_code: m.resolved?.code,
-            medication_code_system: m.resolved?.system,
-            medication_code_display: m.resolved?.display ?? m.display,
-            medication_code_text: m.display,
-            priority: m.priority ?? undefined,
-            course_of_therapy_type_code: m.courseOfTherapyType ?? undefined,
-            dispense_number_of_repeats_allowed: m.dispenseRepeatsAllowed ?? undefined,
-            dispense_quantity_value: m.dispenseQuantityValue
-              ? parseFloat(m.dispenseQuantityValue)
-              : undefined,
-            dispense_quantity_unit: m.dispenseQuantityUnit ?? undefined,
-            substitution_allowed_boolean: m.substitutionAllowed ?? undefined,
-          },
+        updateMedicationRequestAction({ payload: medicationUpdatePayload(m) }),
+      ),
+    ...medications
+      .filter((m) => !m.fhirId)
+      .map((m) =>
+        createMedicationRequestAction({
+          payload: medicationCreatePayload(m, ctx),
         }),
       ),
 
-    /* CREATE new medications — include dosage_instruction + child arrays */
-    ...medications
-      .filter((m) => !m.fhirId)
-      .map((m) => {
-        const durStr = m.editedDuration ?? m.duration;
-        const parsedDur = parseDuration(durStr);
-        return createMedicationRequestAction({
-          payload: {
-            status: m.status ?? "active",
-            intent: m.intent ?? "order",
-            medication_code_code: m.resolved?.code,
-            medication_code_system: m.resolved?.system,
-            medication_code_display: m.resolved?.display ?? m.display,
-            medication_code_text: m.display,
-            subject,
-            encounter_id: encounterId,
-            priority: m.priority ?? undefined,
-            course_of_therapy_type_code: m.courseOfTherapyType ?? undefined,
-            dispense_number_of_repeats_allowed: m.dispenseRepeatsAllowed ?? undefined,
-            dispense_quantity_value: m.dispenseQuantityValue
-              ? parseFloat(m.dispenseQuantityValue)
-              : undefined,
-            dispense_quantity_unit: m.dispenseQuantityUnit ?? undefined,
-            substitution_allowed_boolean: m.substitutionAllowed ?? undefined,
-            dosage_instruction: [
-              {
-                text: m.editedDose ?? m.dose ?? undefined,
-                route_display: m.editedRoute ?? m.route ?? undefined,
-                timing_code_display: m.editedFrequency ?? m.frequency ?? undefined,
-                patient_instruction: m.patientInstruction ?? undefined,
-                ...(parsedDur
-                  ? {
-                      timing_repeat_duration: parsedDur.value,
-                      timing_repeat_duration_unit: parsedDur.unit,
-                    }
-                  : {}),
-              },
-            ],
-            ...(m.reasonCode ? { reason_code: [{ text: m.reasonCode }] } : {}),
-            ...(m.note ? { note: [{ text: m.note }] } : {}),
-          },
-        });
-      }),
-
     /* ══ Service requests ════════════════════════════════════════════════════ */
-
-    /* DELETE removed service requests */
     ...deletedServiceRequestIds.map((id) =>
       deleteServiceRequestAction({ payload: { id } }),
     ),
-
-    /* UPDATE existing service requests — scalar fields; child arrays are immutable */
     ...serviceRequests
       .filter((s) => s.fhirId)
       .map((s) =>
-        updateServiceRequestAction({
-          payload: {
-            id: s.fhirId!,
-            status: s.status ?? "active",
-            intent: s.intent ?? "order",
-            code_code: s.resolved?.code,
-            code_system: s.resolved?.system,
-            code_display: s.resolved?.display ?? s.display,
-            code_text: s.display,
-            priority: s.priority ?? undefined,
-            occurrence_datetime: s.occurrenceDatetime ?? undefined,
-            patient_instruction: s.patientInstruction ?? undefined,
-            as_needed_boolean: s.asNeeded ?? undefined,
-          },
-        }),
+        updateServiceRequestAction({ payload: serviceRequestUpdatePayload(s) }),
       ),
-
-    /* CREATE new service requests — include child arrays (category, reason_code, note) */
     ...serviceRequests
       .filter((s) => !s.fhirId)
       .map((s) =>
         createServiceRequestAction({
-          payload: {
-            status: s.status ?? "active",
-            intent: s.intent ?? "order",
-            code_code: s.resolved?.code,
-            code_system: s.resolved?.system,
-            code_display: s.resolved?.display ?? s.display,
-            code_text: s.display,
-            priority: s.priority ?? undefined,
-            subject,
-            encounter_id: encounterId,
-            occurrence_datetime: s.occurrenceDatetime ?? undefined,
-            patient_instruction: s.patientInstruction ?? undefined,
-            as_needed_boolean: s.asNeeded ?? undefined,
-            ...(s.category
-              ? {
-                  category: [
-                    {
-                      coding_system: "http://snomed.info/sct",
-                      coding_code: s.category,
-                    },
-                  ],
-                }
-              : {}),
-            ...(s.reasonCode ? { reason_code: [{ text: s.reasonCode }] } : {}),
-            ...(s.note ? { note: [{ text: s.note }] } : {}),
-          },
+          payload: serviceRequestCreatePayload(s, ctx),
         }),
       ),
   ]);

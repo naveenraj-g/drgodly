@@ -32,6 +32,12 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+/* Shared with AttachmentList so a file is labelled the same way while it is
+   being staged as it will be once it is on the record. */
+import {
+  fileExtension,
+  formatBytes,
+} from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -60,39 +66,6 @@ interface FileStagingPanelProps {
   hint?: string;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Formats a byte count as a human-readable string.
- * @param bytes - Raw byte count.
- */
-function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/**
- * Derives a short uppercase extension label from filename or MIME type.
- *
- * @param title - Filename.
- * @param contentType - MIME type.
- * @returns Short label for the badge.
- */
-function getFileExt(title?: string | null, contentType?: string | null): string {
-  if (title) {
-    const ext = title.split(".").pop();
-    if (ext && ext.length <= 5) return ext.toUpperCase();
-  }
-  if (contentType) {
-    if (contentType.includes("pdf")) return "PDF";
-    const sub = contentType.split("/")[1];
-    if (sub) return sub.split(";")[0].toUpperCase().slice(0, 5);
-  }
-  return "FILE";
-}
-
 // ── FileRow ───────────────────────────────────────────────────────────────────
 
 /**
@@ -114,7 +87,7 @@ function FileRow({
         variant="secondary"
         className="text-[10px] font-mono shrink-0 min-w-13 justify-center"
       >
-        {getFileExt(entry.file.name, entry.file.type)}
+        {fileExtension(entry.file.name, entry.file.type)}
       </Badge>
 
       <div className="flex-1 min-w-0">

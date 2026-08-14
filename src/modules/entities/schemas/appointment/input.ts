@@ -66,6 +66,23 @@ export const BookAppointmentValidationSchema = z.object({
   practitioner_display: z.string().optional(),
   /** Display name of the patient — stored as the Patient participant's reference_display. */
   patient_display: z.string().optional(),
+  /**
+   * Appointment type — all four fields default to the booked Slot's own values,
+   * which fhir-gql copies across during booking. Only send these to override the
+   * Slot; they move as a group, so supplying a code replaces the Slot's system
+   * and display too rather than merging.
+   *
+   * Must be set at booking time: the fhir-server's Appointment patch schema has
+   * no appointment_type_* fields, so the type cannot be added afterwards.
+   *
+   * Free strings, not an enum — FHIR binds appointmentType as *preferred*, so
+   * local code systems are legal. Common v2-0276 codes: ROUTINE (the value set's
+   * own default), CHECKUP, FOLLOWUP, WALKIN, EMERGENCY.
+   */
+  appointment_type_system: z.string().optional(),
+  appointment_type_code: z.string().optional(),
+  appointment_type_display: z.string().optional(),
+  appointment_type_text: z.string().optional(),
   service_type_code: z.string().optional(),
   service_type_display: z.string().optional(),
   reason_code: z.string().optional(),

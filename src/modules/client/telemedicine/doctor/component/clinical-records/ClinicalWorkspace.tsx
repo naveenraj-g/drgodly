@@ -3,17 +3,25 @@
  *
  * Layer: client / telemedicine / doctor / component / clinical-records
  *
- * The full clinical record for one appointment, across five tabs: Summary,
- * Diagnoses, Prescriptions, Orders and Documents. This component owns all
- * editable state so that a single autosave and a single publish cover
- * everything the doctor typed, wherever they typed it.
+ * The full clinical record for one appointment, across seven tabs: Note,
+ * Diagnoses, Prescriptions, Orders, Documents, Intake and Timeline. This
+ * component owns all editable state so that a single autosave and a single
+ * publish cover everything the doctor typed, wherever they typed it.
  *
- * Staging → publish (the model already used by the post-consultation review):
+ * Timeline replaces the old Visit tab's static appointment/encounter cards
+ * with buildAppointmentTimeline's chronological event list — booking through
+ * chart approval, assembled from props this component already receives, no
+ * extra fetch involved.
  *
- *   1. Edits live in local state and debounce-autosave to the Consultation row
- *      via saveClinicalDataAction — this is the staging area, local Postgres.
- *   2. "Publish to EMR" runs publishClinicalRecords, which diffs against the
- *      FHIR IDs loaded at mount and CREATEs / UPDATEs / DELETEs real resources.
+ * Entries write straight to FHIR. There is no staging row and no publish step
+ * here: the doctor working in this screen is editing the patient's record, so
+ * saving an entry creates or updates it in the EMR immediately, and removing
+ * one deletes it.
+ *
+ * The SOAP note is the exception — it is read-only here and written only on the
+ * post-consultation review page, which is where a batch of AI suggestions gets
+ * accepted in one act. Both header states link there: "Review & approve" before
+ * anything is in the chart, "Edit note & entries" afterwards.
  *
  * Seed priority is: published FHIR records → staged draft → AI full report.
  * Published records win because they carry fhirId, which is what makes an edit
@@ -22,44 +30,32 @@
 
 "use client";
 
-import { useCallback, useRef, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import {
   Brain,
   CalendarDays,
   CheckCircle2,
-  CloudUpload,
+  ClipboardCheck,
   FileStack,
   FileText,
   FlaskConical,
-  Loader2,
+  GitCommitVertical,
+  PenLine,
   Pill,
-  Sparkles,
-  Stethoscope,
   User,
 } from "lucide-react";
 
+import { Link } from "@/i18n/navigation";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  isDoctorApproved,
+  ReviewBadge,
+  ReviewBanner,
+} from "@/modules/client/telemedicine/shared/components/clinical/ReviewStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-/* Imported from the hook file rather than the tables barrel — the barrel also
-   re-exports the PDF/Excel export utilities, which would land in this bundle. */
-import { useDebouncedCallback } from "@/modules/client/shared/components/tables/hooks/use-debounced-callback";
-import { saveClinicalDataAction } from "@/modules/server/presentation/actions/consultation/core.actions";
-
-import { publishClinicalRecords } from "../appointment-review/publishClinicalRecords";
 import {
   conditionFromFhir,
   medicationFromFhir,
@@ -67,19 +63,22 @@ import {
   serviceRequestFromFhir,
 } from "../appointment-review/fromFhir";
 import {
+  deleteClinicalEntry,
+  persistClinicalEntry,
+  type ClinicalEntryByKind,
+  type ClinicalEntryKind,
+} from "./persistEntry";
+import type { ClinicalWriteContext } from "../appointment-review/clinicalPayloads";
+import {
   normaliseConditions,
   normaliseMedications,
   normaliseObservations,
   normaliseServiceRequests,
   seedSoapNote,
 } from "./clinicalDraft";
-import {
-  countPublished,
-  fetchClinicalExtraction,
-  toFormItems,
-} from "./reExtract";
 import { ConsultationNoteCanvas } from "./note/ConsultationNoteCanvas";
-import { SummaryTab } from "./tabs/SummaryTab";
+import { AppointmentTimeline } from "./timeline/AppointmentTimeline";
+import { buildAppointmentTimeline } from "./timeline/buildTimeline";
 import { DiagnosesTab } from "./tabs/DiagnosesTab";
 import { PrescriptionsTab } from "./tabs/PrescriptionsTab";
 import { OrdersTab } from "./tabs/OrdersTab";
@@ -105,12 +104,6 @@ import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
 import type { TConsultationTranscriptMessage } from "@/modules/entities/schemas/consultation";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-/**
- * Debounce before an edit is written to staging. Long enough that typing a
- * sentence is one write, short enough that navigating away rarely loses work.
- */
-const AUTOSAVE_DELAY_MS = 1200;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -163,8 +156,17 @@ export interface ClinicalWorkspaceProps {
   intake: TIntakeResponse | null;
   /** Live consultation transcript for the Intake tab, possibly empty. */
   transcript: TConsultationTranscriptMessage[];
-  /** Raw AI assessment passed to the extraction agent as extra context. */
-  aiAssessment?: unknown;
+  /**
+   * `Consultation.published_at` — when the doctor approved the note and
+   * entries on the review page, or null while they are still AI suggestions.
+   */
+  publishedAt: Date | string | null;
+  /**
+   * `Consultation.created_at` — when the AI agent produced the SOAP note and
+   * extraction. Feeds the Timeline tab's "AI clinical note generated" event;
+   * not used anywhere else on this screen.
+   */
+  consultationCreatedAt: Date | string | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -194,9 +196,15 @@ export function ClinicalWorkspace({
   aiSoapNote,
   intake,
   transcript,
-  aiAssessment,
+  publishedAt,
+  consultationCreatedAt,
 }: ClinicalWorkspaceProps) {
+  /* Refreshed after every write so server-derived data — the review status, the
+     result files hanging off an order — reflects what was just saved. */
   const router = useRouter();
+
+  /** FHIR subject reference every created resource is attached to. */
+  const subject = `Patient/${patientId}`;
 
   /* Anything already in the EMR takes precedence over the staged draft. */
   const hasPublished =
@@ -207,7 +215,9 @@ export function ClinicalWorkspace({
 
   // ── Form state ──────────────────────────────────────────────────────────────
 
-  const [soap, setSoap] = useState<SoapNote>(() =>
+  /* Read-only on this screen — seeded once, never set. The note is edited on
+     the review page. */
+  const [soap] = useState<SoapNote>(() =>
     seedSoapNote(staged.soapNote, aiSoapNote),
   );
   const [conditions, setConditions] = useState<ConditionFormItem[]>(() =>
@@ -232,196 +242,118 @@ export function ClinicalWorkspace({
         : normaliseServiceRequests(staged.serviceRequests),
   );
 
-  // ── Save / publish status ───────────────────────────────────────────────────
+  // ── Direct-to-EMR writes ────────────────────────────────────────────────────
 
-  /** Draft indicator shown in the header. */
-  const [draftState, setDraftState] = useState<"idle" | "saving" | "saved" | "error">(
-    "idle",
-  );
-  const [isPublishing, startPublish] = useTransition();
-  /** True once the doctor has published in this session — flips the header badge. */
-  const [publishedNow, setPublishedNow] = useState(false);
-
-  /** FHIR IDs present at mount — the baseline the publish diff works against. */
-  const initialFhirIds = useRef({
-    conditions: new Set(savedConditions.map((c) => c.id)),
-    observations: new Set(savedObservations.map((o) => o.id)),
-    medications: new Set(savedMedications.map((m) => m.id)),
-    serviceRequests: new Set(savedServiceRequests.map((s) => s.id)),
-  });
-
-  const subject = `Patient/${patientId}`;
-
-  // ── Draft autosave ──────────────────────────────────────────────────────────
-
-  /**
-   * Writes the current draft to the Consultation staging row.
-   * Debounced by the caller — never call this directly from a change handler.
+  /*
+   * This workspace writes straight to FHIR. There is no staging row and no
+   * publish step: the doctor here is editing the patient's record, so every
+   * entry is created, updated or deleted as they save it.
    *
-   * @param draft - The complete draft snapshot to stage.
+   * The consultation staging columns are still written by the review page,
+   * which is a different job — accepting a batch of AI suggestions in one act.
    */
-  const saveDraft = useCallback(
-    async (draft: {
-      soap: SoapNote;
-      conditions: ConditionFormItem[];
-      observations: ObservationFormItem[];
-      medications: MedicationFormItem[];
-      serviceRequests: ServiceRequestFormItem[];
-    }) => {
-      setDraftState("saving");
-      const [, err] = await saveClinicalDataAction({
-        payload: {
-          fhir_appointment_id: appointmentId,
-          soap_note: draft.soap,
-          conditions: draft.conditions,
-          observations: draft.observations,
-          medication_requests: draft.medications,
-          service_requests: draft.serviceRequests,
-        },
-      });
-      setDraftState(err ? "error" : "saved");
-    },
-    [appointmentId],
-  );
-
-  const scheduleSave = useDebouncedCallback(saveDraft, AUTOSAVE_DELAY_MS);
+  const writeContext: ClinicalWriteContext | null =
+    encounterId != null ? { subject, encounterId } : null;
 
   /**
-   * Applies a state change and stages the resulting draft.
+   * Builds the save handler for one resource kind.
    *
-   * Every tab funnels its edits through here so the autosave always sees a
-   * complete snapshot — passing only the changed slice would stage a draft
-   * where the other four are whatever they were on the last save.
-   *
-   * @param patch - The slice of draft state that changed.
+   * @param kind - Which resource the entries belong to.
+   * @returns A handler resolving to the entry's FHIR id.
+   * @throws When there is no encounter to attach the record to.
    */
-  const commit = useCallback(
-    (patch: {
-      soap?: SoapNote;
-      conditions?: ConditionFormItem[];
-      observations?: ObservationFormItem[];
-      medications?: MedicationFormItem[];
-      serviceRequests?: ServiceRequestFormItem[];
-    }) => {
-      const next = {
-        soap: patch.soap ?? soap,
-        conditions: patch.conditions ?? conditions,
-        observations: patch.observations ?? observations,
-        medications: patch.medications ?? medications,
-        serviceRequests: patch.serviceRequests ?? serviceRequests,
-      };
-
-      if (patch.soap) setSoap(patch.soap);
-      if (patch.conditions) setConditions(patch.conditions);
-      if (patch.observations) setObservations(patch.observations);
-      if (patch.medications) setMedications(patch.medications);
-      if (patch.serviceRequests) setServiceRequests(patch.serviceRequests);
-
-      scheduleSave(next);
-    },
-    [soap, conditions, observations, medications, serviceRequests, scheduleSave],
-  );
-
-  // ── Re-extract ──────────────────────────────────────────────────────────────
-
-  /** True while the extraction agent request is in flight. */
-  const [isExtracting, setIsExtracting] = useState(false);
-  /** Open state for the confirm shown when published entries would be replaced. */
-  const [confirmReExtract, setConfirmReExtract] = useState(false);
-
-  /** How many current entries already exist in the EMR. */
-  const publishedCount = countPublished({
-    conditions,
-    observations,
-    medications,
-    serviceRequests,
-  });
-
-  /**
-   * Re-runs the extraction agent over the current note and replaces all four
-   * lists with the result. Staged through commit() like any other edit.
-   */
-  const runReExtract = useCallback(async () => {
-    setIsExtracting(true);
-    try {
-      const result = await fetchClinicalExtraction(soap, aiAssessment);
-      const next = toFormItems(result);
-      commit({
-        conditions: next.conditions,
-        observations: next.observations,
-        medications: next.medications,
-        serviceRequests: next.serviceRequests,
-      });
-      toast.success("Clinical entries regenerated from the note.");
-    } catch (err) {
-      console.error("[ClinicalWorkspace] re-extract failed:", err);
-      toast.error("Could not regenerate entries. Please try again.");
-    } finally {
-      setIsExtracting(false);
-    }
-  }, [soap, aiAssessment, commit]);
-
-  /**
-   * Entry point for the header action — confirms first when the replacement
-   * would discard entries that are already in the EMR.
-   */
-  function handleReExtractClick() {
-    if (publishedCount > 0) {
-      setConfirmReExtract(true);
-      return;
-    }
-    void runReExtract();
+  function persistFor<K extends ClinicalEntryKind>(kind: K) {
+    return async (item: ClinicalEntryByKind[K]): Promise<number> => {
+      if (!writeContext) {
+        /* Every clinical resource hangs off an encounter, so without one there
+           is nothing to attach the record to. */
+        throw new Error(
+          "This visit has no encounter yet, so records cannot be saved to it.",
+        );
+      }
+      const fhirId = await persistClinicalEntry(kind, item, writeContext);
+      /* Re-read so anything derived from the record on the server — the review
+         status, the result files hanging off an order — reflects the write. */
+      router.refresh();
+      return fhirId;
+    };
   }
 
-  // ── Publish ─────────────────────────────────────────────────────────────────
-
   /**
-   * Publishes the draft to the EMR, then refreshes so the page re-reads the
-   * newly created resources (which is what gives new items their fhirId).
+   * Builds the delete handler for one resource kind.
+   *
+   * An entry with no fhirId was never saved, so there is nothing to delete —
+   * the list drops it locally and this resolves immediately.
+   *
+   * @param kind - Which resource the entries belong to.
+   * @returns A handler that removes the entry from the EMR.
    */
-  const handlePublish = () => {
-    if (encounterId == null) {
-      toast.error("No encounter for this appointment — nothing to publish to.");
-      return;
-    }
+  function deleteFor<K extends ClinicalEntryKind>(kind: K) {
+    return async (item: ClinicalEntryByKind[K]): Promise<void> => {
+      if (item.fhirId == null) return;
+      await deleteClinicalEntry(kind, item.fhirId);
+      router.refresh();
+    };
+  }
 
-    startPublish(async () => {
-      try {
-        initialFhirIds.current = await publishClinicalRecords({
-          conditions,
-          observations,
-          medications,
-          serviceRequests,
-          initialFhirIds: initialFhirIds.current,
-          subject,
-          encounterId,
-        });
+  // ── Review hand-off ─────────────────────────────────────────────────────────
 
-        setPublishedNow(true);
-        toast.success("Clinical record published to the patient's EMR.");
-
-        /* Re-read from FHIR so newly created items come back with their ids. */
-        router.refresh();
-      } catch (err) {
-        console.error("[ClinicalWorkspace] publish failed:", err);
-        toast.error("Failed to publish some records. Please try again.");
-      }
-    });
-  };
+  /*
+   * Publishing and re-extraction deliberately do not live here any more. The
+   * review page is the single approval surface: it is where the doctor edits
+   * the SOAP note, regenerates the clinical extraction and pushes to the EMR.
+   * This workspace shows the record and hands off to it, so there is one place
+   * where records enter the chart rather than two that can disagree.
+   */
+  const reviewHref = `/bezs/telemedicine/doctor/appointments/${appointmentId}/review`;
 
   // ── Header status ───────────────────────────────────────────────────────────
 
-  /** Human-readable draft indicator for the header. */
-  const draftLabel =
-    draftState === "saving"
-      ? "Saving draft…"
-      : draftState === "saved"
-        ? "Draft saved"
-        : draftState === "error"
-          ? "Draft not saved"
-          : null;
+  /*
+   * The approval stamp is authoritative; hasPublished (any FHIR resource on the
+   * encounter) is only a fallback for consultations written before the column
+   * existed. It is also not equivalent — a doctor who approves the note but
+   * rejects every extracted entry creates no FHIR resources at all, and the
+   * old count-based check called that "not in the chart".
+   */
+  const isPublished = isDoctorApproved(publishedAt, hasPublished);
 
-  const isPublished = hasPublished || publishedNow;
+  /* Recomputed only when a dependency actually changes — the builder walks
+     every clinical entry on the encounter, which is cheap once but not worth
+     redoing on every keystroke in another tab. */
+  const timelineEvents = useMemo(
+    () =>
+      buildAppointmentTimeline({
+        appointment,
+        encounters,
+        intake,
+        transcript,
+        consultationCreatedAt,
+        publishedAt,
+        savedConditions,
+        savedObservations,
+        savedMedications,
+        savedServiceRequests,
+        diagnosticReports,
+        documents,
+        doctorName,
+      }),
+    [
+      appointment,
+      encounters,
+      intake,
+      transcript,
+      consultationCreatedAt,
+      publishedAt,
+      savedConditions,
+      savedObservations,
+      savedMedications,
+      savedServiceRequests,
+      diagnosticReports,
+      documents,
+      doctorName,
+    ],
+  );
 
   return (
     <div className="space-y-4">
@@ -454,57 +386,48 @@ export function ClinicalWorkspace({
           </Badge>
 
           <div className="ml-auto flex items-center gap-3">
-            {draftLabel && (
-              <span
-                className={
-                  draftState === "error"
-                    ? "text-xs text-destructive"
-                    : "text-xs text-muted-foreground"
-                }
-              >
-                {draftLabel}
-              </span>
-            )}
+            {/* Same wording as every other surface showing this content. */}
+            <ReviewBadge approved={isPublished} />
 
-            <Badge
-              variant={isPublished ? "secondary" : "outline"}
-              className="text-xs font-normal"
-            >
-              {isPublished ? "Published" : "Draft"}
-            </Badge>
-
-            {/* Regenerates all four entry lists from the current note */}
+            {/*
+              One action, wording chosen by state. Before approval it is the
+              call to action that gets the record into the chart; afterwards it
+              is the way back in to amend the note or re-run the extraction.
+              Both land on the same review page.
+            */}
             <Button
-              variant="outline"
+              asChild
               size="sm"
+              variant={isPublished ? "outline" : "default"}
               className="gap-2"
-              onClick={handleReExtractClick}
-              disabled={isExtracting || isPublishing}
             >
-              {isExtracting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              {isExtracting ? "Extracting…" : "Re-extract"}
-            </Button>
-
-            <Button
-              size="sm"
-              className="gap-2"
-              onClick={handlePublish}
-              disabled={isPublishing || encounterId == null}
-            >
-              {isPublishing ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <CloudUpload className="size-4" />
-              )}
-              {isPublishing ? "Publishing…" : "Publish to EMR"}
+              <Link href={reviewHref}>
+                {isPublished ? (
+                  <PenLine className="size-4" />
+                ) : (
+                  <ClipboardCheck className="size-4" />
+                )}
+                {isPublished ? "Edit note & entries" : "Review & approve"}
+              </Link>
             </Button>
           </div>
         </div>
       </div>
+
+      {/*
+        ── Awaiting-approval notice ──
+        Shown until something for this encounter exists in FHIR. Everything on
+        this page is then coming from the staging draft or the AI report, which
+        looks identical to a real chart entry — so it has to say plainly that
+        none of it is in the patient's record yet, and where to go to change
+        that. Hidden once published, when the header action is enough.
+      */}
+      {!isPublished && (
+        <ReviewBanner
+          subject="note and its clinical entries"
+          reviewHref={reviewHref}
+        />
+      )}
 
       {/* ── Tabs ── */}
       <Tabs defaultValue="note" className="w-full">
@@ -533,39 +456,54 @@ export function ClinicalWorkspace({
             <Brain className="size-3.5" />
             Intake
           </TabsTrigger>
-          <TabsTrigger value="visit" className="gap-1.5">
-            <Stethoscope className="size-3.5" />
-            Visit
+          <TabsTrigger value="timeline" className="gap-1.5">
+            <GitCommitVertical className="size-3.5" />
+            Timeline
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="note" className="mt-4">
+          {/* Read-only. The note is written and approved on the review page —
+              the single place that can publish it. Editing it here would stage
+              changes on a surface with no way to push them to the chart. */}
           <ConsultationNoteCanvas
             soap={soap}
-            onChange={(next) => commit({ soap: next })}
+            readOnly
+            /* Stamps a DRAFT line into downloaded copies of an unapproved
+               note — the on-screen banner cannot travel with the file. */
+            reviewed={isPublished}
+            /* The transcript sits with the note it was written from, behind a
+               Conversation button, rather than under the Intake tab. */
+            transcript={transcript}
             patientName={patientName}
             doctorName={doctorName}
             appointmentDate={appointmentDate}
           />
         </TabsContent>
 
-        <TabsContent value="visit" className="mt-4">
-          <SummaryTab appointment={appointment} encounters={encounters} />
+        <TabsContent value="timeline" className="mt-4">
+          <AppointmentTimeline events={timelineEvents} />
         </TabsContent>
 
         <TabsContent value="diagnoses" className="mt-4">
           <DiagnosesTab
             conditions={conditions}
-            onConditionsChange={(next) => commit({ conditions: next })}
+            onConditionsChange={setConditions}
             observations={observations}
-            onObservationsChange={(next) => commit({ observations: next })}
+            onObservationsChange={setObservations}
+            onPersistCondition={persistFor("condition")}
+            onDeleteCondition={deleteFor("condition")}
+            onPersistObservation={persistFor("observation")}
+            onDeleteObservation={deleteFor("observation")}
           />
         </TabsContent>
 
         <TabsContent value="prescriptions" className="mt-4">
           <PrescriptionsTab
             medications={medications}
-            onMedicationsChange={(next) => commit({ medications: next })}
+            onMedicationsChange={setMedications}
+            onPersistMedication={persistFor("medication")}
+            onDeleteMedication={deleteFor("medication")}
             patientName={patientName}
             doctorName={doctorName}
             appointmentDate={appointmentDate}
@@ -575,9 +513,12 @@ export function ClinicalWorkspace({
         <TabsContent value="orders" className="mt-4">
           <OrdersTab
             serviceRequests={serviceRequests}
-            onServiceRequestsChange={(next) => commit({ serviceRequests: next })}
+            onServiceRequestsChange={setServiceRequests}
+            onPersistServiceRequest={persistFor("serviceRequest")}
+            onDeleteServiceRequest={deleteFor("serviceRequest")}
             diagnosticReports={diagnosticReports}
             patientId={patientId}
+            appointmentId={appointmentId}
           />
         </TabsContent>
 
@@ -586,37 +527,15 @@ export function ClinicalWorkspace({
             documents={documents}
             patientId={patientId}
             encounterId={encounterId}
+            appointmentId={appointmentId}
           />
         </TabsContent>
 
         <TabsContent value="intake" className="mt-4">
-          <IntakeTab intake={intake} transcript={transcript} />
+          <IntakeTab intake={intake} />
         </TabsContent>
       </Tabs>
 
-      {/* ── Re-extract confirm ── */}
-      <AlertDialog open={confirmReExtract} onOpenChange={setConfirmReExtract}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Replace clinical entries?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Re-extracting rebuilds all diagnoses, findings, prescriptions and
-              orders from the note.{" "}
-              <strong>
-                {publishedCount} {publishedCount === 1 ? "entry" : "entries"}
-              </strong>{" "}
-              already in the EMR will be replaced with new records when you next
-              publish, and any manual edits will be lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void runReExtract()}>
-              Replace entries
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -21,7 +21,19 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, type LucideIcon } from "lucide-react";
+import { Loader2, Plus, type LucideIcon } from "lucide-react";
+import { toast } from "sonner";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +82,32 @@ interface ClinicalEntryListProps<T extends ClinicalEntryBase> {
   renderFields: (item: T, onItemChange: (item: T) => void) => React.ReactNode;
   /** Optional hint shown in the section header. */
   hint?: string;
+  /**
+   * Optional content rendered attached beneath a row, inside the same bordered
+   * group. Return null for rows that need none.
+   *
+   * Exists for Orders, where each order carries its own uploaded result files
+   * and an upload action. Those used to live in a second section listing every
+   * published order again — so an order appeared twice on one screen, and its
+   * files sat nowhere near the order they belonged to.
+   */
+  renderRowExtra?: (item: T) => React.ReactNode;
+  /**
+   * Writes one entry to the EMR, resolving to its FHIR id.
+   *
+   * When supplied the list becomes a direct editor: the drawer gains a Save
+   * button, edits are held locally until it is pressed, and the returned id is
+   * written back onto the entry so the next save updates rather than
+   * duplicates. When omitted the list stays a controlled form and the caller
+   * owns persistence.
+   */
+  onPersistItem?: (item: T) => Promise<number>;
+  /**
+   * Removes one entry from the EMR. Called before it leaves the list, so a
+   * failed delete leaves the entry visible rather than silently dropping it
+   * from the screen while it still exists in the record.
+   */
+  onDeleteItem?: (item: T) => Promise<void>;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -90,28 +128,147 @@ export function ClinicalEntryList<T extends ClinicalEntryBase>({
   summary,
   renderFields,
   hint,
+  renderRowExtra,
+  onPersistItem,
+  onDeleteItem,
 }: ClinicalEntryListProps<T>) {
   /** Id of the entry currently open in the drawer, or null when closed. */
   const [openId, setOpenId] = useState<string | null>(null);
+  /** True while a save or delete is in flight. */
+  const [isBusy, setIsBusy] = useState(false);
+  /**
+   * The entry being edited in the drawer, held apart from the list while
+   * onPersistItem is in use.
+   *
+   * Direct-to-EMR editing needs a buffer: without one every keystroke would
+   * land in the list, and an abandoned edit would leave the row showing changes
+   * that were never written to the record.
+   */
+  const [draft, setDraft] = useState<T | null>(null);
+  /** Entry awaiting delete confirmation, or null when none is pending. */
+  const [pendingDelete, setPendingDelete] = useState<T | null>(null);
 
-  const openItem = items.find((i) => i.id === openId) ?? null;
+  const listItem = items.find((i) => i.id === openId) ?? null;
+  const openItem = onPersistItem ? draft : listItem;
 
-  /** Appends a blank entry and opens it immediately for editing. */
+  /**
+   * Appends a blank entry and opens it for editing.
+   *
+   * In direct-to-EMR mode the blank entry is opened as a draft only — it does
+   * not join the list until it saves, so cancelling never leaves an empty row
+   * behind.
+   */
   function handleAdd() {
     const item = createItem();
-    onChange([...items, item]);
+    if (onPersistItem) {
+      setDraft(item);
+    } else {
+      onChange([...items, item]);
+    }
     setOpenId(item.id);
   }
 
-  /** Replaces one entry in place, preserving list order. */
+  /** Opens an existing entry, seeding the draft buffer from it. */
+  function handleOpen(item: T) {
+    setDraft(item);
+    setOpenId(item.id);
+  }
+
+  /** Applies a field edit — to the draft when buffering, else to the list. */
   function handleItemChange(next: T) {
+    if (onPersistItem) {
+      setDraft(next);
+      return;
+    }
     onChange(items.map((i) => (i.id === next.id ? next : i)));
   }
 
-  /** Removes an entry and closes the drawer if it was the one open. */
+  /** Closes the drawer, discarding any unsaved draft. */
+  function handleClose() {
+    setOpenId(null);
+    setDraft(null);
+  }
+
+  /**
+   * Writes the open draft to the EMR, then merges it into the list with the id
+   * the server assigned.
+   */
+  async function handleSave() {
+    if (!onPersistItem || !draft) return;
+    setIsBusy(true);
+    try {
+      const fhirId = await onPersistItem(draft);
+      const saved = { ...draft, fhirId } as T;
+      /* Present already means this was an edit; absent means a new entry. */
+      onChange(
+        items.some((i) => i.id === saved.id)
+          ? items.map((i) => (i.id === saved.id ? saved : i))
+          : [...items, saved],
+      );
+      handleClose();
+    } catch (err) {
+      console.error("[ClinicalEntryList] save failed:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Could not save. Please try again.",
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  /**
+   * Removes an entry, deleting it from the EMR first when it exists there.
+   * The row only disappears once the delete has succeeded.
+   */
   function handleRemove(id: string) {
+    const item = items.find((i) => i.id === id);
+
+    /*
+     * Deletes now go straight to FHIR, so removing a saved entry takes it out
+     * of the patient's record with nothing to undo it. Confirm first.
+     *
+     * An entry with no fhirId was never written anywhere — discarding it loses
+     * only what is on screen, so it goes immediately rather than nagging.
+     */
+    if (onDeleteItem && item?.fhirId != null) {
+      setPendingDelete(item);
+      return;
+    }
+
+    void performRemove(id);
+  }
+
+  /**
+   * Carries out a removal that has already been confirmed, or never needed
+   * confirming. The row leaves the list only once the EMR delete has
+   * succeeded — a failure leaves it visible rather than dropping it from the
+   * screen while it still exists in the record.
+   *
+   * @param id - List id of the entry to remove.
+   */
+  async function performRemove(id: string) {
+    const item = items.find((i) => i.id === id);
+
+    if (onDeleteItem && item) {
+      setIsBusy(true);
+      try {
+        await onDeleteItem(item);
+      } catch (err) {
+        console.error("[ClinicalEntryList] delete failed:", err);
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : "Could not remove. Please try again.",
+        );
+        setIsBusy(false);
+        return;
+      }
+      setIsBusy(false);
+    }
+
+    setPendingDelete(null);
     onChange(items.filter((i) => i.id !== id));
-    if (openId === id) setOpenId(null);
+    if (openId === id) handleClose();
   }
 
   return (
@@ -151,19 +308,43 @@ export function ClinicalEntryList<T extends ClinicalEntryBase>({
             {emptyLabel}
           </p>
         ) : (
-          <div className="divide-y rounded-md border">
-            {items.map((item) => (
-              <ClinicalEntryRow
-                key={item.id}
-                title={item.display}
-                summary={summary(item)}
-                terminologySystem={item.terminologySystem}
-                isCoded={Boolean(item.resolved?.code)}
-                isPublished={item.fhirId != null}
-                onOpen={() => setOpenId(item.id)}
-                onRemove={() => handleRemove(item.id)}
-              />
-            ))}
+          /*
+           * Two layouts, chosen by whether rows carry attached content.
+           *
+           * Plain entries are one-liners, so hairline-divided rows in a single
+           * box read as a tight scannable list — the right density for them.
+           *
+           * Rows with attachments are not one-liners: an order plus its result
+           * files is a block several lines tall, and in a shared box those
+           * blocks run together into one slab where it is not obvious which
+           * files belong to which order. Each becomes its own card with a gap
+           * between, so one order reads as one unit.
+           */
+          <div className={renderRowExtra ? "space-y-2.5" : "divide-y rounded-md border"}>
+            {items.map((item) => {
+              const extra = renderRowExtra?.(item);
+              return (
+                <div
+                  key={item.id}
+                  className={
+                    renderRowExtra
+                      ? "overflow-hidden rounded-lg border bg-card shadow-xs"
+                      : undefined
+                  }
+                >
+                  <ClinicalEntryRow
+                    title={item.display}
+                    summary={summary(item)}
+                    terminologySystem={item.terminologySystem}
+                    isCoded={Boolean(item.resolved?.code)}
+                    isPublished={item.fhirId != null}
+                    onOpen={() => handleOpen(item)}
+                    onRemove={() => handleRemove(item.id)}
+                  />
+                  {extra && <div className="border-t px-3 py-2.5">{extra}</div>}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -187,11 +368,56 @@ export function ClinicalEntryList<T extends ClinicalEntryBase>({
         open={openItem !== null}
         title={openItem?.display || title}
         isPublished={openItem?.fhirId != null}
-        onClose={() => setOpenId(null)}
-        onRemove={openItem ? () => handleRemove(openItem.id) : undefined}
+        onClose={handleClose}
+        onSave={onPersistItem ? () => void handleSave() : undefined}
+        isSaving={isBusy}
+        onRemove={
+          /* A draft that has never been saved is discarded, not deleted —
+             there is nothing in the record to remove. */
+          openItem && items.some((i) => i.id === openItem.id)
+            ? () => void handleRemove(openItem.id)
+            : openItem
+              ? handleClose
+              : undefined
+        }
       >
         {openItem ? renderFields(openItem, handleItemChange) : null}
       </ClinicalEntryDrawer>
+
+      {/* ── Delete confirmation ── */}
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove &ldquo;{pendingDelete?.display || "this entry"}&rdquo;?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes it from the patient&apos;s medical record straight
+              away. It cannot be undone — re-adding it creates a new entry with
+              a new history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isBusy}
+              className="bg-destructive text-white hover:bg-destructive/90"
+              /* Not auto-closing: the dialog stays until the delete resolves,
+                 so a failure surfaces while the entry is still in context. */
+              onClick={(ev) => {
+                ev.preventDefault();
+                if (pendingDelete) void performRemove(pendingDelete.id);
+              }}
+            >
+              {isBusy && <Loader2 className="size-3.5 animate-spin" />}
+              {isBusy ? "Removing…" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

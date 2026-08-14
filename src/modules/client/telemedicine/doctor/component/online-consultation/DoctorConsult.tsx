@@ -8,7 +8,9 @@
  *      → receives { soap_report, assessment_plan, generated_at }
  *   2. Calls completeConsultationAction to write transcript + reports to the DB
  *      and flip consultation status to COMPLETED
- *   3. Creates a FHIR Encounter (fire-and-forget) linking the appointment
+ *   3. Creates a FHIR Encounter linking the appointment, stamped with the
+ *      actual_period_start/end of the call — the only record of how long the
+ *      consultation ran
  *   4. Redirects to the post-consultation review page (/{appointmentId}/review)
  *
  * Props come from the server page which resolves the Consultation by
@@ -110,6 +112,16 @@ export function DoctorConsult({
   const notesRef = useRef("");
   notesRef.current = notes;
 
+  /**
+   * Wall-clock instant the consultation started, captured once the room is
+   * live. Recorded as a timestamp rather than derived from `elapsed` for two
+   * reasons: browsers throttle setInterval in a background tab, so the counter
+   * drifts low whenever the doctor switches away; and a ref (like the two
+   * above) is immune to the stale closure that end-call handlers are exposed
+   * to. `elapsed` therefore stays purely a display concern.
+   */
+  const startedAtRef = useRef<number | null>(null);
+
   // Fetch LiveKit JWT for this participant
   useEffect(() => {
     (async () => {
@@ -144,6 +156,9 @@ export function DoctorConsult({
   // Elapsed time counter — starts once we have token + URL
   useEffect(() => {
     if (!token || !livekitUrl) return;
+    /* Stamp the start on the first connection only. A reconnect re-runs this
+       effect, and re-stamping would restart the clock mid-consultation. */
+    startedAtRef.current ??= Date.now();
     const interval = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(interval);
   }, [token, livekitUrl]);
@@ -250,12 +265,26 @@ export function DoctorConsult({
     }
 
     /* Create the FHIR Encounter linking this consultation to clinical resources.
-       Awaited so the encounter exists in FHIR before the review page renders. */
+       Awaited so the encounter exists in FHIR before the review page renders.
+
+       actual_period_start/end are the record of how long the consultation
+       actually ran. This is deliberately NOT written back to
+       Appointment.minutes_duration: FHIR defines that as the *planned* length
+       ("can be less than the duration between the start and end times"), so
+       overwriting it would lose what was originally booked. Every read site in
+       the app already derives duration from start/end anyway. */
     try {
       const [data, error] = await createEncounterAction({
         payload: {
           status: "completed",
           ...(patientId ? { subject: `Patient/${patientId}` } : {}),
+          ...(startedAtRef.current != null
+            ? {
+                actual_period_start: new Date(
+                  startedAtRef.current,
+                ).toISOString(),
+              }
+            : {}),
           actual_period_end: new Date().toISOString(),
           appointment: [{ reference: `Appointment/${fhirAppointmentId}` }],
           ...(practitionerId

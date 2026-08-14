@@ -29,7 +29,6 @@ import {
   Upload,
   Loader2,
   X,
-  Download,
   CheckCircle2,
   AlertCircle,
   Plus,
@@ -48,7 +47,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AttachmentList,
+  fileExtension,
+  formatBytes,
+} from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 import { usePatientStore } from "../../stores/patient.store";
+import type { Attachment } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 import { useFileNestTokenFetcher } from "@/modules/client/shared/hooks/useFileNestTokenFetcher";
 import {
   createDiagnosticReportAction,
@@ -56,6 +61,7 @@ import {
 } from "@/modules/server/presentation/actions/diagnostic-report";
 import { createDocumentReferenceAction } from "@/modules/server/presentation/actions/document-reference";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
+import { resultDocumentName } from "@/modules/client/telemedicine/shared/components/clinical/documentNaming";
 import type {
   TDiagnosticReportResponse,
   TPaginatedDiagnosticReportResponse,
@@ -76,37 +82,12 @@ interface StagedEntry {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * Formats a byte count as a human-readable string.
- * @param bytes - Raw byte count from the file or FHIR record.
+/*
+ * formatBytes and fileExtension come from AttachmentList. The pending-upload
+ * rows below are local File objects rather than FHIR attachments, so they cannot
+ * use that component — but a file should be labelled identically before and
+ * after it is uploaded, so they share its formatters.
  */
-function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/**
- * Derives a short uppercase extension label from filename or MIME type.
- * @param title       - Filename, e.g. "blood-test.pdf".
- * @param contentType - MIME type, e.g. "application/pdf".
- */
-function getFileExt(
-  title?: string | null,
-  contentType?: string | null,
-): string {
-  if (title) {
-    const ext = title.split(".").pop();
-    if (ext && ext.length <= 5) return ext.toUpperCase();
-  }
-  if (contentType) {
-    if (contentType.includes("pdf")) return "PDF";
-    const sub = contentType.split("/")[1];
-    if (sub) return sub.split(";")[0].toUpperCase().slice(0, 5);
-  }
-  return "FILE";
-}
 
 /**
  * Reads sizeBytes from a FileRecord.
@@ -140,7 +121,7 @@ interface FileRowProps {
  * @param onRemove - Called when the × button is clicked (staged entries only).
  */
 function FileRow({ entry, onRemove }: FileRowProps) {
-  const ext = getFileExt(entry.file.name, entry.file.type);
+  const ext = fileExtension(entry.file.name, entry.file.type);
   const size = formatBytes(entry.file.size);
 
   return (
@@ -188,31 +169,29 @@ interface ExistingUploadsProps {
   /** DiagnosticReports already filtered to this ServiceRequest. */
   reports: TDiagnosticReportResponse[];
   isLoading: boolean;
-  /**
-   * Opens a presigned download URL for the given FilNest fileId.
-   * @param fileId - FilNest file ID stored as presented_form[].url.
-   * @param title  - Filename for the download prompt.
-   */
-  onDownload: (fileId: string, title?: string | null) => void;
 }
 
 /**
  * Lists previously uploaded result files flattened from DiagnosticReport.presentedForm[].
- * Newest DiagnosticReports first. Each row shows extension, filename, size, date, and
- * a Download button.
+ * Newest DiagnosticReports first.
+ *
+ * Rows render through the shared AttachmentList, which owns the View and
+ * Download actions and their presigned-URL handling — so this component no
+ * longer needs a download callback threaded down from the modal.
  */
-function ExistingUploads({
-  reports,
-  isLoading,
-  onDownload,
-}: ExistingUploadsProps) {
+function ExistingUploads({ reports, isLoading }: ExistingUploadsProps) {
   /** Flatten presentedForm across all DRs, newest DR first. */
-  const allFiles = [...reports]
+  const allFiles: Attachment[] = [...reports]
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
     .flatMap((dr) =>
-      (dr.presented_form ?? []).map((pf) => ({
-        ...pf,
-        uploadedAt: pf.creation ?? dr.created_at,
+      (dr.presented_form ?? []).map((pf, index) => ({
+        key: `${dr.id}-${pf.id ?? index}`,
+        fileId: pf.url ?? null,
+        title: pf.title ?? null,
+        contentType: pf.content_type ?? null,
+        size: pf.size ?? null,
+        uploadedAt: pf.creation ?? dr.created_at ?? null,
+        detail: null,
       })),
     );
 
@@ -234,54 +213,8 @@ function ExistingUploads({
         Previously Uploaded ({allFiles.length})
       </p>
 
-      <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
-        {allFiles.map((pf, i) => {
-          const ext = getFileExt(pf.title, pf.content_type);
-          const size = formatBytes(pf.size);
-          const date = pf.uploadedAt
-            ? new Date(pf.uploadedAt).toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })
-            : null;
-
-          return (
-            <div
-              key={pf.id ?? i}
-              className="flex items-center gap-3 rounded-md border bg-muted/20 px-3 py-2.5"
-            >
-              <Badge
-                variant="secondary"
-                className="text-[10px] font-mono shrink-0 min-w-13 justify-center"
-              >
-                {ext}
-              </Badge>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate leading-tight">
-                  {pf.title ?? "Untitled"}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {[size, date].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-
-              {pf.url && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1.5 text-xs shrink-0"
-                  onClick={() => onDownload(pf.url!, pf.title)}
-                >
-                  <Download className="size-3" />
-                  Download
-                </Button>
-              )}
-            </div>
-          );
-        })}
+      <div className="max-h-52 overflow-y-auto pr-0.5">
+        <AttachmentList attachments={allFiles} />
       </div>
     </div>
   );
@@ -306,6 +239,7 @@ interface UploadResultContentProps {
 function UploadResultContent({
   serviceRequestId,
   patientFhirId,
+  serviceRequestCode,
 }: UploadResultContentProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -379,35 +313,6 @@ function UploadResultContent({
     };
   }, [patientFhirId, serviceRequestId, refreshKey]);
 
-  // ── Download handler ────────────────────────────────────────────────────────
-  /**
-   * Fetches a short-lived presigned download URL for a FilNest fileId and opens it.
-   * @param fileId - FilNest file ID stored as presented_form[].url.
-   * @param title  - Filename hint for the browser download dialog.
-   */
-  const handleDownload = useCallback(
-    async (fileId: string, title?: string | null) => {
-      try {
-        const res = await fetch(
-          `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}`,
-        );
-        if (!res.ok) throw new Error("Failed to get download URL");
-        const { url } = (await res.json()) as { url: string };
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = title ?? "result";
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch {
-        toast.error("Could not get download link. Try again.");
-      }
-    },
-    [],
-  );
-
   // ── FHIR batch creation ─────────────────────────────────────────────────────
   /**
    * Creates FHIR records for a completed upload batch:
@@ -462,12 +367,17 @@ function UploadResultContent({
               payload: {
                 status: "current",
                 ...(subject ? { subject } : {}),
+                /* Both the record and its attachment carry the qualified name.
+                   The doctor's Documents tab reads attachment.title; description
+                   names the record itself. Same helper the doctor-side upload
+                   uses, so a file is named the same whoever attached it. */
+                description: resultDocumentName(serviceRequestCode, r.filename),
                 content: [
                   {
                     attachment: {
                       url: r.id,
                       content_type: getContentType(r),
-                      title: r.filename,
+                      title: resultDocumentName(serviceRequestCode, r.filename),
                       size: getSizeBytes(r),
                       creation,
                     },
@@ -508,7 +418,7 @@ function UploadResultContent({
         setIsSaving(false);
       }
     },
-    [serviceRequestId, patientFhirId, router],
+    [serviceRequestId, patientFhirId, serviceRequestCode, router],
   );
 
   // ── FileNest upload callbacks ───────────────────────────────────────────────
@@ -621,7 +531,6 @@ function UploadResultContent({
       <ExistingUploads
         reports={existingReports}
         isLoading={isLoadingReports}
-        onDownload={handleDownload}
       />
 
       {(hasExisting || isLoadingReports) && <Separator />}
@@ -736,15 +645,17 @@ export function UploadResultModal() {
   const serviceRequestCode = data?.serviceRequestCode;
 
   /**
-   * FilNest upload path: patientId is the root folder (same convention as profile photos:
-   * {patientId}/...). Falls back gracefully when patientFhirId is unavailable.
+   * FileNest upload path: patientId is the root folder (same convention as
+   * profile photos: {patientId}/...). Falls back gracefully when
+   * patientFhirId is unavailable.
+   *
+   * Deliberately not scoped per order — kept identical to the doctor-side
+   * UploadOrderResultModal so both sides write results to the same place.
+   * Which order a file belongs to lives in FHIR, on the DiagnosticReport's
+   * based_on[], which is what every reader resolves it through.
    */
   const filePath =
-    patientFhirId != null && serviceRequestId != null
-      ? `${patientFhirId}/servicerequest/${serviceRequestId}`
-      : serviceRequestId != null
-        ? `servicerequest/${serviceRequestId}`
-        : "uploads/results";
+    patientFhirId != null ? `${patientFhirId}/servicerequest` : "servicerequest";
 
   const tokenFetcher = useFileNestTokenFetcher({
     filePath,

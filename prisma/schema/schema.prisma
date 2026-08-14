@@ -132,6 +132,24 @@ model Consultation {
   /** Condition[] extracted by clinical-extraction-agent (FHIR R4 shape, stored as JSON). */
   conditions          Json?
 
+  /**
+   * When the doctor approved this consultation's SOAP note and clinical
+   * extractions on the post-consultation review page.
+   *
+   * Null means everything above is still an AI suggestion awaiting review. It
+   * is the only signal that separates the two: the extracted resources can be
+   * checked against FHIR once published, but the narrative SOAP note has no
+   * FHIR counterpart, so nothing else on this row can tell a draft from an
+   * accepted record.
+   *
+   * A timestamp rather than a boolean — it carries the same two states (null /
+   * set) and answers when the approval happened, which a clinical record is
+   * eventually asked for. Stamped server-side, never by the client.
+   */
+  published_at        DateTime?
+  /** Better Auth user ID of the doctor who approved. Set with published_at. */
+  published_by        String?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

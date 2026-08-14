@@ -162,6 +162,9 @@ export default async function DoctorAppointmentViewPage({
       {/* Tabbed report sections */}
       <AppointmentReportTabs
         intake={intake}
+        /* The doctor always sees the note; this only tags it as a draft when
+           they have not approved it yet. */
+        reviewed={consultation?.published_at != null}
         doctorReport={{
           soap: soapNote,
           conditions,

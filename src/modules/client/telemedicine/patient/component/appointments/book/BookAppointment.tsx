@@ -17,6 +17,9 @@
  * Step 3 — Confirm
  *   Shows a summary card. On confirm, calls bookAppointmentAction with
  *   { practitioner_id, slot_id, patient_id }. Success opens a dialog.
+ *   The appointment type is normally inherited from the slot by fhir-gql; this
+ *   step supplies ROUTINE only when the slot declares none, since the type
+ *   cannot be patched in after creation.
  *
  * Data ownership:
  *   patientFhirId — passed from server (getPatientMeAction in page.tsx)
@@ -106,6 +109,27 @@ interface BookAppointmentProps {
    */
   intakeId?: number;
 }
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/**
+ * Fallback appointment type, used only when the booked slot declares none.
+ *
+ * ROUTINE is the value set's own documented default ("Routine appointment —
+ * default if not valued"), and it is the only code in v2-0276 that honestly
+ * describes a self-service booking made up to 30 days ahead: WALKIN is by
+ * definition unscheduled, EMERGENCY is a triage decision rather than something
+ * a patient should be able to self-assign, and CHECKUP/FOLLOWUP are claims
+ * about the visit that only the patient or practitioner can make.
+ *
+ * Needed because the fhir-server cannot patch appointmentType after creation —
+ * booking is the only chance to set it.
+ */
+const DEFAULT_APPOINTMENT_TYPE = {
+  appointment_type_system: "http://terminology.hl7.org/CodeSystem/v2-0276",
+  appointment_type_code: "ROUTINE",
+  appointment_type_display: "Routine appointment",
+} as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -345,6 +369,15 @@ export function BookAppointment({
            available on read without a secondary Practitioner/Patient fetch. */
         practitioner_display: practitionerName || undefined,
         patient_display: patientDisplayName || undefined,
+        /* Appointment type is a floor, not an override. fhir-gql already copies
+           the slot's own type onto the appointment, and it treats a supplied
+           code as a wholesale replacement — so sending ROUTINE unconditionally
+           would clobber a session the practitioner generated as a dedicated
+           CHECKUP or FOLLOWUP. Only fill the gap when the slot declares nothing.
+           Mirrors the same code-or-text check the booking service applies. */
+        ...(selectedSlot.appointment_type_code || selectedSlot.appointment_type_text
+          ? {}
+          : DEFAULT_APPOINTMENT_TYPE),
       },
     });
     setIsBooking(false);

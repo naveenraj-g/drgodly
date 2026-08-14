@@ -19,14 +19,67 @@ const AttachmentResponseSchema = z.object({
   creation: z.string().nullish(),
 });
 
+/**
+ * One content entry.
+ *
+ * fhir-server returns the attachment **flattened** onto the entry — its plain
+ * mapper emits `attachment_title`, `attachment_url` and so on, not a nested
+ * `attachment` object (see mappers/document_reference/plain.py). fhir-gql
+ * declares the nested shape but passes the payload straight through, so what
+ * actually arrives here is flat.
+ *
+ * That mattered because Zod strips unknown keys: declaring only the nested
+ * shape silently deleted every `attachment_*` field at parse time, leaving
+ * entries with nothing but an id. The Documents tab then had no title (showing
+ * "Untitled") and, worse, no url — so its View and Download buttons never
+ * rendered at all.
+ *
+ * Both shapes are accepted: the flat fields are what the server sends today,
+ * and the nested object is kept so nothing breaks if fhir-gql is later fixed to
+ * honour its own declared schema. Read them through `contentAttachment()`
+ * rather than reaching for either directly.
+ */
 const ContentResponseSchema = z.object({
   id: z.number().nullish(),
+  /** Nested form — declared by fhir-gql, not currently sent. */
   attachment: AttachmentResponseSchema.nullish(),
+  /** Flat form — what fhir-server actually returns. */
+  attachment_content_type: z.string().nullish(),
+  attachment_language: z.string().nullish(),
+  attachment_url: z.string().nullish(),
+  attachment_size: z.number().nullish(),
+  attachment_hash: z.string().nullish(),
+  attachment_title: z.string().nullish(),
+  attachment_creation: z.string().nullish(),
   format_system: z.string().nullish(),
   format_version: z.string().nullish(),
   format_code: z.string().nullish(),
   format_display: z.string().nullish(),
 });
+export type TDocumentReferenceContent = z.infer<typeof ContentResponseSchema>;
+
+/**
+ * Reads a content entry's attachment, whichever shape it arrived in.
+ *
+ * @param entry - One DocumentReference content entry.
+ * @returns The attachment fields, normalised to the nested shape.
+ */
+export function contentAttachment(
+  entry: TDocumentReferenceContent,
+): z.infer<typeof AttachmentResponseSchema> {
+  /* Nested wins when present — it is the shape fhir-gql promises. */
+  if (entry.attachment) return entry.attachment;
+
+  return {
+    content_type: entry.attachment_content_type,
+    language: entry.attachment_language,
+    url: entry.attachment_url,
+    size: entry.attachment_size,
+    hash: entry.attachment_hash,
+    title: entry.attachment_title,
+    creation: entry.attachment_creation,
+  };
+}
 
 // ── Top-level response schemas ────────────────────────────────────────────────
 

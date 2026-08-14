@@ -178,33 +178,16 @@ export function derivePatientSummaries(
 }
 
 /**
- * Splits a patient's appointments into upcoming and past buckets.
+ * Resolves the reference instant a page uses to judge past vs upcoming.
  *
- * Lives here rather than in the rendering component because it reads the clock,
- * which React components must not do during render — the server page resolves
- * "now" once and passes the two ordered lists down.
+ * Lives here rather than being called inline because reading the clock during
+ * render is impure, and `react-hooks/purity` rejects it in a component body —
+ * server components included. The page calls this once and threads the result
+ * down as a prop, which also means SSR and hydration agree on "now" and every
+ * row is judged against the same moment.
  *
- * @param appointments - Appointments to split.
- * @returns Upcoming sorted soonest-first, past sorted newest-first.
+ * @returns The current time in epoch milliseconds.
  */
-export function splitAppointmentsByTime(appointments: TAppointmentResponse[]): {
-  upcoming: TAppointmentResponse[];
-  past: TAppointmentResponse[];
-} {
-  const now = Date.now();
-  const upcoming: TAppointmentResponse[] = [];
-  const past: TAppointmentResponse[] = [];
-
-  for (const appt of appointments) {
-    const startMs = appt.start ? new Date(appt.start).getTime() : NaN;
-    /* Appointments with no parseable start fall into "past" so they still
-       appear somewhere rather than being silently dropped. */
-    if (!isNaN(startMs) && startMs > now) upcoming.push(appt);
-    else past.push(appt);
-  }
-
-  upcoming.sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""));
-  past.sort((a, b) => (b.start ?? "").localeCompare(a.start ?? ""));
-
-  return { upcoming, past };
+export function referenceInstantMs(): number {
+  return Date.now();
 }

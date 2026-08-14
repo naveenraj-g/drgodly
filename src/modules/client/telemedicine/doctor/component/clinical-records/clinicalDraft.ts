@@ -284,10 +284,63 @@ export function normaliseServiceRequests(raw: unknown): ServiceRequestFormItem[]
 // ── SOAP seeding ──────────────────────────────────────────────────────────────
 
 /**
+ * Keys that appear on a SOAP note and never on the agent's wrapper.
+ *
+ * `assessment` is deliberately excluded even though the note has one: the
+ * wrapper carries its own `assessment` (the AI risk/differential plan), so
+ * testing for it would identify the wrapper as the note and defeat the unwrap.
+ */
+const NOTE_ONLY_KEYS = [
+  "subjective",
+  "objective",
+  "plan",
+  "summary",
+] as const;
+
+/**
+ * Reports whether a record carries SOAP sections unique to the note.
+ *
+ * @param record - Candidate record.
+ */
+function isSoapNote(record: Record<string, unknown>): boolean {
+  return NOTE_ONLY_KEYS.some((key) => key in record);
+}
+
+/**
+ * Digs the SOAP note out of whatever the consultation stored.
+ *
+ * The doctor-report agent returns `{ soap, assessment, clinicalExtraction }` —
+ * the note is nested under `soap`, and both `Consultation.soap_note` and
+ * `full_report.soap_report` hold that whole wrapper rather than the note.
+ * Reading a wrapper as if it were the note finds no sections and yields a blank
+ * editor, so the nested note is preferred whenever one is present.
+ *
+ * An already-unwrapped value is returned as-is, which covers the doctor's own
+ * staged draft — this workspace saves the note back unwrapped.
+ *
+ * @param value - `soap_note`, `soap_report`, or an already-unwrapped note.
+ * @returns The note, or null when the value holds no SOAP sections.
+ */
+export function unwrapSoapNote(value: unknown): Record<string, unknown> | null {
+  const record = asRecord(value);
+  if (!record) return null;
+
+  /* Nested note first — a wrapper also has an `assessment` key of its own, so
+     testing the outer record first would wrongly accept it. */
+  const nested = asRecord(record.soap);
+  if (nested && isSoapNote(nested)) return nested;
+
+  if (isSoapNote(record)) return record;
+
+  return null;
+}
+
+/**
  * Picks the SOAP note to seed the editor with.
  *
  * Prefers the doctor's staged draft over the AI report, since the draft is by
- * definition the more recent of the two.
+ * definition the more recent of the two. Both are unwrapped first — see
+ * unwrapSoapNote for why either can arrive wrapped.
  *
  * @param stagedSoap - `Consultation.soap_note` (the doctor's draft).
  * @param aiSoap - SOAP from the AI full report.
@@ -297,7 +350,7 @@ export function seedSoapNote(
   stagedSoap: unknown,
   aiSoap: unknown,
 ): SoapNote {
-  const source = asRecord(stagedSoap) ?? asRecord(aiSoap);
+  const source = unwrapSoapNote(stagedSoap) ?? unwrapSoapNote(aiSoap);
   if (!source) return EMPTY_SOAP;
 
   const partial = source as Partial<SoapNote>;

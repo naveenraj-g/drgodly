@@ -15,19 +15,23 @@
 
 "use client";
 
+import { useState } from "react";
 import {
   CalendarDays,
   Clock,
   Info,
+  MessageSquare,
   Stethoscope,
   Timer,
   User,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { IntakeTab } from "./tabs/IntakeTab";
+import { ConsultationTranscriptDrawer } from "./note/ConsultationTranscriptDrawer";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
 import type { TConsultationTranscriptMessage } from "@/modules/entities/schemas/consultation";
@@ -129,6 +133,9 @@ export function VisitOverview({
   intake,
   transcript,
 }: VisitOverviewProps) {
+  /** Whether the consultation transcript drawer is open. */
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+
   const status = appointment.status ?? "unknown";
   const apptType =
     appointment.appointment_type_display ??
@@ -250,7 +257,40 @@ export function VisitOverview({
       </Card>
 
       {/* ── AI intake — the one thing that does exist before the consultation ── */}
-      <IntakeTab intake={intake} transcript={transcript} />
+      <IntakeTab intake={intake} />
+
+      {/*
+        The consultation transcript normally lives with the note it was written
+        from, but this view exists precisely because there is no encounter and
+        so no note. A call can still have happened without producing one, so the
+        transcript is reachable here through the same drawer rather than being
+        stranded.
+      */}
+      {transcript.length > 0 && (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setTranscriptOpen(true)}
+          >
+            <MessageSquare className="size-3.5" />
+            View consultation conversation
+            <span className="text-[10px] text-muted-foreground">
+              {transcript.length}
+            </span>
+          </Button>
+
+          <ConsultationTranscriptDrawer
+            open={transcriptOpen}
+            onOpenChange={setTranscriptOpen}
+            transcript={transcript}
+            patientName={patientName}
+            appointmentDate={fmtDateTime(appointment.start)}
+          />
+        </>
+      )}
     </div>
   );
 }

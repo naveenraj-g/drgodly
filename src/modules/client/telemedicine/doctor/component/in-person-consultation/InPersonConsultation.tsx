@@ -205,6 +205,13 @@ export function InPersonConsultation({
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /**
+   * Wall-clock instant recording began — stamped as the Encounter's
+   * actual_period_start. Held as a timestamp rather than derived from
+   * `elapsed`, because browsers throttle setInterval in a background tab and
+   * the counter drifts low whenever the doctor switches away.
+   */
+  const startedAtRef = useRef<number | null>(null);
 
   // Scroll container refs — scrolled to bottom whenever their content grows
   const partialsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -226,6 +233,9 @@ export function InPersonConsultation({
 
   useEffect(() => {
     if (sessionStatus === "recording") {
+      /* Stamp the start on the first entry into "recording" only — a pause and
+         resume must not restart the clock mid-consultation. */
+      startedAtRef.current ??= Date.now();
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
     } else {
       if (timerRef.current) {
@@ -337,12 +347,24 @@ export function InPersonConsultation({
         /* non-fatal */
       }
 
-      // Step 4: create the FHIR Encounter (fire-and-forget)
+      /* Step 4: create the FHIR Encounter.
+
+         actual_period_start/end record how long the visit actually ran. This is
+         deliberately NOT written back to Appointment.minutes_duration: FHIR
+         defines that as the *planned* length, so overwriting it would lose what
+         was originally booked. */
       try {
         await createEncounterAction({
           payload: {
             status: "completed",
             ...(patientId ? { subject: `Patient/${patientId}` } : {}),
+            ...(startedAtRef.current != null
+              ? {
+                  actual_period_start: new Date(
+                    startedAtRef.current,
+                  ).toISOString(),
+                }
+              : {}),
             actual_period_end: new Date().toISOString(),
             appointment: [{ reference: `Appointment/${fhirAppointmentId}` }],
             ...(practitionerId

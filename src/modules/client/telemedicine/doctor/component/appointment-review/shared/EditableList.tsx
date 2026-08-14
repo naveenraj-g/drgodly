@@ -24,6 +24,11 @@ interface EditableListProps {
   placeholder?: string;
   /** Label on the "Add" button. */
   addLabel?: string;
+  /**
+   * Renders the items as a plain bulleted list with no inputs, delete buttons
+   * or add control. Used where the list is a record rather than a form.
+   */
+  readOnly?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -42,6 +47,7 @@ export function EditableList({
   onChange,
   placeholder = "Add item...",
   addLabel = "Add",
+  readOnly = false,
 }: EditableListProps) {
   const update = (i: number, val: string) => {
     const next = [...items];
@@ -52,6 +58,28 @@ export function EditableList({
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
 
   const add = () => onChange([...items, ""]);
+
+  /* Read-only short-circuits before any of the edit handlers are wired up.
+     Blank entries are filtered: an empty row is an artefact of the add button,
+     meaningless once the list is a record. */
+  if (readOnly) {
+    const entries = items.filter((item) => item.trim().length > 0);
+    if (entries.length === 0) {
+      return <p className="text-sm text-muted-foreground">—</p>;
+    }
+    return (
+      <ul className="space-y-1">
+        {entries.map((item, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm">
+            <span aria-hidden className="mt-0.5 text-muted-foreground">
+              ·
+            </span>
+            <span className="min-w-0 flex-1">{item}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <div className="space-y-2">

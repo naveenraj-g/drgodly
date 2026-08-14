@@ -121,3 +121,45 @@ export function riskBadgeClass(level?: string): string {
 export function diagnosticName(item: DiagnosticItem): string | null {
   return item.test ?? item.study ?? null;
 }
+
+/**
+ * Last-resort readable text for a report entry whose keys no renderer knows.
+ *
+ * Joins the entry's own string values. The point is to never reach for
+ * `String(entry)` or `JSON.stringify(entry)`, which is how "[object Object]"
+ * and raw JSON ended up rendered into clinical panels.
+ *
+ * @param item - An unrecognised report entry.
+ * @returns Readable text, falling back to a JSON dump only when the entry
+ *          holds no strings at all.
+ */
+export function readableFallback(item: unknown): string {
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object") {
+    const text = Object.values(item as Record<string, unknown>)
+      .filter((v): v is string => typeof v === "string")
+      .join(" — ");
+    return text || JSON.stringify(item);
+  }
+  return String(item);
+}
+
+/**
+ * Flattens a diagnostic plan's three sub-arrays into one ordered list.
+ *
+ * Labs first, then imaging, then everything else — the order a clinician reads
+ * a workup in. Shared so the two report renderers cannot drift on either the
+ * ordering or the set of keys they know about.
+ *
+ * @param plan - The report's `diagnostic_plan`, which may be absent.
+ * @returns Every diagnostic entry in display order; empty when there are none.
+ */
+export function flattenDiagnosticPlan(
+  plan: IntakeReport["diagnostic_plan"],
+): DiagnosticItem[] {
+  return [
+    ...(plan?.laboratory_tests ?? []),
+    ...(plan?.imaging ?? []),
+    ...(plan?.other ?? []),
+  ];
+}

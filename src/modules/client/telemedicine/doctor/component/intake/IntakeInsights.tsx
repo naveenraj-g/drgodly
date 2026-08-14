@@ -22,7 +22,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, AlertTriangle, FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { getIntakeByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/intake";
-import type { TIntakeResponse, TIntakeReport } from "@/modules/entities/schemas/intake";
+import {
+  flattenDiagnosticPlan,
+  safeParseReport,
+  type IntakeReport,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/intakeReport";
+import {
+  DiagnosticPlanField,
+  DifferentialDiagnosisList,
+  RedFlagList,
+  TreatmentPlanField,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/IntakeReportFields";
+import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
 
 /** Props for IntakeInsights. */
 interface IntakeInsightsProps {
@@ -47,109 +58,6 @@ const RISK_CLASS: Record<string, string> = {
   critical: "bg-red-200 text-red-900 border-red-300",
 };
 
-// ── Polymorphic field renderers ───────────────────────────────────────────────
-// The AI agent can return strings OR structured objects for several fields.
-// Each renderer below handles both shapes gracefully.
-
-/**
- * Renders one differential-diagnosis entry.
- * Handles both plain string and {condition, rationale, likelihood} object.
- */
-function DiffDiagItem({ item, index }: { item: unknown; index: number }) {
-  if (typeof item === "string") {
-    return (
-      <li key={index} className="text-sm flex items-start gap-2">
-        <span className="text-primary font-bold mt-0.5">·</span>
-        {item}
-      </li>
-    );
-  }
-  if (item && typeof item === "object") {
-    const d = item as Record<string, unknown>;
-    return (
-      <li key={index} className="text-sm border-l-2 border-primary/20 pl-2 space-y-0.5">
-        {d.condition != null && (
-          <p className="font-medium text-foreground">{String(d.condition)}</p>
-        )}
-        {d.rationale != null && (
-          <p className="text-xs text-muted-foreground">{String(d.rationale)}</p>
-        )}
-        {d.likelihood != null && (
-          <Badge variant="outline" className="text-[10px] w-fit">
-            {String(d.likelihood)}
-          </Badge>
-        )}
-      </li>
-    );
-  }
-  return null;
-}
-
-/**
- * Renders a plan field (diagnostic_plan or treatment_plan).
- * Handles plain string, and structured objects whose values are strings or
- * string arrays (e.g. {imaging: [...], laboratory_tests: [...], other: [...]}).
- */
-function PlanField({ value }: { value: unknown }) {
-  if (typeof value === "string") {
-    return <p className="text-sm leading-relaxed">{value}</p>;
-  }
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const entries = Object.entries(value as Record<string, unknown>).filter(
-      ([, v]) => v != null,
-    );
-    return (
-      <div className="space-y-2">
-        {entries.map(([key, val]) => (
-          <div key={key}>
-            <p className="text-xs font-medium text-muted-foreground capitalize mb-0.5">
-              {key.replace(/_/g, " ")}
-            </p>
-            {Array.isArray(val) ? (
-              <ul className="space-y-0.5">
-                {(val as unknown[]).map((it, i) => (
-                  <li key={i} className="text-sm flex items-start gap-2">
-                    <span className="text-primary font-bold mt-0.5">·</span>
-                    {String(it)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm leading-relaxed">{String(val)}</p>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-  return null;
-}
-
-/**
- * Renders one red-flag entry.
- * Handles both plain string and arbitrary objects (joins string values with " — ").
- */
-function RedFlagItem({ flag, index }: { flag: unknown; index: number }) {
-  let text: string;
-  if (typeof flag === "string") {
-    text = flag;
-  } else if (flag && typeof flag === "object") {
-    // Join all string values in the object (e.g. {flag: "...", severity: "..."})
-    text =
-      Object.values(flag as Record<string, unknown>)
-        .filter((v) => typeof v === "string")
-        .join(" — ") || JSON.stringify(flag);
-  } else {
-    return null;
-  }
-  return (
-    <li key={index} className="text-sm text-red-700 flex items-start gap-2">
-      <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
-      {text}
-    </li>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -157,7 +65,7 @@ function RedFlagItem({ flag, index }: { flag: unknown; index: number }) {
  *
  * @param report - Parsed intake report object.
  */
-function ReportSection({ report }: { report: TIntakeReport }) {
+function ReportSection({ report }: { report: IntakeReport }) {
   const riskKey = (report.risk_level ?? "").toLowerCase();
 
   return (
@@ -185,53 +93,45 @@ function ReportSection({ report }: { report: TIntakeReport }) {
       )}
 
       {/* Differential diagnosis — items may be strings or {condition, rationale, likelihood} */}
-      {report.differential_diagnosis && report.differential_diagnosis.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Differential Diagnosis
-          </p>
-          <ul className="space-y-2">
-            {report.differential_diagnosis.map((item, i) => (
-              <DiffDiagItem key={i} item={item} index={i} />
-            ))}
-          </ul>
-        </div>
-      )}
+      {report.differential_diagnosis &&
+        report.differential_diagnosis.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Differential Diagnosis
+            </p>
+            <DifferentialDiagnosisList items={report.differential_diagnosis} />
+          </div>
+        )}
 
-      {/* Diagnostic plan — may be a string or structured object */}
-      {report.diagnostic_plan != null && (
+      {/* Diagnostic plan — { laboratory_tests, imaging, other } of objects,
+          or occasionally a plain string. Gated on the flattened length so the
+          heading cannot render above an empty list. */}
+      {flattenDiagnosticPlan(report.diagnostic_plan).length > 0 ||
+      typeof report.diagnostic_plan === "string" ? (
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Diagnostic Plan
           </p>
-          <PlanField value={report.diagnostic_plan} />
+          <DiagnosticPlanField value={report.diagnostic_plan} />
         </div>
-      )}
+      ) : null}
 
-      {/* Treatment plan — may be a string or structured object */}
-      {report.treatment_plan != null && (
+      {/* Treatment plan — an array of recommendation objects, or a string. */}
+      {(Array.isArray(report.treatment_plan) &&
+        report.treatment_plan.length > 0) ||
+      typeof report.treatment_plan === "string" ? (
         <div className="space-y-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Treatment Plan
           </p>
-          <PlanField value={report.treatment_plan} />
+          <TreatmentPlanField value={report.treatment_plan} />
         </div>
-      )}
+      ) : null}
 
-      {/* Red flags — items may be strings or structured objects */}
-      {report.red_flags && report.red_flags.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-red-600 uppercase tracking-wide flex items-center gap-1">
-            <AlertTriangle className="size-3" />
-            Red Flags
-          </p>
-          <ul className="space-y-1">
-            {report.red_flags.map((flag, i) => (
-              <RedFlagItem key={i} flag={flag} index={i} />
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Red flags — items may be strings or structured objects. RedFlagList
+          filters the agent's "Not reported" sentinel and hides itself when
+          nothing survives, so the heading cannot appear above an empty list. */}
+      <RedFlagList items={report.red_flags} />
     </div>
   );
 }
@@ -277,6 +177,10 @@ export function IntakeInsights({ fhirAppointmentId }: IntakeInsightsProps) {
   // No linked intake — appointment was booked directly
   if (!intake) return null;
 
+  /* Cheap enough to run on every render — the report is a small object and
+     parsing only does work when it arrives as a string. */
+  const report = safeParseReport(intake.report);
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -290,9 +194,12 @@ export function IntakeInsights({ fhirAppointmentId }: IntakeInsightsProps) {
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {/* AI report */}
-        {intake.report ? (
-          <ReportSection report={intake.report} />
+        {/* AI report — parsed through the shared helper, which unwraps the
+            { status, data } envelope the assessment-plan-agent returns and
+            tolerates a raw JSON string. Reading intake.report directly (as this
+            card used to) renders nothing at all for either of those shapes. */}
+        {report ? (
+          <ReportSection report={report} />
         ) : (
           <p className="text-sm text-muted-foreground">
             No clinical report available for this intake.

@@ -3,6 +3,11 @@ allowBuilds:
   '@prisma/engines': true
   '@swc/core': true
   core-js: true
+  # dicom.ts ships a stray `postinstall: patch-package` meant for its own repo's
+  # dev workflow, not for consumers — the dist/ we actually use is prebuilt and
+  # already in the published package. Running it just fails (patch-package
+  # isn't installed here), so it's explicitly disallowed rather than approved.
+  dicom.ts: false
   esbuild: true
   msw: true
   prisma: true
@@ -23,3 +28,5 @@ onlyBuiltDependencies:
   - prisma
   - sharp
   - unrs-resolver
+patchedDependencies:
+  dicom.ts: patches/dicom.ts.patch

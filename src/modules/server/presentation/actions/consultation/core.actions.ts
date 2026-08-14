@@ -93,10 +93,19 @@ export const saveClinicalDataAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TSaveClinicalDataAction;
+      ctx: { session: AuthResponse };
     }): Promise<TSaveClinicalDataControllerOutput> => {
-      return saveClinicalDataController(input.payload);
+      /* The approver comes from the session, never the request body — the
+         client sends mark_published as intent only, so a doctor cannot be
+         recorded as having approved a record they did not. */
+      const enrichedPayload = {
+        ...input.payload,
+        published_by: ctx.session.session.userId,
+      };
+      return saveClinicalDataController(enrichedPayload);
     },
   );
 

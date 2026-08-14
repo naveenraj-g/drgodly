@@ -30,6 +30,7 @@ import { CheckCircle2, CalendarDays, User, Loader2 } from "lucide-react";
 import { SoapEditor } from "./soap/SoapEditor";
 import { ClinicalExtractionPanel } from "./clinical/ClinicalExtractionPanel";
 import { publishClinicalRecords } from "./publishClinicalRecords";
+import { saveClinicalDataAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import {
   conditionFromFhir,
   medicationFromFhir,
@@ -165,6 +166,8 @@ interface AppointmentReviewProps {
  * @param savedServiceRequests - Existing FHIR ServiceRequests for this encounter (revisit).
  */
 export function AppointmentReview({
+  /* Staging key for the approved-note write-back in handleConfirm. */
+  fhirAppointmentId,
   patientId,
   encounterId,
   patientName,
@@ -249,6 +252,13 @@ export function AppointmentReview({
    * Delegates the diff (CREATE / UPDATE / DELETE per resource type) to
    * publishClinicalRecords, then stores the surviving fhirIds so a second save
    * in the same session diffs against the right baseline.
+   *
+   * The approved SOAP note is then written back to the Consultation record.
+   * FHIR receives the clinical resources but has nowhere to put the narrative
+   * note, so without this step the doctor's edits to it exist only in this
+   * component's state and are lost on navigation — leaving the Clinical Records
+   * Note tab showing the raw AI draft rather than what was actually approved.
+   * The four lists go with it so staging reflects the approved set too.
    */
   const handleConfirm = () => {
     startTransition(async () => {
@@ -263,6 +273,32 @@ export function AppointmentReview({
           subject,
           encounterId,
         });
+
+        /* Persist the approved note. Reported separately from the publish
+           above: the resources are already in the chart at this point, so a
+           failure here is a partial success, not a failed save. */
+        const [, saveErr] = await saveClinicalDataAction({
+          payload: {
+            fhir_appointment_id: fhirAppointmentId,
+            soap_note: soap,
+            conditions,
+            observations,
+            medication_requests: medications,
+            service_requests: serviceRequests,
+            /* Confirming here is the doctor's approval — the one place that
+               stamps it. The server sets the timestamp and reads the approver
+               from the session; this only signals intent. */
+            mark_published: true,
+          },
+        });
+
+        if (saveErr) {
+          console.error("[AppointmentReview] note save failed:", saveErr);
+          toast.warning(
+            "Clinical records saved, but the consultation note could not be stored.",
+          );
+          return;
+        }
 
         toast.success("Clinical records saved to patient medical history.");
       } catch (err) {

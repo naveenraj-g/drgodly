@@ -36,6 +36,7 @@ import {
   fetchMyAppointments,
 } from "./appointmentQueries";
 import { createPatientAppointmentColumns } from "./PatientAppointmentColumns";
+import { AppointmentDetailPanel } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailPanel";
 import { patientStore } from "@/modules/client/telemedicine/patient/stores/patient.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -117,6 +118,9 @@ export function PatientAppointmentsTable({
     data: rows,
     pageCount,
     initialPageSize: INITIAL_PAGE_SIZE,
+    // Every appointment carries detail worth expanding into, so no row is
+    // excluded — the panel hides its own empty sections.
+    getRowCanExpand: () => true,
   });
 
   // Extract server-side filter params from the column filter state.
@@ -168,7 +172,13 @@ export function PatientAppointmentsTable({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <DataTable table={table} loading={isFetching}>
+    <DataTable
+      table={table}
+      loading={isFetching}
+      renderSubComponent={(row) => (
+        <AppointmentDetailPanel row={row} perspective="patient" />
+      )}
+    >
       <DataTableToolbar table={table}>
         {/* Opens the booking method chooser dialog via the patient store */}
         <Button

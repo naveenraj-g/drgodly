@@ -8,13 +8,21 @@
  *  2. Redirects to /doctor/settings/profile if no FHIR Practitioner record exists.
  *
  * Data flow:
- *  SSR → in parallel: getPatientByIdAction, fetchAllDoctorAppointments(patient_id),
- *        listEncountersAction(patient_id)
- *      → PatientHeaderCard + PatientAppointmentList
+ *  SSR → in parallel: getPatientByIdAction, listAppointmentsAction(patient_id,
+ *        practitioner_id, page 0), listEncountersAction(patient_id)
+ *      → PatientHeaderCard + PatientAppointmentsTable
+ *      → Client: useQuery → fetchPatientAppointments → re-fetches on page/filter change
+ *
+ * Only the first page of appointments is fetched here — pagination, the Status
+ * filter and the Date-range filter are all server-driven from that point on
+ * (see PatientAppointmentsTable), the same pattern the doctor org appointment
+ * list uses.
  *
  * Encounters are fetched once for the whole patient and matched back to
  * appointments via Encounter.appointment[] — one request instead of one per
- * appointment row.
+ * appointment row. This is independent of appointment pagination: the set of
+ * appointment ids with a clinical record does not shrink just because only one
+ * page of appointments is loaded.
  */
 
 import Link from "next/link";
@@ -25,18 +33,21 @@ import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { getPatientByIdAction } from "@/modules/server/presentation/actions/patient";
+import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { listEncountersAction } from "@/modules/server/presentation/actions/encounter/core.actions";
 import {
-  fetchAllDoctorAppointments,
   getParticipantName,
-  splitAppointmentsByTime,
+  referenceInstantMs,
 } from "@/modules/server/presentation/helpers/doctorPatients";
 import { PatientHeaderCard } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientHeaderCard";
-import { PatientAppointmentList } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientAppointmentList";
+import { PatientAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientAppointmentsTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 import type { TPaginatedEncounterResponse } from "@/modules/entities/schemas/encounter";
+
+/** Default page size for the patient appointment table — matches the table's own. */
+const INITIAL_PAGE_SIZE = 10;
 
 /** Route params for the dynamic segment. */
 interface PatientClinicalRecordsPageProps {
@@ -71,19 +82,32 @@ export default async function PatientClinicalRecordsPage({
     return <RecordsError backHref={backHref} message="Invalid patient ID." />;
   }
 
-  /* Patient record, this doctor's appointments with them, and every encounter
-     for the patient — all independent, so fetch in parallel. */
-  const [[patient], appointments, [encountersPage]] = await Promise.all([
+  /* Patient record, the first page of this doctor's appointments with them,
+     and every encounter for the patient — all independent, so fetch in
+     parallel. */
+  const [[patient], [appointmentsPage], [encountersPage]] = await Promise.all([
     getPatientByIdAction({ payload: { id: numericPatientId } }),
-    fetchAllDoctorAppointments({
-      practitionerId: practitioner.id,
-      orgId,
-      patientId: numericPatientId,
+    listAppointmentsAction({
+      payload: {
+        limit: INITIAL_PAGE_SIZE,
+        offset: 0,
+        patient_id: numericPatientId,
+        practitioner_id: practitioner.id,
+        ...(orgId ? { org_id: orgId } : {}),
+      },
     }),
     listEncountersAction({
       payload: { patient_id: numericPatientId, limit: 200 },
     }),
   ]);
+
+  /** Safe empty fallback if the action fails at render time. */
+  const initialData = appointmentsPage ?? {
+    total: 0,
+    limit: INITIAL_PAGE_SIZE,
+    offset: 0,
+    data: [],
+  };
 
   /*
    * Map encounters back to appointments. An encounter references its appointment
@@ -103,14 +127,17 @@ export default async function PatientClinicalRecordsPage({
   ];
 
   /* The appointment participant is the most reliable name source when the
-     Patient record itself has no name[] entries. */
-  const fallbackName = appointments[0]
-    ? getParticipantName(appointments[0], "Patient")
+     Patient record itself has no name[] entries. Only the first page is
+     available here, but any appointment's Patient participant carries the
+     same name, so which page it comes from does not matter. */
+  const fallbackName = initialData.data?.[0]
+    ? getParticipantName(initialData.data[0], "Patient")
     : "Patient";
 
-  /* Split here rather than in the component — reading the clock during render
-     is disallowed in React components. */
-  const { upcoming, past } = splitAppointmentsByTime(appointments);
+  /* Resolved through a helper rather than inline — reading the clock during
+     render is disallowed in React components. The table's Timing column judges
+     every row against this one instant. */
+  const nowMs = referenceInstantMs();
 
   return (
     /* Wider than the other Clinical Records pages so the appointment grid has
@@ -137,11 +164,14 @@ export default async function PatientClinicalRecordsPage({
       />
 
       {/* ── Appointment history ── */}
-      <PatientAppointmentList
-        upcoming={upcoming}
-        past={past}
+      <PatientAppointmentsTable
+        initialData={initialData}
+        patientId={numericPatientId}
+        orgId={orgId}
+        practitionerId={practitioner.id}
         appointmentIdsWithEncounter={appointmentIdsWithEncounter}
         workspaceBaseHref={`${backHref}/${numericPatientId}`}
+        nowMs={nowMs}
       />
     </div>
   );

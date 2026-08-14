@@ -4,7 +4,11 @@
  * Layer: client / telemedicine / patient / appointments / list
  *
  * Produces TanStack Table v8 ColumnDef array for the patient's own appointment
- * list. Columns: Doctor, Type, Date, Time, Duration, Status, Actions.
+ * list. Columns: Expand, Doctor, Type, Date, Time, Duration, Status, Actions.
+ *
+ * The Expand column drives the row-detail panel (AppointmentDetailPanel); it
+ * only works because the parent table passes `getRowCanExpand` and
+ * `renderSubComponent` — the button renders invisible without them.
  *
  * Factory function pattern — callers pass action callbacks so the column
  * definitions remain pure (no Zustand, no React context dependency) and the
@@ -16,6 +20,7 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   DataTableColumnHeader,
+  DataTableExpandButton,
   DataTableRowActions,
   type RowAction,
 } from "@/modules/client/shared/components/tables";
@@ -166,6 +171,20 @@ export function createPatientAppointmentColumns(
   callbacks: PatientAppointmentColumnCallbacks,
 ): ColumnDef<TAppointmentResponse>[] {
   return [
+    // ── Expand ───────────────────────────────────────────────────────────────
+    // Leads the row so the chevron sits at the left edge, matching the
+    // Organizations table. Excluded from export — it carries no data.
+    {
+      id: "expand",
+      header: () => null,
+      cell: ({ row }) => <DataTableExpandButton row={row} />,
+      enableSorting: false,
+      enableHiding: false,
+      enableResizing: false,
+      size: 40,
+      meta: { exportable: false },
+    },
+
     // ── Doctor (Practitioner participant) ────────────────────────────────────
     {
       id: "doctor",

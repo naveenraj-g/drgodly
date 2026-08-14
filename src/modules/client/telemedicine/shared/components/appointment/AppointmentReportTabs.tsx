@@ -42,6 +42,15 @@ interface AppointmentReportTabsProps {
    * Pass from the patient appointment detail page only — the doctor view omits this.
    */
   isPatientView?: boolean;
+  /**
+   * Whether the doctor approved this consultation's report
+   * (`Consultation.published_at != null`).
+   *
+   * Drives who sees the SOAP note: the doctor always does, tagged when it is
+   * still a draft; the patient only once it is approved. Defaults to true so a
+   * caller that has no consultation to check behaves as before.
+   */
+  reviewed?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -58,6 +67,7 @@ export function AppointmentReportTabs({
   intake,
   doctorReport,
   isPatientView = false,
+  reviewed = true,
 }: AppointmentReportTabsProps) {
   /**
    * Opens the upload-result modal for the given ServiceRequest.
@@ -94,7 +104,12 @@ export function AppointmentReportTabs({
 
       {/* Doctor Report tab */}
       <TabsContent value="doctor" className="mt-4">
-        <DoctorReportSection {...doctorReport} onUploadResult={onUploadResult} />
+        <DoctorReportSection
+          {...doctorReport}
+          onUploadResult={onUploadResult}
+          reviewed={reviewed}
+          isPatientView={isPatientView}
+        />
       </TabsContent>
     </Tabs>
   );

@@ -25,22 +25,21 @@ import {
   Stethoscope,
   ClipboardList,
   Upload,
-  Download,
   ChevronDown,
   ChevronUp,
   CalendarDays,
   UserRound,
   AlertCircle,
   CheckCircle2,
-  Loader2,
   FileText,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { AttachmentList } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 import { patientStore } from "../../stores/patient.store";
+import type { Attachment } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 import type { TServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
@@ -78,17 +77,6 @@ function statusVariant(
 }
 
 /**
- * Formats a byte count as a short human-readable string.
- * @param bytes - Raw byte count.
- */
-function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/**
  * Formats an ISO date string as a short locale date (e.g. "Jan 5, 2025").
  * @param iso - ISO 8601 date or datetime string.
  */
@@ -103,27 +91,6 @@ function fmtDate(iso: string | null | undefined): string | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Derives a short uppercase file extension badge from filename or MIME type.
- * @param title       - Filename, e.g. "blood-test.pdf".
- * @param contentType - MIME type, e.g. "application/pdf".
- */
-function getFileExt(
-  title?: string | null,
-  contentType?: string | null,
-): string {
-  if (title) {
-    const ext = title.split(".").pop();
-    if (ext && ext.length <= 5) return ext.toUpperCase();
-  }
-  if (contentType) {
-    if (contentType.includes("pdf")) return "PDF";
-    const sub = contentType.split("/")[1];
-    if (sub) return sub.split(";")[0].toUpperCase().slice(0, 5);
-  }
-  return "FILE";
 }
 
 /**
@@ -177,17 +144,21 @@ export function ServiceRequestRecordCard({
   appointment,
 }: ServiceRequestRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
   /** Flatten presentedForm across all DRs, newest DR first. */
-  const allFiles = [...diagnosticReports]
+  const allFiles: Attachment[] = [...diagnosticReports]
     .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
     .flatMap((dr) =>
-      (dr.presented_form ?? []).map((pf) => ({
-        ...pf,
-        uploadedAt: pf.creation ?? dr.created_at,
+      (dr.presented_form ?? []).map((pf, index) => ({
+        key: `${dr.id}-${pf.id ?? index}`,
+        fileId: pf.url ?? null,
+        title: pf.title ?? null,
+        contentType: pf.content_type ?? null,
+        size: pf.size ?? null,
+        uploadedAt: pf.creation ?? dr.created_at ?? null,
+        detail: null,
       })),
     );
 
@@ -223,34 +194,6 @@ export function ServiceRequestRecordCard({
         patientFhirId: sr.subject_id ?? undefined,
       },
     });
-  }
-
-  /**
-   * Fetches a short-lived presigned download URL for a FilNest fileId and opens it.
-   * @param fileId - FilNest file ID stored as presented_form[].url.
-   * @param title  - Filename hint for the browser download dialog.
-   */
-  async function handleDownload(fileId: string, title?: string | null) {
-    setDownloadingId(fileId);
-    try {
-      const res = await fetch(
-        `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}`,
-      );
-      if (!res.ok) throw new Error("Failed");
-      const { url } = (await res.json()) as { url: string };
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = title ?? "result";
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch {
-      toast.error("Could not get download link. Try again.");
-    } finally {
-      setDownloadingId(null);
-    }
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -401,56 +344,7 @@ export function ServiceRequestRecordCard({
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                 Uploaded Files
               </p>
-              {allFiles.map((pf, i) => {
-                const ext = getFileExt(pf.title, pf.content_type);
-                const size = formatBytes(pf.size);
-                const date = fmtDate(pf.uploadedAt);
-                const isDownloading = downloadingId === pf.url;
-
-                return (
-                  <div
-                    key={pf.id ?? i}
-                    className="flex items-center gap-3 rounded-md border bg-background px-3 py-2.5"
-                  >
-                    {/* Extension badge */}
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] font-mono shrink-0 min-w-12 justify-center"
-                    >
-                      {ext}
-                    </Badge>
-
-                    {/* Filename + meta */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate leading-tight">
-                        {pf.title ?? "Untitled"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {[size, date].filter(Boolean).join(" · ")}
-                      </p>
-                    </div>
-
-                    {/* Download button */}
-                    {pf.url && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1.5 text-xs shrink-0"
-                        disabled={isDownloading}
-                        onClick={() => handleDownload(pf.url!, pf.title)}
-                      >
-                        {isDownloading ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <Download className="size-3" />
-                        )}
-                        Download
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
+              <AttachmentList attachments={allFiles} />
             </div>
           </>
         )}

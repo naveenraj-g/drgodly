@@ -39,6 +39,12 @@ export type TConsultationTranscriptMessage = z.infer<
 /**
  * SOAP note shape from the doctor-report-agent.
  * All fields optional — the agent may omit sections for incomplete consultations.
+ *
+ * Every nested section carries `.passthrough()` as well as the top level. The
+ * agent is an external service whose key names are not pinned here, and a bare
+ * inner z.object silently strips anything unlisted — leaving `{}`, which is
+ * truthy and rendered a section heading above no content. Passing unknown keys
+ * through keeps the note intact; ConsultationInsights renders the extras.
  */
 export const SoapNoteSchema = z.object({
   subjective: z
@@ -47,23 +53,27 @@ export const SoapNoteSchema = z.object({
       history_of_present_illness: z.string().optional(),
       associated_symptoms: z.array(z.string()).optional(),
     })
+    .passthrough()
     .optional(),
   objective: z
     .object({
       observations: z.array(z.string()).optional(),
     })
+    .passthrough()
     .optional(),
   assessment: z
     .object({
       possible_conditions: z.array(z.string()).optional(),
       clinical_reasoning: z.string().optional(),
     })
+    .passthrough()
     .optional(),
   plan: z
     .object({
       next_steps: z.array(z.string()).optional(),
       when_to_seek_care: z.string().optional(),
     })
+    .passthrough()
     .optional(),
   summary: z.string().optional(),
 }).passthrough();
@@ -139,6 +149,15 @@ export const ConsultationResponseSchema = z.object({
   observations: z.array(z.unknown()).nullable(),
   /** Condition[] from clinical-extraction-agent (FHIR R4 shape). */
   conditions: z.array(z.unknown()).nullable(),
+  /**
+   * When the doctor approved the SOAP note and clinical extractions above.
+   * Null means they are still AI suggestions awaiting review — the only signal
+   * that distinguishes the two, since the narrative note has no FHIR record to
+   * check against.
+   */
+  published_at: z.coerce.date().nullable(),
+  /** Better Auth user ID of the approving doctor. Set with published_at. */
+  published_by: z.string().nullable(),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
 });

@@ -76,6 +76,8 @@ function toDto(row: {
   medication_requests: unknown;
   observations: unknown;
   conditions: unknown;
+  published_at: Date | null;
+  published_by: string | null;
   created_at: Date;
   updated_at: Date;
 }): TConsultationResponse {
@@ -100,6 +102,10 @@ function toDto(row: {
     observations: (row.observations as any) ?? null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     conditions: (row.conditions as any) ?? null,
+    /* Null here is meaningful, not missing data: it is what marks the note and
+       extractions as still awaiting the doctor's review. */
+    published_at: row.published_at,
+    published_by: row.published_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -253,6 +259,16 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
           observations: dto.observations ? pj(dto.observations) : undefined,
           conditions: dto.conditions ? pj(dto.conditions) : undefined,
           soap_note: dto.soap_note ? pj(dto.soap_note) : undefined,
+          /* Approval stamp. Written from the server clock and the session's
+             user, never from the payload, so the recorded time and approver
+             cannot be forged by the client.
+
+             `undefined` when mark_published is absent or false, which leaves
+             any existing stamp untouched — a clinical-workspace autosave must
+             not silently un-approve a record the doctor already reviewed.
+             Re-approving simply moves the timestamp forward. */
+          published_at: dto.mark_published ? new Date() : undefined,
+          published_by: dto.mark_published ? dto.published_by : undefined,
         },
       });
 

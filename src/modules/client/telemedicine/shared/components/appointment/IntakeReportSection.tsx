@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  flattenDiagnosticPlan,
   riskBadgeClass,
   safeParseReport,
   type DiagnosticItem,
@@ -63,11 +64,9 @@ import { type TIntakeResponse } from "@/modules/entities/schemas/intake";
  */
 function ReportView({ report }: { report: IntakeReport }) {
   // Flatten the three diagnostic sub-arrays into one ordered list
-  const diagItems: DiagnosticItem[] = [
-    ...(report.diagnostic_plan?.laboratory_tests ?? []),
-    ...(report.diagnostic_plan?.imaging ?? []),
-    ...(report.diagnostic_plan?.other ?? []),
-  ];
+  const diagItems: DiagnosticItem[] = flattenDiagnosticPlan(
+    report.diagnostic_plan,
+  );
 
   // Filter out sentinel values the agent sometimes emits
   const redFlags = (report.red_flags ?? []).filter(

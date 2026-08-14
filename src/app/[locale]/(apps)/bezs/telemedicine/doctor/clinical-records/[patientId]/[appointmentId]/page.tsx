@@ -16,7 +16,7 @@
  *     editors from (published records → staged draft → AI report).
  *
  * Unlike the post-consultation review page this keeps *all* encounters rather
- * than just the first, so the Summary tab can show how many the visit produced.
+ * than just the first, so the Timeline tab can show every one the visit produced.
  */
 
 import Link from "next/link";
@@ -209,9 +209,13 @@ export default async function ClinicalWorkspacePage({
           soapNote: consultation?.soap_note ?? null,
         }}
         aiSoapNote={consultation?.full_report?.soap_report ?? null}
+        /* Null means the note and entries are still AI suggestions awaiting
+           review. Consultations written before this column existed have no
+           stamp, so the workspace falls back to checking FHIR for them. */
+        publishedAt={consultation?.published_at ?? null}
+        consultationCreatedAt={consultation?.created_at ?? null}
         intake={intake ?? null}
         transcript={transcript}
-        aiAssessment={consultation?.full_report?.assessment_plan ?? null}
       />
 
       {/* Upload modal singletons — controlled by the doctor Zustand store */}

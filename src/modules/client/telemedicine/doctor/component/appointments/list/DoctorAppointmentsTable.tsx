@@ -35,6 +35,7 @@ import {
   fetchDoctorAppointments,
 } from "./appointmentQueries";
 import { createDoctorAppointmentColumns } from "./DoctorAppointmentColumns";
+import { AppointmentDetailPanel } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailPanel";
 import { doctorStore } from "@/modules/client/telemedicine/doctor/stores/doctor.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -130,6 +131,9 @@ export function DoctorAppointmentsTable({
     data: rows,
     pageCount,
     initialPageSize: INITIAL_PAGE_SIZE,
+    // Every appointment carries detail worth expanding into, so no row is
+    // excluded — the panel hides its own empty sections.
+    getRowCanExpand: () => true,
   });
 
   // Extract server-side filter params from the column filter state.
@@ -185,7 +189,13 @@ export function DoctorAppointmentsTable({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <DataTable table={table} loading={isFetching}>
+    <DataTable
+      table={table}
+      loading={isFetching}
+      renderSubComponent={(row) => (
+        <AppointmentDetailPanel row={row} perspective="doctor" />
+      )}
+    >
       <DataTableToolbar table={table} />
     </DataTable>
   );

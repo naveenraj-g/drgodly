@@ -1,5 +1,5 @@
 /**
- * IntakeTab — AI pre-intake assessment and both conversation transcripts.
+ * IntakeTab — AI pre-intake assessment and the patient↔AI intake dialogue.
  *
  * Layer: client / telemedicine / doctor / component / clinical-records / tabs
  *
@@ -7,12 +7,12 @@
  * doctor writing the note could not see what the patient actually reported.
  * Bringing it into the workspace is the point of this tab.
  *
- * Two things the old section did not do:
- *   - **Red flags lead.** They were rendered last, below the treatment plan.
- *     Anything the AI flagged as urgent belongs at the top of the tab.
- *   - **Both transcripts.** The old page showed only the patient↔AI intake
- *     dialogue. The consultation transcript (captured live during the call) is
- *     shown here too, so the note can be checked against what was said.
+ * Red flags lead: they were previously rendered last, below the treatment plan,
+ * and anything the AI flagged as urgent belongs at the top.
+ *
+ * The *consultation* transcript is deliberately not here. It is the source the
+ * consultation note was written from, so it lives with the note — behind the
+ * Conversation button on the Note tab — rather than three tabs away.
  */
 
 "use client";
@@ -41,15 +41,12 @@ import {
   type IntakeReport,
 } from "../intakeReport";
 import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
-import type { TConsultationTranscriptMessage } from "@/modules/entities/schemas/consultation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface IntakeTabProps {
   /** Intake record for this appointment, if the patient completed one. */
   intake: TIntakeResponse | null;
-  /** Live transcript captured during the consultation, if there was one. */
-  transcript: TConsultationTranscriptMessage[];
 }
 
 // ── Report sub-sections ───────────────────────────────────────────────────────
@@ -284,22 +281,20 @@ function TranscriptTurn({
  * @param intake - Intake record, or null when the patient completed none.
  * @param transcript - Live consultation transcript, possibly empty.
  */
-export function IntakeTab({ intake, transcript }: IntakeTabProps) {
+export function IntakeTab({ intake }: IntakeTabProps) {
   const report = safeParseReport(intake?.report);
   const intakeMessages = intake?.conversation ?? [];
 
-  const hasAnything =
-    report !== null || intakeMessages.length > 0 || transcript.length > 0;
+  const hasAnything = report !== null || intakeMessages.length > 0;
 
   if (!hasAnything) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center gap-3 py-14 text-muted-foreground">
           <FileSearch className="size-10 opacity-30" />
-          <p className="text-sm font-medium">No intake or transcript recorded.</p>
+          <p className="text-sm font-medium">No intake recorded.</p>
           <p className="max-w-xs text-center text-xs opacity-70">
-            The patient did not complete an AI intake, and no consultation
-            transcript was captured for this visit.
+            The patient did not complete an AI intake before this visit.
           </p>
         </CardContent>
       </Card>
@@ -324,7 +319,7 @@ export function IntakeTab({ intake, transcript }: IntakeTabProps) {
         <Separator />
 
         <Tabs defaultValue="assessment" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="assessment" className="gap-1.5 text-xs">
               <ClipboardList className="size-3" />
               Assessment
@@ -332,10 +327,6 @@ export function IntakeTab({ intake, transcript }: IntakeTabProps) {
             <TabsTrigger value="intake" className="gap-1.5 text-xs">
               <MessageSquare className="size-3" />
               Intake chat
-            </TabsTrigger>
-            <TabsTrigger value="consult" className="gap-1.5 text-xs">
-              <Stethoscope className="size-3" />
-              Consultation
             </TabsTrigger>
           </TabsList>
 
@@ -370,26 +361,6 @@ export function IntakeTab({ intake, transcript }: IntakeTabProps) {
             )}
           </TabsContent>
 
-          {/* ── Live consultation transcript ── */}
-          <TabsContent value="consult" className="mt-4">
-            {transcript.length > 0 ? (
-              <div className="max-h-[26rem] space-y-4 overflow-y-auto pr-1">
-                {transcript.map((m, i) => (
-                  <TranscriptTurn
-                    key={i}
-                    speaker={m.speaker === "DOCTOR" ? "Doctor" : "Patient"}
-                    text={m.text}
-                    timestamp={m.timestamp}
-                    isClinician={m.speaker === "DOCTOR"}
-                  />
-                ))}
-              </div>
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No consultation transcript was captured for this visit.
-              </p>
-            )}
-          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>

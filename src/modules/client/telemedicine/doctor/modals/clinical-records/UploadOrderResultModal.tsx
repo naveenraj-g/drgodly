@@ -35,6 +35,7 @@ import { useFileNestTokenFetcher } from "@/modules/client/shared/hooks/useFileNe
 import { createDiagnosticReportAction } from "@/modules/server/presentation/actions/diagnostic-report";
 import { createDocumentReferenceAction } from "@/modules/server/presentation/actions/document-reference";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
+import { resultDocumentName } from "@/modules/client/telemedicine/shared/components/clinical/documentNaming";
 
 import { useDoctorStore } from "../../stores/doctor.store";
 import {
@@ -51,6 +52,8 @@ interface UploadOrderResultContentProps {
   serviceRequestId: number;
   /** FHIR Patient.id — subject of the created resources. */
   patientFhirId?: number;
+  /** Order name, e.g. "CBC" — used to name the created DocumentReference. */
+  serviceRequestCode?: string;
 }
 
 /**
@@ -63,6 +66,7 @@ interface UploadOrderResultContentProps {
 function UploadOrderResultContent({
   serviceRequestId,
   patientFhirId,
+  serviceRequestCode,
 }: UploadOrderResultContentProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -117,12 +121,16 @@ function UploadOrderResultContent({
             payload: {
               status: "current",
               ...(subject ? { subject } : {}),
+              /* Both the record and its attachment carry the qualified name.
+                 The Documents tab reads attachment.title; description names the
+                 record itself. Same string, so the two cannot disagree. */
+              description: resultDocumentName(serviceRequestCode, r.filename),
               content: [
                 {
                   attachment: {
                     url: r.id,
                     content_type: getRecordContentType(r),
-                    title: r.filename,
+                    title: resultDocumentName(serviceRequestCode, r.filename),
                     size: getRecordSize(r),
                     creation,
                   },
@@ -184,14 +192,18 @@ export function UploadOrderResultModal() {
   const patientFhirId = data?.patientFhirId;
   const serviceRequestCode = data?.serviceRequestCode;
 
-  /* FileNest path convention: patient id is the root folder, matching how
-     profile photos and patient-side result uploads are stored. */
+  /*
+   * FileNest path convention: patient id is the root folder, matching how
+   * profile photos and patient-side result uploads are stored.
+   *
+   * Deliberately not scoped per order. Which order a file belongs to is
+   * recorded in FHIR — the DiagnosticReport's based_on[] points at the
+   * ServiceRequest, and that is what every reader resolves it through. Putting
+   * the id in the path as well made a second, weaker copy of that link and one
+   * folder per order.
+   */
   const filePath =
-    patientFhirId != null && serviceRequestId != null
-      ? `${patientFhirId}/servicerequest/${serviceRequestId}`
-      : serviceRequestId != null
-        ? `servicerequest/${serviceRequestId}`
-        : "uploads/results";
+    patientFhirId != null ? `${patientFhirId}/servicerequest` : "servicerequest";
 
   const tokenFetcher = useFileNestTokenFetcher({
     filePath,
@@ -228,6 +240,7 @@ export function UploadOrderResultModal() {
             <UploadOrderResultContent
               serviceRequestId={serviceRequestId}
               patientFhirId={patientFhirId ?? undefined}
+              serviceRequestCode={serviceRequestCode}
             />
           </FileNestProvider>
         ) : null}

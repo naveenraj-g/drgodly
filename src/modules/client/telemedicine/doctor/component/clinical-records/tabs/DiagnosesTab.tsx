@@ -31,6 +31,14 @@ interface DiagnosesTabProps {
   observations: ObservationFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onObservationsChange: (items: ObservationFormItem[]) => void;
+  /** Writes one condition to the EMR, resolving to its FHIR id. */
+  onPersistCondition: (item: ConditionFormItem) => Promise<number>;
+  /** Removes one condition from the EMR. */
+  onDeleteCondition: (item: ConditionFormItem) => Promise<void>;
+  /** Writes one observation to the EMR, resolving to its FHIR id. */
+  onPersistObservation: (item: ObservationFormItem) => Promise<number>;
+  /** Removes one observation from the EMR. */
+  onDeleteObservation: (item: ObservationFormItem) => Promise<void>;
 }
 
 // ── Blank-entry factories ─────────────────────────────────────────────────────
@@ -73,6 +81,10 @@ export function DiagnosesTab({
   onConditionsChange,
   observations,
   onObservationsChange,
+  onPersistCondition,
+  onDeleteCondition,
+  onPersistObservation,
+  onDeleteObservation,
 }: DiagnosesTabProps) {
   return (
     <div className="space-y-5">
@@ -86,6 +98,8 @@ export function DiagnosesTab({
         hint="Each entry needs a terminology code"
         createItem={emptyCondition}
         summary={conditionSummary}
+        onPersistItem={onPersistCondition}
+        onDeleteItem={onDeleteCondition}
         renderFields={(item, onItemChange) => (
           <ConditionFields item={item} onChange={onItemChange} />
         )}
@@ -101,6 +115,8 @@ export function DiagnosesTab({
         hint="Numeric values store as quantities"
         createItem={emptyObservation}
         summary={observationSummary}
+        onPersistItem={onPersistObservation}
+        onDeleteItem={onDeleteObservation}
         renderFields={(item, onItemChange) => (
           <ObservationFields item={item} onChange={onItemChange} />
         )}

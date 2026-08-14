@@ -165,6 +165,11 @@ export default async function PatientAppointmentViewPage({
       <AppointmentReportTabs
         intake={intake}
         isPatientView
+        /* Withholds the SOAP note until the doctor has approved it. Without
+           this the patient reads raw agent output as though it were their
+           doctor's written assessment. No FHIR fallback here: an unstamped
+           consultation counts as unreviewed, which is the safe direction. */
+        reviewed={consultation?.published_at != null}
         doctorReport={{
           soap: soapNote,
           conditions,

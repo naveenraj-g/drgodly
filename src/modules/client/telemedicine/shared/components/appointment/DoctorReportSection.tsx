@@ -16,7 +16,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -31,12 +30,13 @@ import {
   Eye,
   Clock,
   Upload,
-  Loader2,
   ChevronDown,
   ChevronUp,
-  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ReviewBadge } from "@/modules/client/telemedicine/shared/components/clinical/ReviewStatus";
+import { AttachmentList } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
+import type { Attachment } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 import type { TConditionResponse } from "@/modules/entities/schemas/condition";
 import type { TObservationResponse } from "@/modules/entities/schemas/observation";
 import type { TMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
@@ -474,62 +474,6 @@ function MedicationList({
 }
 
 /**
- * Fetches a short-lived FileNest URL for a fileId.
- * @param fileId      - FileNest file ID stored as presented_form[].url.
- * @param disposition - "inline" opens the file in a new tab (view); "attachment" forces a download.
- */
-async function getFileUrl(
-  fileId: string,
-  disposition: "inline" | "attachment",
-): Promise<string> {
-  const res = await fetch(
-    `/api/filenest-download-url?fileId=${encodeURIComponent(fileId)}&disposition=${disposition}`,
-  );
-  if (!res.ok) throw new Error("Failed to get file link");
-  const { url } = (await res.json()) as { url: string };
-  return url;
-}
-
-/**
- * Derives a short uppercase file extension badge from filename or MIME type.
- * @param title       - Filename, e.g. "blood-test.pdf".
- * @param contentType - MIME type, e.g. "application/pdf".
- */
-function getFileExt(title?: string | null, contentType?: string | null): string {
-  if (title) {
-    const ext = title.split(".").pop();
-    if (ext && ext.length <= 5) return ext.toUpperCase();
-  }
-  if (contentType) {
-    if (contentType.includes("pdf")) return "PDF";
-    const sub = contentType.split("/")[1];
-    if (sub) return sub.split(";")[0].toUpperCase().slice(0, 5);
-  }
-  return "FILE";
-}
-
-/**
- * Formats a byte count as a short human-readable string.
- * @param bytes - Raw byte count.
- */
-function formatBytes(bytes: number | null | undefined): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/** One uploaded result file, flattened from a DiagnosticReport's presented_form[]. */
-interface ResultFile {
-  id?: number | null;
-  url?: string | null;
-  title?: string | null;
-  content_type?: string | null;
-  size?: number | null;
-  uploadedAt?: string | null;
-}
-
-/**
  * One confirmed ServiceRequest (order/investigation) card with an expandable list of
  * every uploaded result file for that order — a doctor order can have many result
  * files, so each gets its own View/Download row instead of a single collapsed button.
@@ -545,12 +489,10 @@ function ServiceRequestCard({
   onUploadResult,
 }: {
   sr: TServiceRequestResponse;
-  files: ResultFile[];
+  files: Attachment[];
   onUploadResult?: (sr: TServiceRequestResponse) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  /** Which file is currently being viewed/downloaded, if any. */
-  const [busy, setBusy] = useState<{ id: string; action: "view" | "download" } | null>(null);
 
   const hasFiles = files.length > 0;
   const category = sr.category?.[0]?.coding_display ?? sr.category?.[0]?.text ?? null;
@@ -560,35 +502,6 @@ function ServiceRequestCard({
     (sr.body_site ?? []).map((b) => b.coding_display ?? b.text).filter(Boolean).join(", ") ||
     null;
   const notes = (sr.note ?? []).map((n) => n.text).filter(Boolean).join(" ") || null;
-
-  /**
-   * Opens (view, inline in a new tab) or downloads a result file.
-   * @param file   - File to act on.
-   * @param action - "view" opens inline; "download" saves it to disk.
-   */
-  async function handleFileAction(file: ResultFile, action: "view" | "download") {
-    if (!file.url) return;
-    setBusy({ id: file.url, action });
-    try {
-      const url = await getFileUrl(file.url, action === "view" ? "inline" : "attachment");
-      if (action === "view") {
-        window.open(url, "_blank", "noopener,noreferrer");
-      } else {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = file.title ?? "result";
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    } catch {
-      toast.error(`Could not ${action === "view" ? "open" : "download"} file. Try again.`);
-    } finally {
-      setBusy(null);
-    }
-  }
 
   return (
     <div className="rounded-md border bg-muted/30 px-3 py-2.5 space-y-1.5">
@@ -648,71 +561,8 @@ function ServiceRequestCard({
 
       {/* Expanded file list — one row per uploaded file, each with its own View/Download */}
       {isExpanded && hasFiles && (
-        <div className="space-y-1.5 pt-1">
-          {files.map((f, i) => {
-            const ext = getFileExt(f.title, f.content_type);
-            const size = formatBytes(f.size);
-            const date = fmtDate(f.uploadedAt);
-            const isViewing = f.url != null && busy?.id === f.url && busy.action === "view";
-            const isDownloading =
-              f.url != null && busy?.id === f.url && busy.action === "download";
-
-            return (
-              <div
-                key={f.id ?? i}
-                className="flex items-center gap-3 rounded-md border bg-background px-3 py-2"
-              >
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] font-mono shrink-0 min-w-12 justify-center"
-                >
-                  {ext}
-                </Badge>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate leading-tight">
-                    {f.title ?? "Untitled"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {[size, date].filter(Boolean).join(" · ")}
-                  </p>
-                </div>
-                {f.url && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      disabled={isViewing}
-                      onClick={() => handleFileAction(f, "view")}
-                    >
-                      {isViewing ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        <Eye className="size-3" />
-                      )}
-                      View
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs"
-                      disabled={isDownloading}
-                      onClick={() => handleFileAction(f, "download")}
-                    >
-                      {isDownloading ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        <Download className="size-3" />
-                      )}
-                      Download
-                    </Button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="pt-1">
+          <AttachmentList attachments={files} />
         </div>
       )}
     </div>
@@ -768,10 +618,17 @@ function ServiceRequestList({
       </div>
       <div className="space-y-2">
         {serviceRequests.map((s) => {
-          const files = (drsByServiceRequestId.get(s.id) ?? []).flatMap((dr) =>
-            (dr.presented_form ?? []).map((pf) => ({
-              ...pf,
-              uploadedAt: pf.creation ?? dr.created_at,
+          const files: Attachment[] = (
+            drsByServiceRequestId.get(s.id) ?? []
+          ).flatMap((dr) =>
+            (dr.presented_form ?? []).map((pf, index) => ({
+              key: `${dr.id}-${pf.id ?? index}`,
+              fileId: pf.url ?? null,
+              title: pf.title ?? null,
+              contentType: pf.content_type ?? null,
+              size: pf.size ?? null,
+              uploadedAt: pf.creation ?? dr.created_at ?? null,
+              detail: null,
             })),
           );
           return (
@@ -811,6 +668,24 @@ export interface DoctorReportSectionProps {
    * Omit on the doctor view — only pass on the patient appointment detail page.
    */
   onUploadResult?: (sr: TServiceRequestResponse) => void;
+  /**
+   * Whether the doctor has approved this consultation's report
+   * (`Consultation.published_at != null`).
+   *
+   * Only the SOAP note is gated on it. The FHIR records below are read back
+   * from the chart, so their existence already means they were published —
+   * there is nothing unreviewed about them to hide.
+   */
+  reviewed?: boolean;
+  /**
+   * True when a patient is reading this rather than the authoring doctor.
+   *
+   * Changes who may see an unreviewed note. The doctor sees their own draft,
+   * tagged; the patient does not see it until it is approved. A draft is agent
+   * output no clinician has read, and showing it to the patient would present
+   * it as advice from their doctor.
+   */
+  isPatientView?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -835,8 +710,17 @@ export function DoctorReportSection({
   serviceRequests,
   diagnosticReports,
   onUploadResult,
+  reviewed = true,
+  isPatientView = false,
 }: DoctorReportSectionProps) {
-  const hasSoap = soap != null;
+  /*
+   * The note is withheld from the patient until approved, but still shown to
+   * the doctor — it is their own draft, and reviewing it is what they came
+   * here to do. `reviewed` defaults to true so the doctor-side pages that do
+   * not pass it are unaffected; the patient page passes it explicitly.
+   */
+  const noteWithheld = isPatientView && !reviewed;
+  const hasSoap = soap != null && !noteWithheld;
   const hasFhirData =
     conditions.length > 0 ||
     observations.length > 0 ||
@@ -868,6 +752,11 @@ export function DoctorReportSection({
         <div className="flex items-center gap-2">
           <Stethoscope className="size-4 text-primary" />
           <h2 className="font-semibold text-sm">Doctor&apos;s Report</h2>
+          {/* Doctor side only. The patient never sees an unreviewed note, so
+              there is nothing for them to tag. */}
+          {!isPatientView && soap != null && (
+            <ReviewBadge approved={reviewed} className="ml-auto" />
+          )}
         </div>
 
         {/* SOAP Note */}
@@ -875,6 +764,18 @@ export function DoctorReportSection({
           <>
             <SoapNoteView soap={soap!} />
           </>
+        )}
+
+        {/* Withheld note — the records below are in the chart, so say why the
+            narrative is missing rather than leaving an unexplained gap. */}
+        {noteWithheld && soap != null && (
+          <div className="flex items-start gap-2.5 rounded-md border bg-muted/40 px-3 py-2.5">
+            <Clock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground">
+              Your doctor is still finalising their written notes for this
+              visit. They&apos;ll appear here once complete.
+            </p>
+          </div>
         )}
 
         {/* FHIR records */}
