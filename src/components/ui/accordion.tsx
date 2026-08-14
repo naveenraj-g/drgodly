@@ -66,9 +66,25 @@ function AccordionContent({
       className="overflow-hidden text-sm data-open:animate-accordion-down data-closed:animate-accordion-up"
       {...props}
     >
+      {/*
+        No height utility here. Pinning this div to
+        h-(--radix-accordion-content-height) — as earlier versions of this
+        component did — traps it: Radix sets that variable by observing this
+        div's own rendered height, but a div whose height is capped by that
+        same variable can never render taller than the cap, so the observer
+        never sees a size increase and the variable never updates. Content
+        added after the accordion is already open (an extra row from an
+        "Add" button, for instance) silently clips against overflow-hidden on
+        the parent, with no scrollbar to reveal it. The variable is still
+        exactly right for the open/close *animation* — that lives on the
+        parent's own animate-accordion-down/up classes above, which measure
+        this div's natural, unconstrained height instead, so it's unaffected
+        by removing the duplicate binding here. Settled state is just
+        ordinary height:auto, so content can never outgrow its box again.
+      */}
       <div
         className={cn(
-          "h-(--radix-accordion-content-height) pt-0 pb-2.5 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
+          "pt-0 pb-2.5 [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground [&_p:not(:last-child)]:mb-4",
           className
         )}
       >

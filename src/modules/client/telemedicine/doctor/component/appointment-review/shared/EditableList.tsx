@@ -5,6 +5,15 @@
  *
  * Used in all four SOAP accordion sections (symptoms, findings, conditions, steps).
  * The parent owns the string[] state and receives updates via onChange.
+ *
+ * The row list is capped to MAX_LIST_HEIGHT with its own native scrollbar
+ * (overflow-y-auto — not shadcn's ScrollArea, see the note on that component's
+ * own history of not scrolling where it was dropped into a flex layout without
+ * care). The Add button sits outside that box, after it, so it stays at a
+ * fixed, predictable position regardless of how many rows are in the list —
+ * a section that grows to dozens of items scrolls within its own card instead
+ * of pushing the button (and every accordion section below it) further down
+ * the page.
  */
 
 "use client";
@@ -12,6 +21,15 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+/**
+ * Max height of the scrollable row box, in pixels — roughly 5 rows before a
+ * scrollbar appears. Tall enough that a typical short list (2-4 items) never
+ * shows one, short enough that a long list can't dominate its accordion card.
+ */
+const MAX_LIST_HEIGHT = 208;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -83,25 +101,32 @@ export function EditableList({
 
   return (
     <div className="space-y-2">
-      {items.map((item, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Input
-            value={item}
-            onChange={(e) => update(i, e.target.value)}
-            placeholder={placeholder}
-            className="flex-1 h-8 text-sm"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-            onClick={() => remove(i)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      {items.length > 0 && (
+        <div
+          className="space-y-2 overflow-y-auto pr-1"
+          style={{ maxHeight: MAX_LIST_HEIGHT }}
+        >
+          {items.map((item, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={item}
+                onChange={(e) => update(i, e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 h-8 text-sm"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => remove(i)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
       <Button
         type="button"
         variant="ghost"

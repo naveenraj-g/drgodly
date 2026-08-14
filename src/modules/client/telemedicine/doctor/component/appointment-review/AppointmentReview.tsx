@@ -3,8 +3,10 @@
  *
  * Layer: client / telemedicine / doctor / component / appointment-review
  *
- * Two-column layout:
- *   Left  — SoapEditor (editable SOAP note from the AI full-report-agent)
+ * Two-column layout, resizable (ResizablePanelGroup — drag the divider to
+ * favour either side; defaults to roughly 35/65):
+ *   Left  — SoapEditor (editable SOAP note from the AI full-report-agent), with
+ *           the Re-extract trigger on its header — see handleReExtract.
  *   Right — ClinicalExtractionPanel (Conditions, Observations, Medications, Orders)
  *
  * Pre-population:
@@ -23,10 +25,14 @@
 import { useState, useRef, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, User, Loader2 } from "lucide-react";
+import { CheckCircle2, CalendarDays, User, Loader2, Sparkles } from "lucide-react";
 import { SoapEditor } from "./soap/SoapEditor";
 import { ClinicalExtractionPanel } from "./clinical/ClinicalExtractionPanel";
 import { publishClinicalRecords } from "./publishClinicalRecords";
@@ -37,7 +43,10 @@ import {
   observationFromFhir,
   serviceRequestFromFhir,
 } from "./fromFhir";
-import type { ClinicalExtractionResult } from "./clinical/ClinicalExtractionPanel";
+import {
+  fetchClinicalExtraction,
+  type ClinicalExtractionResult,
+} from "../clinical-records/reExtract";
 import type {
   SoapNote,
   ConditionFormItem,
@@ -225,6 +234,9 @@ export function AppointmentReview({
       : report.clinicalExtraction.serviceRequests.map(toServiceRequestItem),
   );
   const [isPending, startTransition] = useTransition();
+  /* Separate from isPending (Confirm & Save) — the two actions are
+     independent and shouldn't disable each other's button while either runs. */
+  const [isExtracting, startExtractTransition] = useTransition();
 
   /*
    * Track the FHIR IDs that were present at page load.
@@ -239,12 +251,32 @@ export function AppointmentReview({
 
   const subject = `Patient/${patientId}`;
 
-  /** Re-populates all four lists when the doctor re-runs clinical extraction. */
-  const handleReExtract = (result: ClinicalExtractionResult) => {
+  /** Re-populates all four lists from a fresh clinical-extraction result. */
+  const applyReExtraction = (result: ClinicalExtractionResult) => {
     setConditions(result.conditions.map(toConditionItem));
     setObservations(result.observations.map(toObservationItem));
     setMedications(result.medicationRequests.map(toMedicationItem));
     setServiceRequests(result.serviceRequests.map(toServiceRequestItem));
+  };
+
+  /**
+   * Re-extract button handler — lives on the SOAP Note header rather than
+   * beside the extraction panel it populates, because doctors read it as an
+   * action on the note ("pull structured data out of what I just edited"),
+   * not on the list it produces. Calls the agent with the current note and
+   * replaces all four extraction lists with its output.
+   */
+  const handleReExtract = () => {
+    startExtractTransition(async () => {
+      try {
+        const result = await fetchClinicalExtraction(soap, rawReport?.assessment);
+        applyReExtraction(result);
+        toast.success("Clinical data re-extracted from updated SOAP note.");
+      } catch (err) {
+        console.error("[AppointmentReview] re-extract failed:", err);
+        toast.error("Failed to re-extract clinical data. Please try again.");
+      }
+    });
   };
 
   /**
@@ -353,25 +385,59 @@ export function AppointmentReview({
         </Button>
       </div>
 
-      {/* ── Two-column body ── */}
-      <div className="flex flex-1 min-h-0 gap-0">
+      {/* ── Two-column body ──
+          Resizable: defaults roughly match the old fixed 420px/flex-1 split
+          (~35/65 on a typical review-page width), but a doctor can drag the
+          divider either way — a long SOAP note or a long extraction list both
+          happen, and neither should be stuck at a fixed share of the screen. */}
+      <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
         {/* Left: SOAP editor */}
-        <div className="w-[420px] shrink-0 border-r flex flex-col min-h-0">
-          <div className="px-4 py-3 border-b shrink-0">
-            <p className="text-sm font-medium">SOAP Note</p>
-            <p className="text-xs text-muted-foreground">
-              Edit and review clinical notes
-            </p>
+        <ResizablePanel
+          id="soap-note"
+          defaultSize={35}
+          minSize={25}
+          className="flex flex-col min-h-0 border-r"
+        >
+          <div className="px-4 py-3 border-b shrink-0 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">SOAP Note</p>
+              <p className="text-xs text-muted-foreground">
+                Edit and review clinical notes
+              </p>
+            </div>
+            {/* Reads as an action on the note, not on the extraction list it
+                populates — moved here from the Clinical Extraction panel. */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5 text-xs h-8"
+              onClick={handleReExtract}
+              disabled={isExtracting}
+            >
+              {isExtracting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {isExtracting ? "Extracting…" : "Re-extract"}
+            </Button>
           </div>
-          <ScrollArea className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="p-4">
               <SoapEditor soap={soap} onChange={setSoap} />
             </div>
-          </ScrollArea>
-        </div>
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
 
         {/* Right: Clinical extraction panel */}
-        <div className="flex-1 min-h-0 flex flex-col">
+        <ResizablePanel
+          id="clinical-extraction"
+          defaultSize={65}
+          minSize={40}
+          className="flex flex-col min-h-0"
+        >
           <div className="px-4 py-3 border-b shrink-0">
             <p className="text-sm font-medium">Clinical Extraction</p>
             <p className="text-xs text-muted-foreground">
@@ -382,8 +448,6 @@ export function AppointmentReview({
           </div>
           <div className="flex-1 min-h-0 p-4">
             <ClinicalExtractionPanel
-              soap={soap}
-              assessment={rawReport?.assessment}
               conditions={conditions}
               observations={observations}
               medications={medications}
@@ -392,11 +456,10 @@ export function AppointmentReview({
               onObservationsChange={setObservations}
               onMedicationsChange={setMedications}
               onServiceRequestsChange={setServiceRequests}
-              onReExtract={handleReExtract}
             />
           </div>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
