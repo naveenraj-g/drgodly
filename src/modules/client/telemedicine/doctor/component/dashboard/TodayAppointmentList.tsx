@@ -24,12 +24,16 @@ import type { TAppointmentResponse } from "@/modules/entities/schemas/appointmen
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TodayAppointmentListProps {
-  /** Today's appointments sorted by start time. */
+  /** Appointments for the currently selected date range, sorted by start time. */
   appointments: TAppointmentResponse[];
   /** Currently selected appointment FHIR ID (null = none). */
   selectedId: number | null;
   /** Called when the user clicks an appointment row. */
   onSelect: (id: number) => void;
+  /** Empty-state heading — varies with the active date range (e.g. "today" vs a custom range). */
+  emptyStateTitle?: string;
+  /** Empty-state supporting line. */
+  emptyStateDescription?: string;
 }
 
 // ── Status badge config ───────────────────────────────────────────────────────
@@ -102,6 +106,8 @@ export function TodayAppointmentList({
   appointments,
   selectedId,
   onSelect,
+  emptyStateTitle = "No appointments today",
+  emptyStateDescription = "Your schedule is clear for today.",
 }: TodayAppointmentListProps) {
   if (appointments.length === 0) {
     return (
@@ -109,10 +115,10 @@ export function TodayAppointmentList({
         <CalendarX className="size-8 text-muted-foreground/40" />
         <div>
           <p className="text-sm font-medium text-muted-foreground">
-            No appointments today
+            {emptyStateTitle}
           </p>
           <p className="text-xs text-muted-foreground/70 mt-0.5">
-            Your schedule is clear for today.
+            {emptyStateDescription}
           </p>
         </div>
       </div>

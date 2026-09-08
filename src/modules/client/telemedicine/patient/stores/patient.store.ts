@@ -41,6 +41,10 @@ export interface PatientModalData {
   serviceRequestCode?: string;
   /** FHIR Patient.id — used to construct the FilNest upload path. */
   patientFhirId?: number;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

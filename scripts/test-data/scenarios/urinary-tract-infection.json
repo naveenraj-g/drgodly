@@ -1,0 +1,164 @@
+{
+  "meta": {
+    "id": "urinary-tract-infection",
+    "title": "Urinary Tract Infection",
+    "summary": "Acute infection with a urinalysis order/result loop (two named observations feeding one DiagnosticReport) and an antibiotic.",
+    "diagnosisCodes": ["ICD-10 N39.0"],
+    "expectedUi": "Doctor Orders tab shows a completed urinalysis; Timeline shows a positive DiagnosticReport with 2 linked observations; Prescriptions tab shows nitrofurantoin."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:3:15:00}}",
+    "end": "{{DAYS_AGO:3:15:20}}",
+    "minutes_duration": 20,
+    "description": "Dysuria and urinary frequency",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "ROUTINE",
+    "appointment_type_display": "Routine appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:3:15:00}}",
+    "actual_period_end": "{{DAYS_AGO:3:15:20}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:3:15:00}}", "period_end": "{{DAYS_AGO:3:15:20}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-uti",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "N39.0",
+        "code_display": "Urinary tract infection, site not specified",
+        "code_text": "Urinary tract infection",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:4}}",
+        "recorded_date": "{{DAYS_AGO:3:15:05}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-urine-leukocytes",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "5799-2",
+        "code_display": "Leukocytes [Presence] in Urine by Test strip",
+        "code_text": "Urine leukocyte esterase",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:3:15:10}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_codeable_concept_text": "Positive"
+      }
+    },
+    {
+      "name": "obs-urine-nitrites",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "5802-4",
+        "code_display": "Nitrite [Presence] in Urine by Test strip",
+        "code_text": "Urine nitrites",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:3:15:10}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_codeable_concept_text": "Positive"
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-nitrofurantoin",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "858046",
+        "medication_code_display": "nitrofurantoin, macrocrystals 100 MG Oral Capsule",
+        "medication_code_text": "Nitrofurantoin 100mg capsule",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:3:15:18}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Take 1 capsule by mouth twice daily for 5 days",
+            "patient_instruction": "Take with food to reduce nausea.",
+            "route_system": "http://snomed.info/sct",
+            "route_code": "26643006",
+            "route_display": "Oral route",
+            "timing_repeat_frequency": 2,
+            "timing_repeat_period": 1,
+            "timing_repeat_period_unit": "d"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [
+    {
+      "name": "sr-urinalysis",
+      "create": {
+        "status": "completed",
+        "intent": "order",
+        "priority": "routine",
+        "code_system": "http://loinc.org",
+        "code_code": "24357-6",
+        "code_display": "Urinalysis macro (dipstick) panel",
+        "code_text": "Urinalysis",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "occurrence_datetime": "{{DAYS_AGO:3:15:05}}",
+        "authored_on": "{{DAYS_AGO:3:15:05}}",
+        "requester": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "diagnosticReports": [
+    {
+      "name": "dr-urinalysis",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "24357-6",
+        "code_display": "Urinalysis macro (dipstick) panel",
+        "code_text": "Urinalysis",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_datetime": "{{DAYS_AGO:3:15:10}}",
+        "issued": "{{DAYS_AGO:2}}",
+        "conclusion": "Urinalysis positive for leukocyte esterase and nitrites, consistent with urinary tract infection.",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/v2-0074", "coding_code": "LAB", "coding_display": "Laboratory" }
+        ],
+        "based_on": [{ "reference": "{{SERVICE_REQUEST_REF:sr-urinalysis}}" }]
+      },
+      "resultFrom": ["obs-urine-leukocytes", "obs-urine-nitrites"]
+    }
+  ]
+}

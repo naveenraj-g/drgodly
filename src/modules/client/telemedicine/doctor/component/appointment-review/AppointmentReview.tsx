@@ -32,7 +32,13 @@ import {
 } from "@/components/ui/resizable";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, CalendarDays, User, Loader2, Sparkles } from "lucide-react";
+import {
+  CheckCircle2,
+  CalendarDays,
+  User,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import { SoapEditor } from "./soap/SoapEditor";
 import { ClinicalExtractionPanel } from "./clinical/ClinicalExtractionPanel";
 import { publishClinicalRecords } from "./publishClinicalRecords";
@@ -92,7 +98,12 @@ function toObservationItem(o: {
   value?: string | null;
   unit?: string | null;
 }): ObservationFormItem {
-  return { ...o, id: crypto.randomUUID(), value: o.value ?? null, unit: o.unit ?? null };
+  return {
+    ...o,
+    id: crypto.randomUUID(),
+    value: o.value ?? null,
+    unit: o.unit ?? null,
+  };
 }
 
 /** Converts an AI-extracted medication to a MedicationFormItem (no fhirId — will be CREATEd). */
@@ -199,7 +210,8 @@ export function AppointmentReview({
     clinicalExtraction: {
       conditions: rawReport?.clinicalExtraction?.conditions ?? [],
       observations: rawReport?.clinicalExtraction?.observations ?? [],
-      medicationRequests: rawReport?.clinicalExtraction?.medicationRequests ?? [],
+      medicationRequests:
+        rawReport?.clinicalExtraction?.medicationRequests ?? [],
       serviceRequests: rawReport?.clinicalExtraction?.serviceRequests ?? [],
     },
   };
@@ -228,7 +240,9 @@ export function AppointmentReview({
       ? savedMedications.map(medicationFromFhir)
       : report.clinicalExtraction.medicationRequests.map(toMedicationItem),
   );
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequestFormItem[]>(
+  const [serviceRequests, setServiceRequests] = useState<
+    ServiceRequestFormItem[]
+  >(
     hasSaved
       ? savedServiceRequests.map(serviceRequestFromFhir)
       : report.clinicalExtraction.serviceRequests.map(toServiceRequestItem),
@@ -269,7 +283,10 @@ export function AppointmentReview({
   const handleReExtract = () => {
     startExtractTransition(async () => {
       try {
-        const result = await fetchClinicalExtraction(soap, rawReport?.assessment);
+        const result = await fetchClinicalExtraction(
+          soap,
+          rawReport?.assessment,
+        );
         applyReExtraction(result);
         toast.success("Clinical data re-extracted from updated SOAP note.");
       } catch (err) {
@@ -348,7 +365,8 @@ export function AppointmentReview({
           <div>
             <p className="text-sm font-semibold">Post-Consultation Review</p>
             <p className="text-xs text-muted-foreground">
-              Review and confirm AI-generated clinical data before saving to records
+              Review and confirm AI-generated clinical data before saving to
+              records
             </p>
           </div>
           <Separator orientation="vertical" className="h-8" />
@@ -366,7 +384,7 @@ export function AppointmentReview({
             </>
           )}
           <Badge variant="secondary" className="text-xs">
-            Dr. {doctorName}
+            {doctorName}
           </Badge>
         </div>
 

@@ -1,0 +1,106 @@
+{
+  "meta": {
+    "id": "migraine",
+    "title": "Migraine",
+    "summary": "Neuro/pain-management visit — a self-reported pain-severity observation and an as-needed triptan. No orders/labs.",
+    "diagnosisCodes": ["ICD-10 G43.909"],
+    "expectedUi": "Doctor Prescriptions tab shows sumatriptan as-needed; Timeline shows a pain-severity score observation. No entries in Orders tab."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:7:16:00}}",
+    "end": "{{DAYS_AGO:7:16:15}}",
+    "minutes_duration": 15,
+    "description": "Recurrent headaches",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "ROUTINE",
+    "appointment_type_display": "Routine appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:7:16:00}}",
+    "actual_period_end": "{{DAYS_AGO:7:16:15}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:7:16:00}}", "period_end": "{{DAYS_AGO:7:16:15}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-migraine",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "G43.909",
+        "code_display": "Migraine, unspecified, not intractable, without status migrainosus",
+        "code_text": "Migraine",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:200}}",
+        "recorded_date": "{{DAYS_AGO:7:16:05}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-pain-score",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "72514-3",
+        "code_display": "Pain severity - 0-10 verbal numeric rating [Score] - Reported",
+        "code_text": "Pain severity",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:7:16:02}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "survey", "coding_display": "Survey" }
+        ],
+        "value_integer": 8
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-sumatriptan",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "828332",
+        "medication_code_display": "sumatriptan succinate 50 MG Oral Tablet",
+        "medication_code_text": "Sumatriptan 50mg tablet",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:7:16:12}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Take 1 tablet by mouth at onset of migraine; may repeat once after 2 hours if needed",
+            "patient_instruction": "Do not exceed 2 tablets in 24 hours.",
+            "as_needed_boolean": true,
+            "route_system": "http://snomed.info/sct",
+            "route_code": "26643006",
+            "route_display": "Oral route"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [],
+  "diagnosticReports": []
+}

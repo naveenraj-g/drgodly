@@ -21,14 +21,14 @@ import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
-import { DoctorDashboard } from "@/modules/client/telemedicine/doctor/component/dashboard/DoctorDashboard";
+import {
+  DASHBOARD_APPOINTMENTS_LIMIT,
+  DoctorDashboard,
+} from "@/modules/client/telemedicine/doctor/component/dashboard/DoctorDashboard";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
 } from "@/modules/entities/schemas/appointment";
-
-/** Maximum appointments to fetch for the dashboard (covers any realistic single-day schedule). */
-const DASHBOARD_LIMIT = 50;
 
 /**
  * Derives the practitioner's display name from the FHIR Practitioner resource.
@@ -85,7 +85,7 @@ export default async function DoctorPage() {
       practitioner_id: practitioner.id,
       start_from: startOfDay.toISOString(),
       start_to: endOfDay.toISOString(),
-      limit: DASHBOARD_LIMIT,
+      limit: DASHBOARD_APPOINTMENTS_LIMIT,
       offset: 0,
     },
   });
@@ -114,6 +114,7 @@ export default async function DoctorPage() {
       appointments={appointments}
       doctorName={doctorName}
       todayLabel={todayLabel}
+      practitionerId={practitioner.id}
     />
   );
 }

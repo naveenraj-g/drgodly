@@ -120,6 +120,16 @@ const UpdateDiagnosticReportBaseSchema = z.object({
   effective_period_end: z.string().optional(),
   issued: z.string().optional(),
   conclusion: z.string().optional(),
+  /**
+   * Reference(Observation)[] — per the FHIR R4 spec this is exactly how a
+   * DiagnosticReport is supposed to link to the Observations that back it
+   * up: https://www.hl7.org/fhir/R4/diagnosticreport.html#resource.
+   * Unlike most other child arrays on this resource, `result` is expected to
+   * grow after creation as observations are added, so it's exposed on PATCH
+   * (send the full desired list — this replaces it, same as every other
+   * array field here; callers must read-then-merge to append).
+   */
+  result: z.array(ReferenceInputSchema).optional(),
 });
 
 export const UpdateDiagnosticReportDtoSchema = UpdateDiagnosticReportBaseSchema;

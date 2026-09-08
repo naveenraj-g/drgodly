@@ -20,6 +20,7 @@
 import { AlertTriangle, FlaskConical, Info, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -112,94 +113,103 @@ export function TreatmentEngine({ assessmentPlan }: TreatmentEngineProps) {
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-5 text-sm">
-        {/* Likely conditions */}
-        {likely.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Likely Conditions
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {likely.map((c, i) => (
-                <Badge key={i} variant="secondary" className="text-xs">
-                  {c}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Differential diagnosis */}
-        {differential.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Differential Diagnosis
-            </p>
-            <ul className="space-y-1">
-              {differential.map((item, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="text-primary font-bold mt-0.5 shrink-0">·</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Recommended tests */}
-        {tests.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-              <FlaskConical className="size-3" />
-              Recommended Tests
-            </p>
-            <ul className="space-y-1">
-              {tests.map((test, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <Info className="size-3.5 mt-0.5 shrink-0 text-blue-500" />
-                  {test}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Treatment pathway */}
-        {treatmentSteps.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Treatment Pathway
-            </p>
-            <ol className="space-y-1 list-decimal list-inside">
-              {treatmentSteps.map((step, i) => (
-                <li key={i} className="text-sm leading-relaxed">
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </div>
-        )}
-
-        {/* Precautions / red flags */}
-        {precautions.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1">
-              <AlertTriangle className="size-3" />
-              Precautions
-            </p>
-            <div className="space-y-1.5">
-              {precautions.map((p, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 text-xs text-amber-800 dark:text-amber-300"
-                >
-                  <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
-                  {p}
+      <CardContent className="text-sm">
+        {/* Fixed height, matching ConsultationInsights' own h-72 tab panels —
+            an AI treatment plan can run arbitrarily long, and without this
+            cap this card grows to whatever the agent wrote, throwing off the
+            dashboard grid's row alignment with the other (bounded) cards
+            next to it. */}
+        <ScrollArea className="h-72 pr-3">
+          <div className="space-y-5">
+            {/* Likely conditions */}
+            {likely.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Likely Conditions
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {likely.map((c, i) => (
+                    <Badge key={i} variant="secondary" className="text-xs">
+                      {c}
+                    </Badge>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* Differential diagnosis */}
+            {differential.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Differential Diagnosis
+                </p>
+                <ul className="space-y-1">
+                  {differential.map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="text-primary font-bold mt-0.5 shrink-0">·</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Recommended tests */}
+            {tests.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <FlaskConical className="size-3" />
+                  Recommended Tests
+                </p>
+                <ul className="space-y-1">
+                  {tests.map((test, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <Info className="size-3.5 mt-0.5 shrink-0 text-blue-500" />
+                      {test}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Treatment pathway */}
+            {treatmentSteps.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Treatment Pathway
+                </p>
+                <ol className="space-y-1 list-decimal list-inside">
+                  {treatmentSteps.map((step, i) => (
+                    <li key={i} className="text-sm leading-relaxed">
+                      {step}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Precautions / red flags */}
+            {precautions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1">
+                  <AlertTriangle className="size-3" />
+                  Precautions
+                </p>
+                <div className="space-y-1.5">
+                  {precautions.map((p, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 text-xs text-amber-800 dark:text-amber-300"
+                    >
+                      <AlertTriangle className="size-3.5 mt-0.5 shrink-0" />
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </ScrollArea>
       </CardContent>
     </Card>
   );

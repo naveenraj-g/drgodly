@@ -21,6 +21,7 @@ import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePatientProfile } from "@/modules/server/auth/require-profile";
 import { getMyAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { PatientDashboard } from "@/modules/client/telemedicine/patient/component/dashboard/PatientDashboard";
+import { formatPatientName } from "@/modules/shared/helper";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
@@ -42,13 +43,8 @@ export default async function PatientPage() {
     return null;
   }
 
-  console.log({
-    orgId: session.session.activeOrganizationId,
-    userId: session.user.id,
-  });
-
   /* Enforce that the user has completed their patient FHIR profile setup. */
-  await requirePatientProfile();
+  const patient = await requirePatientProfile();
 
   /* Fetch the patient's full appointment history for stats (max 200). */
   const [data] = await getMyAppointmentsAction({
@@ -58,10 +54,11 @@ export default async function PatientPage() {
   const appointments: TAppointmentResponse[] =
     (data as TPaginatedAppointmentResponse | null)?.data ?? [];
 
+  /* Prefer the FHIR Patient record's given/family name; fall back to the
+   * auth account name if the Patient record has no name entries yet. */
+  const displayName = formatPatientName(patient);
+
   return (
-    <PatientDashboard
-      userName={session.user.name}
-      appointments={appointments}
-    />
+    <PatientDashboard userName={displayName} appointments={appointments} />
   );
 }

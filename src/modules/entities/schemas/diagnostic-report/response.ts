@@ -15,6 +15,14 @@ const BasedOnResponseSchema = z.object({
   reference_display: z.string().nullish(),
 });
 
+/** result[] Reference(Observation) — same reference shape as based_on. */
+const ResultResponseSchema = z.object({
+  id: z.number().nullish(),
+  reference_type: z.string().nullish(),
+  reference_id: z.number().nullish(),
+  reference_display: z.string().nullish(),
+});
+
 const PresentedFormResponseSchema = z.object({
   id: z.number().nullish(),
   content_type: z.string().nullish(),
@@ -58,7 +66,7 @@ export const DiagnosticReportResponseSchema = z.object({
   performer: z.array(z.record(z.any())).nullish(),
   results_interpreter: z.array(z.record(z.any())).nullish(),
   specimen: z.array(z.record(z.any())).nullish(),
-  result: z.array(z.record(z.any())).nullish(),
+  result: z.array(ResultResponseSchema).nullish(),
   imaging_study: z.array(z.record(z.any())).nullish(),
   media: z.array(z.record(z.any())).nullish(),
   conclusion_code: z.array(z.record(z.any())).nullish(),

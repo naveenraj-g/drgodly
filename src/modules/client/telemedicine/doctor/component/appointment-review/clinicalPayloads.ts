@@ -170,6 +170,9 @@ export function observationCreatePayload(
         }
       : {}),
     ...(o.note ? { note: [{ text: o.note }] } : {}),
+    ...(o.basedOnServiceRequestId != null
+      ? { based_on: [{ reference: `ServiceRequest/${o.basedOnServiceRequestId}` }] }
+      : {}),
   };
 }
 
@@ -198,6 +201,40 @@ export function medicationUpdatePayload(m: MedicationFormItem) {
     dispense_quantity_unit: m.dispenseQuantityUnit ?? undefined,
     substitution_allowed_boolean: m.substitutionAllowed ?? undefined,
   };
+}
+
+/**
+ * Whether any of a medication request's create-only fields differ between
+ * its pre-edit and post-edit state.
+ *
+ * Dose, route, frequency and duration all live in `dosage_instruction[0]`
+ * alongside patient instructions; indication lives in `reason_code`; both are
+ * immutable child arrays in fhir-gql, same as `note` — see the module
+ * doc-comment. `medicationUpdatePayload` correctly never sends any of them,
+ * which means a scalar PATCH can never change them: the only way to make an
+ * edit to one of these fields actually stick on an already-published
+ * MedicationRequest is to delete it and create a replacement with the full
+ * payload. persistEntry.ts uses this to decide when that's needed.
+ *
+ * @param original - The entry as it was before this edit.
+ * @param current - The entry as the doctor has it now.
+ */
+export function medicationCreateOnlyFieldsChanged(
+  original: MedicationFormItem,
+  current: MedicationFormItem,
+): boolean {
+  const effective = (m: MedicationFormItem) => ({
+    dose: m.editedDose ?? m.dose ?? null,
+    route: m.editedRoute ?? m.route ?? null,
+    frequency: m.editedFrequency ?? m.frequency ?? null,
+    duration: m.editedDuration ?? m.duration ?? null,
+    patientInstruction: m.patientInstruction ?? null,
+    reasonCode: m.reasonCode ?? null,
+    note: m.note ?? null,
+  });
+  const a = effective(original);
+  const b = effective(current);
+  return (Object.keys(a) as (keyof typeof a)[]).some((key) => a[key] !== b[key]);
 }
 
 /**

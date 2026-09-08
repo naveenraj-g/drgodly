@@ -41,6 +41,10 @@ export interface DoctorModalData {
   serviceRequestCode?: string;
   /** FHIR Encounter.id that an uploaded document is attached to. */
   encounterId?: number;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────

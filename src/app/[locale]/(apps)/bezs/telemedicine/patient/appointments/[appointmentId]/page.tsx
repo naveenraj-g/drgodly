@@ -33,6 +33,17 @@ import { listObservationsAction } from "@/modules/server/presentation/actions/ob
 import { listMedicationRequestsAction } from "@/modules/server/presentation/actions/medication-request/core.actions";
 import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
 import { listDiagnosticReportsAction } from "@/modules/server/presentation/actions/diagnostic-report";
+import { getMyOrganizationAction } from "@/modules/server/presentation/actions/organization";
+import { listPractitionerQualificationsAction } from "@/modules/server/presentation/actions/practitioner";
+import { listPractitionerRolesAction } from "@/modules/server/presentation/actions/practitioner-role";
+import {
+  buildOrgLetterhead,
+  buildPractitionerLetterhead,
+  buildPatientLetterhead,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/exportDocument";
+import type { TOrgResponse } from "@/modules/entities/schemas/organization";
+import type { TPractitionerQualificationListResponse } from "@/modules/entities/schemas/practitioner";
+import type { TPaginatedPractitionerRoleResponse } from "@/modules/entities/schemas/practitioner-role";
 import { AppointmentDetailHeader } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailHeader";
 import { AppointmentReportTabs } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentReportTabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +54,7 @@ import type { TPaginatedMedicationRequestResponse } from "@/modules/entities/sch
 import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 import type { TPaginatedDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 import type { SoapNote } from "@/modules/client/telemedicine/doctor/component/appointment-review/types";
+import type { TAppointmentParticipantResponse } from "@/modules/entities/schemas/appointment";
 
 /** Route params for the dynamic segment. */
 interface PatientAppointmentViewPageProps {
@@ -72,7 +84,7 @@ export default async function PatientAppointmentViewPage({
     return null;
   }
 
-  await requirePatientProfile();
+  const patientRecord = await requirePatientProfile();
 
   const backHref = `/${locale}/bezs/telemedicine/patient/appointments`;
   const numericId = parseInt(appointmentId, 10);
@@ -102,6 +114,25 @@ export default async function PatientAppointmentViewPage({
   const encounter = (
     encountersPage as { data?: { id: number }[] } | null
   )?.data?.[0];
+
+  /* Ordering practitioner's FHIR id — resolves qualifications/specialty for
+     the Prescription/Orders sheets' letterhead. Independent of the encounter
+     check above, so it's fetched alongside it rather than gated on it. */
+  const practitionerId = appointment.participant?.find(
+    (p: TAppointmentParticipantResponse) => p.reference_type === "Practitioner",
+  )?.reference_id;
+
+  const [[org], [qualificationsPage], [rolesPage]] = await Promise.all([
+    getMyOrganizationAction(),
+    practitionerId != null
+      ? listPractitionerQualificationsAction({ payload: { practitionerId } })
+      : Promise.resolve([null, null] as const),
+    practitionerId != null
+      ? listPractitionerRolesAction({
+          payload: { practitioner_id: practitionerId },
+        })
+      : Promise.resolve([null, null] as const),
+  ]);
 
   /* Fetch FHIR clinical records if an encounter exists. */
   const [
@@ -152,6 +183,33 @@ export default async function PatientAppointmentViewPage({
     (consultation?.full_report?.soap_report as { soap?: SoapNote } | null)
       ?.soap ?? null;
 
+  /* Letterhead details for the Prescription/Orders sheets on the Doctor
+     Report tab — derived the same way AppointmentDetailHeader does. */
+  const patientName = appointment.subject_display ?? "Patient";
+  const doctorName =
+    appointment.participant?.find(
+      (p: TAppointmentParticipantResponse) => p.reference_type === "Practitioner",
+    )?.reference_display ?? "Doctor";
+  const appointmentDate = appointment.start
+    ? new Date(appointment.start).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  /* Letterhead extras — clinic details, prescriber credentials, and this
+     patient's own demographics (already fetched above via requirePatientProfile). */
+  const letterheadExtras = {
+    organization: buildOrgLetterhead(org as TOrgResponse | null),
+    practitioner: buildPractitionerLetterhead(
+      (qualificationsPage as TPractitionerQualificationListResponse | null)
+        ?.data ?? [],
+      (rolesPage as TPaginatedPractitionerRoleResponse | null)?.data ?? [],
+    ),
+    patientInfo: buildPatientLetterhead(patientRecord),
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Appointment header — date, status, doctor name, type */}
@@ -177,7 +235,14 @@ export default async function PatientAppointmentViewPage({
           medications,
           serviceRequests,
           diagnosticReports,
+          appointmentId: numericId,
+          patientName,
+          doctorName,
+          appointmentDate,
+          letterheadExtras,
         }}
+        orgId={session.session.activeOrganizationId ?? undefined}
+        userId={session.user.id}
       />
     </div>
   );

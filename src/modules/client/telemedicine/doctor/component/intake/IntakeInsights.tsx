@@ -47,6 +47,13 @@ import type { TIntakeResponse } from "@/modules/entities/schemas/intake";
 interface IntakeInsightsProps {
   /** FHIR Appointment.id — used to look up the linked intake. */
   fhirAppointmentId: number;
+  /**
+   * Rendered instead of returning null when no intake is linked. Left
+   * undefined by default so an empty grid cell on the main dashboard stays
+   * silent; callers where the component is the only content (e.g. a dialog
+   * tab) can opt in so "nothing rendered" doesn't read as still loading.
+   */
+  emptyState?: React.ReactNode;
 }
 
 /** Maps AI risk level strings to Badge colour classes. */
@@ -142,7 +149,10 @@ function ReportSection({ report }: { report: IntakeReport }) {
  *
  * @param fhirAppointmentId - FHIR Appointment.id to look up.
  */
-export function IntakeInsights({ fhirAppointmentId }: IntakeInsightsProps) {
+export function IntakeInsights({
+  fhirAppointmentId,
+  emptyState,
+}: IntakeInsightsProps) {
   const [intake, setIntake] = useState<TIntakeResponse | null | undefined>(
     undefined, // undefined = loading, null = not found
   );
@@ -175,7 +185,7 @@ export function IntakeInsights({ fhirAppointmentId }: IntakeInsightsProps) {
   }
 
   // No linked intake — appointment was booked directly
-  if (!intake) return null;
+  if (!intake) return emptyState ?? null;
 
   /* Cheap enough to run on every render — the report is a small object and
      parsing only does work when it arrives as a string. */
@@ -194,17 +204,23 @@ export function IntakeInsights({ fhirAppointmentId }: IntakeInsightsProps) {
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {/* AI report — parsed through the shared helper, which unwraps the
-            { status, data } envelope the assessment-plan-agent returns and
-            tolerates a raw JSON string. Reading intake.report directly (as this
-            card used to) renders nothing at all for either of those shapes. */}
-        {report ? (
-          <ReportSection report={report} />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No clinical report available for this intake.
-          </p>
-        )}
+        {/* Fixed height, matching ConsultationInsights' own h-72 tab panels —
+            an AI report can run arbitrarily long, and without this cap this
+            card grows to whatever the agent wrote, throwing off the dashboard
+            grid's row alignment with the other (bounded) cards next to it. */}
+        <ScrollArea className="h-72 pr-3">
+          {/* AI report — parsed through the shared helper, which unwraps the
+              { status, data } envelope the assessment-plan-agent returns and
+              tolerates a raw JSON string. Reading intake.report directly (as this
+              card used to) renders nothing at all for either of those shapes. */}
+          {report ? (
+            <ReportSection report={report} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No clinical report available for this intake.
+            </p>
+          )}
+        </ScrollArea>
 
         {/* Transcript toggle */}
         {intake.conversation && intake.conversation.length > 0 && (

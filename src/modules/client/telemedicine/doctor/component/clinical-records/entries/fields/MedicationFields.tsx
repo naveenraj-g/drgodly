@@ -10,6 +10,13 @@
  *
  * Dosage edits write to the `edited*` fields rather than overwriting the AI's
  * originals, matching the form-item contract the publish diff expects.
+ *
+ * Dose/Route/Frequency/Duration/Patient instructions/Indication/Note all sit
+ * in fhir-gql child arrays (dosage_instruction/reason_code/note) that can
+ * only be set at creation — editing any of them on an already-published
+ * prescription is handled by persistClinicalEntry deleting and recreating
+ * the resource, not by a plain update. Nothing here needs to know that; it
+ * just looks like an ordinary editable field.
  */
 
 "use client";
@@ -47,7 +54,6 @@ interface MedicationFieldsProps {
 export function MedicationFields({ item, onChange }: MedicationFieldsProps) {
   const system =
     TERMINOLOGY_SYSTEM_URL[item.terminologySystem] ?? item.terminologySystem;
-  const isPublished = item.fhirId != null;
 
   return (
     <>
@@ -120,11 +126,7 @@ export function MedicationFields({ item, onChange }: MedicationFieldsProps) {
           </FieldCell>
         </FieldRow>
 
-        <FieldCell
-          label="Patient instructions"
-          createOnly
-          isPublished={isPublished}
-        >
+        <FieldCell label="Patient instructions">
           <Textarea
             value={item.patientInstruction ?? ""}
             onChange={(e) =>
@@ -181,7 +183,7 @@ export function MedicationFields({ item, onChange }: MedicationFieldsProps) {
           </FieldCell>
         </FieldRow>
 
-        <FieldCell label="Indication" createOnly isPublished={isPublished}>
+        <FieldCell label="Indication">
           <Input
             value={item.reasonCode ?? ""}
             onChange={(e) =>
@@ -261,7 +263,7 @@ export function MedicationFields({ item, onChange }: MedicationFieldsProps) {
       </FieldGroup>
 
       <FieldGroup title="Notes">
-        <FieldCell label="Note" createOnly isPublished={isPublished}>
+        <FieldCell label="Note">
           <Textarea
             value={item.note ?? ""}
             onChange={(e) =>

@@ -81,7 +81,8 @@ import { linkIntakeToAppointmentAction } from "@/modules/server/presentation/act
 import { createConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import type { TPractitionerRoleBookingResponse } from "@/modules/entities/schemas/practitioner-role";
 import type { TSlotResponse } from "@/modules/entities/schemas/slot";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter, usePathname } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import { getProfileInitials } from "@/modules/shared/helper";
 import { useServerActionQuery } from "@/lib/zsa-query";
 import { patientAppointmentKeys } from "../list/appointmentQueries";
@@ -102,12 +103,6 @@ interface BookAppointmentProps {
   userId: string;
   /** Active organisation ID from session. */
   orgId: string;
-  /**
-   * Local Intake.id — present when the patient navigated here from the
-   * post-intake modal (?intake_id=N). After a successful booking, the
-   * intake record is linked to the booked FHIR appointment.
-   */
-  intakeId?: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -191,9 +186,11 @@ export function BookAppointment({
   patientDisplayName,
   userId,
   orgId,
-  intakeId,
 }: BookAppointmentProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState(1);
@@ -357,6 +354,9 @@ export function BookAppointment({
       return;
     }
 
+    // selectedRole is already guarded non-null above.
+    const practitionerName = getPractitionerName(selectedRole);
+
     setIsBooking(true);
     const [bookedAppointment, err] = await bookAppointmentAction({
       payload: {
@@ -375,7 +375,8 @@ export function BookAppointment({
            would clobber a session the practitioner generated as a dedicated
            CHECKUP or FOLLOWUP. Only fill the gap when the slot declares nothing.
            Mirrors the same code-or-text check the booking service applies. */
-        ...(selectedSlot.appointment_type_code || selectedSlot.appointment_type_text
+        ...(selectedSlot.appointment_type_code ||
+        selectedSlot.appointment_type_text
           ? {}
           : DEFAULT_APPOINTMENT_TYPE),
       },
@@ -393,9 +394,26 @@ export function BookAppointment({
 
     // Stale cached list would otherwise still be "fresh" (staleTime) when the
     // patient lands back on the appointments page, hiding the new booking.
-    void queryClient.invalidateQueries({ queryKey: patientAppointmentKeys.all });
+    void queryClient.invalidateQueries({
+      queryKey: patientAppointmentKeys.all,
+    });
 
-    // Link the pre-booking intake to this FHIR appointment when present
+    // The just-booked slot is now taken server-side, but the free-slots query
+    // (keyed by this practitioner role) has its own staleTime and would keep
+    // showing it as available — e.g. if the patient books a second slot for
+    // the same doctor without leaving this page. Invalidate so Step 2 refetches.
+    void queryClient.invalidateQueries({
+      queryKey: ["slots-free", selectedRole.id],
+    });
+
+    // Link the pre-booking intake to this FHIR appointment when present. Read
+    // directly off the current URL rather than cached state — there is no
+    // local copy to go stale.
+    const rawIntakeId = searchParams.get("intake_id");
+    const intakeId =
+      rawIntakeId && Number.isFinite(Number(rawIntakeId))
+        ? Number(rawIntakeId)
+        : undefined;
     if (intakeId && bookedAppointment?.id) {
       await linkIntakeToAppointmentAction({
         payload: { id: intakeId, fhir_appointment_id: bookedAppointment.id },
@@ -415,7 +433,28 @@ export function BookAppointment({
     }
 
     setIsSuccessOpen(true);
-  }, [selectedRole, selectedSlot, patientFhirId, userId, orgId, intakeId, queryClient]);
+
+    // Strip ?intake_id from the URL now that the whole flow is done. Deferred
+    // to the very end — firing this mid-flow triggers a soft navigation that
+    // re-renders the page while the booking handler is still mid-flight,
+    // which silently drops everything queued after it (consultation room
+    // creation, the success dialog). Still one-shot: a second booking in the
+    // same session reads an already-cleared URL and won't re-link.
+    if (intakeId) {
+      router.replace(pathname, { scroll: false });
+    }
+  }, [
+    selectedRole,
+    selectedSlot,
+    patientFhirId,
+    patientDisplayName,
+    userId,
+    orgId,
+    queryClient,
+    searchParams,
+    router,
+    pathname,
+  ]);
 
   /** Resets all wizard state and closes the success dialog. */
   const resetBooking = useCallback(() => {

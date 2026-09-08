@@ -37,6 +37,7 @@ import {
 } from "./appointmentQueries";
 import { createPatientAppointmentColumns } from "./PatientAppointmentColumns";
 import { AppointmentDetailPanel } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailPanel";
+import { sortAppointmentsByStatusPriority } from "@/modules/client/telemedicine/shared/components/appointment/appointmentStatusPriority";
 import { patientStore } from "@/modules/client/telemedicine/patient/stores/patient.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -84,7 +85,9 @@ export function PatientAppointmentsTable({
   const router = useRouter();
 
   // ── Row + page count state (seeded from SSR, synced from client query) ──────
-  const [rows, setRows] = useState<TAppointmentResponse[]>(initialData.data ?? []);
+  const [rows, setRows] = useState<TAppointmentResponse[]>(
+    sortAppointmentsByStatusPriority(initialData.data ?? []),
+  );
   const [pageCount, setPageCount] = useState(
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
@@ -163,7 +166,7 @@ export function PatientAppointmentsTable({
   // Sync table rows whenever a new page or filter result arrives
   useEffect(() => {
     if (data) {
-      setRows(data.data ?? []);
+      setRows(sortAppointmentsByStatusPriority(data.data ?? []));
       setPageCount(
         Math.ceil((data.total ?? 0) / state.pagination.pageSize),
       );

@@ -1,0 +1,190 @@
+{
+  "meta": {
+    "id": "iron-deficiency-anemia",
+    "title": "Iron-deficiency Anemia — follow-up",
+    "summary": "Follow-up visit with a 3-observation CBC/ferritin panel feeding one DiagnosticReport, and an iron supplement prescription — the richest result set of the 8 scenarios.",
+    "diagnosisCodes": ["ICD-10 D50.9"],
+    "expectedUi": "Doctor Orders tab shows a completed CBC; Timeline shows a DiagnosticReport with 3 linked observations (Hgb, Hct, ferritin); Prescriptions tab shows ferrous sulfate."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:14:09:30}}",
+    "end": "{{DAYS_AGO:14:09:50}}",
+    "minutes_duration": 20,
+    "description": "Anemia follow-up",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "FOLLOWUP",
+    "appointment_type_display": "A follow up visit from a previous appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:14:09:30}}",
+    "actual_period_end": "{{DAYS_AGO:14:09:50}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:14:09:30}}", "period_end": "{{DAYS_AGO:14:09:50}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-anemia",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "D50.9",
+        "code_display": "Iron deficiency anemia, unspecified",
+        "code_text": "Iron deficiency anemia",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:60}}",
+        "recorded_date": "{{DAYS_AGO:14:09:35}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-hgb",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "718-7",
+        "code_display": "Hemoglobin [Mass/volume] in Blood",
+        "code_text": "Hemoglobin",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:14:09:40}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_quantity_value": 9.8,
+        "value_quantity_unit": "g/dL",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "g/dL"
+      }
+    },
+    {
+      "name": "obs-hct",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "4544-3",
+        "code_display": "Hematocrit [Volume Fraction] of Blood by Automated count",
+        "code_text": "Hematocrit",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:14:09:40}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_quantity_value": 31.2,
+        "value_quantity_unit": "%",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "%"
+      }
+    },
+    {
+      "name": "obs-ferritin",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "2276-4",
+        "code_display": "Ferritin [Mass/volume] in Serum or Plasma",
+        "code_text": "Ferritin",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:14:09:40}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_quantity_value": 8,
+        "value_quantity_unit": "ng/mL",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "ng/mL"
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-ferrous-sulfate",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "310385",
+        "medication_code_display": "ferrous sulfate 325 MG Oral Tablet",
+        "medication_code_text": "Ferrous sulfate 325mg tablet",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:14:09:45}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Take 1 tablet by mouth once daily with food",
+            "patient_instruction": "Take with vitamin C or orange juice to improve absorption; may cause dark stools.",
+            "route_system": "http://snomed.info/sct",
+            "route_code": "26643006",
+            "route_display": "Oral route",
+            "timing_repeat_frequency": 1,
+            "timing_repeat_period": 1,
+            "timing_repeat_period_unit": "d"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [
+    {
+      "name": "sr-cbc",
+      "create": {
+        "status": "completed",
+        "intent": "order",
+        "priority": "routine",
+        "code_system": "http://loinc.org",
+        "code_code": "58410-2",
+        "code_display": "CBC panel - Blood by Automated count",
+        "code_text": "Complete blood count",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "occurrence_datetime": "{{DAYS_AGO:14:09:35}}",
+        "authored_on": "{{DAYS_AGO:14:09:35}}",
+        "requester": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "diagnosticReports": [
+    {
+      "name": "dr-cbc",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "58410-2",
+        "code_display": "CBC panel - Blood by Automated count",
+        "code_text": "Complete blood count",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_datetime": "{{DAYS_AGO:14:09:40}}",
+        "issued": "{{DAYS_AGO:13}}",
+        "conclusion": "Hemoglobin and hematocrit low with low ferritin, consistent with iron deficiency anemia. Recommend iron supplementation and dietary counseling; re-check CBC in 8 weeks.",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/v2-0074", "coding_code": "LAB", "coding_display": "Laboratory" }
+        ],
+        "based_on": [{ "reference": "{{SERVICE_REQUEST_REF:sr-cbc}}" }]
+      },
+      "resultFrom": ["obs-hgb", "obs-hct", "obs-ferritin"]
+    }
+  ]
+}

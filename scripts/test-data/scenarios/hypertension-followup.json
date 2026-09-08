@@ -1,0 +1,127 @@
+{
+  "meta": {
+    "id": "hypertension-followup",
+    "title": "Essential Hypertension — routine follow-up",
+    "summary": "Chronic-disease follow-up with a multi-component blood pressure observation and an active antihypertensive. No orders/labs on this visit — exercises the 'condition + observation + medication only' path.",
+    "diagnosisCodes": ["ICD-10 I10"],
+    "expectedUi": "Doctor Prescriptions tab shows 1 active medication; Timeline shows a BP reading with systolic/diastolic components. No entries in Orders tab for this appointment."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:12:10:00}}",
+    "end": "{{DAYS_AGO:12:10:15}}",
+    "minutes_duration": 15,
+    "description": "Hypertension follow-up",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "FOLLOWUP",
+    "appointment_type_display": "A follow up visit from a previous appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:12:10:00}}",
+    "actual_period_end": "{{DAYS_AGO:12:10:15}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:12:10:00}}", "period_end": "{{DAYS_AGO:12:10:15}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-htn",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "I10",
+        "code_display": "Essential (primary) hypertension",
+        "code_text": "Essential hypertension",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:900}}",
+        "recorded_date": "{{DAYS_AGO:12:10:05}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-bp",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "85354-9",
+        "code_display": "Blood pressure panel with all children optional",
+        "code_text": "Blood pressure",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:12:10:02}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "vital-signs", "coding_display": "Vital Signs" }
+        ],
+        "component": [
+          {
+            "code_system": "http://loinc.org",
+            "code_code": "8480-6",
+            "code_display": "Systolic blood pressure",
+            "value_quantity_value": 148,
+            "value_quantity_unit": "mmHg",
+            "value_quantity_system": "http://unitsofmeasure.org",
+            "value_quantity_code": "mm[Hg]"
+          },
+          {
+            "code_system": "http://loinc.org",
+            "code_code": "8462-4",
+            "code_display": "Diastolic blood pressure",
+            "value_quantity_value": 92,
+            "value_quantity_unit": "mmHg",
+            "value_quantity_system": "http://unitsofmeasure.org",
+            "value_quantity_code": "mm[Hg]"
+          }
+        ]
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-amlodipine",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "197361",
+        "medication_code_display": "amLODIPine besylate 5 MG Oral Tablet",
+        "medication_code_text": "Amlodipine 5mg tablet",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:12:10:12}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Take 1 tablet by mouth once daily",
+            "patient_instruction": "Take at the same time each morning.",
+            "route_system": "http://snomed.info/sct",
+            "route_code": "26643006",
+            "route_display": "Oral route",
+            "timing_repeat_frequency": 1,
+            "timing_repeat_period": 1,
+            "timing_repeat_period_unit": "d"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [],
+  "diagnosticReports": []
+}

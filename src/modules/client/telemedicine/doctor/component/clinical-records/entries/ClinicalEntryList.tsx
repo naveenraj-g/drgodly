@@ -101,7 +101,7 @@ interface ClinicalEntryListProps<T extends ClinicalEntryBase> {
    * duplicates. When omitted the list stays a controlled form and the caller
    * owns persistence.
    */
-  onPersistItem?: (item: T) => Promise<number>;
+  onPersistItem?: (item: T, original?: T) => Promise<number>;
   /**
    * Removes one entry from the EMR. Called before it leaves the list, so a
    * failed delete leaves the entry visible rather than silently dropping it
@@ -197,7 +197,10 @@ export function ClinicalEntryList<T extends ClinicalEntryBase>({
     if (!onPersistItem || !draft) return;
     setIsBusy(true);
     try {
-      const fhirId = await onPersistItem(draft);
+      /* Pre-edit copy, still sitting untouched in `items` while `draft`
+         buffers the edit — lets onPersistItem tell what actually changed. */
+      const original = items.find((i) => i.id === draft.id);
+      const fhirId = await onPersistItem(draft, original);
       const saved = { ...draft, fhirId } as T;
       /* Present already means this was an edit; absent means a new entry. */
       onChange(

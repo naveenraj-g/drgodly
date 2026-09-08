@@ -10,6 +10,12 @@
  * route-level requireRole() guard in the admin layout.
  * Mutating actions include transportOptions for revalidation / redirect.
  * Read actions have no transportOptions — no side effects.
+ *
+ * The one exception is `getMyOrganizationAction` — authenticatedProcedure,
+ * since any signed-in user (doctor or patient) needs their own clinic's
+ * name/address/phone for letterhead display (Prescription/Lab-Request
+ * sheets). It derives org_id from the session, never from client input, so
+ * it can only ever return the caller's own tenant's organization.
  */
 
 "use server";
@@ -23,6 +29,7 @@ import {
   type TDeleteOrgAction,
   type TGetOrgByIdAction,
   type TListOrgsAction,
+  type TOrgResponse,
   type TPatchOrgAction,
   type TRegisterOrgAction,
 } from "@/modules/entities/schemas/organization";
@@ -39,7 +46,8 @@ import {
   type TUpdateOrganizationControllerOutput,
 } from "@/modules/server/core/organization/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
-import { adminProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
+import { adminProcedure, authenticatedProcedure } from "../procedures";
 
 /** Creates a new organization. Accepts transportOptions for post-create revalidation. */
 export const registerOrganizationAction = adminProcedure
@@ -91,6 +99,26 @@ export const updateOrganizationAction = adminProcedure
         return { result: data, transport: input.transportOptions };
       }
     );
+  });
+
+/**
+ * Fetches the signed-in user's own tenant organization — the clinic's
+ * name/address/telecom/identifier for letterhead display. No input: org_id
+ * is resolved from the session's active organization, never from the
+ * caller, so this can't be used to look up another tenant's organization.
+ */
+export const getMyOrganizationAction = authenticatedProcedure
+  .createServerAction()
+  .handler(async ({ ctx }: { ctx: { session: AuthResponse } }) => {
+    return await runWithTransport<TOrgResponse | null>(async () => {
+      const orgId = ctx.session.session.activeOrganizationId;
+      if (!orgId) return { result: null };
+      const page = await listOrganizationsController({
+        org_id: orgId,
+        limit: 1,
+      });
+      return { result: page.data[0] ?? null };
+    });
   });
 
 /** Permanently deletes an organization and its child records. */

@@ -36,10 +36,19 @@ import { listMedicationRequestsAction } from "@/modules/server/presentation/acti
 import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
 import { listDiagnosticReportsAction } from "@/modules/server/presentation/actions/diagnostic-report";
 import { listDocumentReferencesAction } from "@/modules/server/presentation/actions/document-reference";
+import { getPatientByIdAction } from "@/modules/server/presentation/actions/patient";
+import { getMyOrganizationAction } from "@/modules/server/presentation/actions/organization";
+import { listPractitionerQualificationsAction } from "@/modules/server/presentation/actions/practitioner";
+import { listPractitionerRolesAction } from "@/modules/server/presentation/actions/practitioner-role";
 import { getParticipantName } from "@/modules/server/presentation/helpers/doctorPatients";
 import { ClinicalWorkspace } from "@/modules/client/telemedicine/doctor/component/clinical-records/ClinicalWorkspace";
 import { VisitOverview } from "@/modules/client/telemedicine/doctor/component/clinical-records/VisitOverview";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
+import {
+  buildOrgLetterhead,
+  buildPractitionerLetterhead,
+  buildPatientLetterhead,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/exportDocument";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -50,6 +59,10 @@ import type { TPaginatedMedicationRequestResponse } from "@/modules/entities/sch
 import type { TPaginatedServiceRequestResponse } from "@/modules/entities/schemas/service-request";
 import type { TPaginatedDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 import type { TPaginatedDocumentReferenceResponse } from "@/modules/entities/schemas/document-reference";
+import type { TOrgResponse } from "@/modules/entities/schemas/organization";
+import type { TPractitionerQualificationListResponse } from "@/modules/entities/schemas/practitioner";
+import type { TPaginatedPractitionerRoleResponse } from "@/modules/entities/schemas/practitioner-role";
+import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 
 /** Route params for the dynamic segments. */
 interface ClinicalWorkspacePageProps {
@@ -73,7 +86,7 @@ export default async function ClinicalWorkspacePage({
     return null;
   }
 
-  await requirePractitionerProfile();
+  const practitionerRecord = await requirePractitionerProfile();
 
   const numericPatientId = parseInt(patientId, 10);
   const numericAppointmentId = parseInt(appointmentId, 10);
@@ -83,24 +96,53 @@ export default async function ClinicalWorkspacePage({
     return <WorkspaceError backHref={backHref} message="Invalid record reference." />;
   }
 
-  /* Appointment, staging row, intake and encounters are independent — fetch together. */
-  const [[appointment], [consultation], [intake], [encountersPage]] =
-    await Promise.all([
-      getAppointmentByIdAction({ payload: { id: numericAppointmentId } }),
-      getConsultationByFhirAppointmentIdAction({
-        payload: { fhir_appointment_id: numericAppointmentId },
-      }),
-      getIntakeByFhirAppointmentIdAction({
-        payload: { fhir_appointment_id: numericAppointmentId },
-      }),
-      listEncountersAction({
-        payload: { appointment_id: numericAppointmentId, limit: 50 },
-      }),
-    ]);
+  /* Appointment, staging row, intake, encounters, and the letterhead extras
+     (clinic details, the doctor's own qualifications/specialty, and this
+     patient's demographics) are all independent — fetch together. */
+  const [
+    [appointment],
+    [consultation],
+    [intake],
+    [encountersPage],
+    [org],
+    [qualificationsPage],
+    [rolesPage],
+    [patientRecord],
+  ] = await Promise.all([
+    getAppointmentByIdAction({ payload: { id: numericAppointmentId } }),
+    getConsultationByFhirAppointmentIdAction({
+      payload: { fhir_appointment_id: numericAppointmentId },
+    }),
+    getIntakeByFhirAppointmentIdAction({
+      payload: { fhir_appointment_id: numericAppointmentId },
+    }),
+    listEncountersAction({
+      payload: { appointment_id: numericAppointmentId, limit: 50 },
+    }),
+    getMyOrganizationAction(),
+    listPractitionerQualificationsAction({
+      payload: { practitionerId: practitionerRecord.id },
+    }),
+    listPractitionerRolesAction({
+      payload: { practitioner_id: practitionerRecord.id },
+    }),
+    getPatientByIdAction({ payload: { id: numericPatientId } }),
+  ]);
 
   if (!appointment) {
     return <WorkspaceError backHref={backHref} message="Appointment not found." />;
   }
+
+  /* Letterhead extras for the Prescription/Lab-Request sheets. */
+  const docMeta = {
+    organization: buildOrgLetterhead(org as TOrgResponse | null),
+    practitioner: buildPractitionerLetterhead(
+      (qualificationsPage as TPractitionerQualificationListResponse | null)
+        ?.data ?? [],
+      (rolesPage as TPaginatedPractitionerRoleResponse | null)?.data ?? [],
+    ),
+    patientInfo: buildPatientLetterhead(patientRecord as TPatientResponse | null),
+  };
 
   const encounters =
     (encountersPage as TPaginatedEncounterResponse | null)?.data ?? [];
@@ -182,6 +224,7 @@ export default async function ClinicalWorkspacePage({
         patientName={patientName}
         doctorName={doctorName}
         appointmentDate={appointmentDate}
+        docMeta={docMeta}
         savedConditions={
           (conditionsPage as TPaginatedConditionResponse | null)?.data ?? []
         }
@@ -216,6 +259,8 @@ export default async function ClinicalWorkspacePage({
         consultationCreatedAt={consultation?.created_at ?? null}
         intake={intake ?? null}
         transcript={transcript}
+        orgId={session.session.activeOrganizationId ?? undefined}
+        userId={session.user.id}
       />
 
       {/* Upload modal singletons — controlled by the doctor Zustand store */}

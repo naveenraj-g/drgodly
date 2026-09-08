@@ -67,3 +67,8 @@ logs/
 agents/
 
 plans/
+
+# test-data seed script — per-environment credentials + run output
+scripts/test-data/env/*.env
+!scripts/test-data/env/*.env.example
+scripts/test-data/last-run.json

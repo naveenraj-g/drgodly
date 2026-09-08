@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "id": "strep-pharyngitis",
+    "title": "Streptococcal Pharyngitis",
+    "summary": "Acute infection with a full order→result loop: throat culture ServiceRequest, a positive-culture Observation, a DiagnosticReport linking both via based_on/result, and an antibiotic prescription.",
+    "diagnosisCodes": ["ICD-10 J02.0"],
+    "expectedUi": "Doctor Orders tab shows 1 completed lab order; Timeline shows a positive throat-culture DiagnosticReport; Prescriptions tab shows amoxicillin."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:4:11:00}}",
+    "end": "{{DAYS_AGO:4:11:20}}",
+    "minutes_duration": 20,
+    "description": "Sore throat and fever",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "ROUTINE",
+    "appointment_type_display": "Routine appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:4:11:00}}",
+    "actual_period_end": "{{DAYS_AGO:4:11:20}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:4:11:00}}", "period_end": "{{DAYS_AGO:4:11:20}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-strep",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "J02.0",
+        "code_display": "Streptococcal pharyngitis",
+        "code_text": "Streptococcal pharyngitis",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:5}}",
+        "recorded_date": "{{DAYS_AGO:4:11:05}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-temp",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "8310-5",
+        "code_display": "Body temperature",
+        "code_text": "Temperature",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:4:11:02}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "vital-signs", "coding_display": "Vital Signs" }
+        ],
+        "value_quantity_value": 38.7,
+        "value_quantity_unit": "Cel",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "Cel"
+      }
+    },
+    {
+      "name": "obs-strep-culture",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "626-2",
+        "code_display": "Bacteria identified in Throat by Culture",
+        "code_text": "Throat culture",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:4:11:10}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_string": "Positive for Group A Streptococcus"
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-amoxicillin",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "308191",
+        "medication_code_display": "amoxicillin 500 MG Oral Capsule",
+        "medication_code_text": "Amoxicillin 500mg capsule",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:4:11:18}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Take 1 capsule by mouth three times daily for 10 days",
+            "patient_instruction": "Complete the full course even if symptoms improve.",
+            "route_system": "http://snomed.info/sct",
+            "route_code": "26643006",
+            "route_display": "Oral route",
+            "timing_repeat_frequency": 3,
+            "timing_repeat_period": 1,
+            "timing_repeat_period_unit": "d",
+            "timing_repeat_bounds_start": "{{DAYS_AGO:4:11:18}}"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [
+    {
+      "name": "sr-throat-culture",
+      "create": {
+        "status": "completed",
+        "intent": "order",
+        "priority": "routine",
+        "code_system": "http://loinc.org",
+        "code_code": "626-2",
+        "code_display": "Bacteria identified in Throat by Culture",
+        "code_text": "Throat culture",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "occurrence_datetime": "{{DAYS_AGO:4:11:05}}",
+        "authored_on": "{{DAYS_AGO:4:11:05}}",
+        "requester": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "diagnosticReports": [
+    {
+      "name": "dr-throat-culture",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "626-2",
+        "code_display": "Bacteria identified in Throat by Culture",
+        "code_text": "Throat culture",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_datetime": "{{DAYS_AGO:4:11:10}}",
+        "issued": "{{DAYS_AGO:3}}",
+        "conclusion": "Group A Streptococcus isolated — consistent with streptococcal pharyngitis.",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/v2-0074", "coding_code": "LAB", "coding_display": "Laboratory" }
+        ],
+        "based_on": [{ "reference": "{{SERVICE_REQUEST_REF:sr-throat-culture}}" }]
+      },
+      "resultFrom": ["obs-strep-culture"]
+    }
+  ]
+}

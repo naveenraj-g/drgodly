@@ -125,6 +125,15 @@ export interface ObservationFormItem extends AiObservation {
   refRangeUnit?: string;
   /** Free-text note (note[0].text). Immutable child array — CREATE only. */
   note?: string;
+  /**
+   * FHIR ServiceRequest.id this observation resulted from — set on create
+   * only (based_on is an immutable child array). Lets a later visit find
+   * this Observation again by its order rather than needing a separate
+   * mapping table: filter Observations by encounter_id, then by
+   * based_on -> ServiceRequest/{id}, the same pattern DiagnosticReport
+   * results are already resolved by.
+   */
+  basedOnServiceRequestId?: number;
 }
 
 /** Medication form item — AI suggestion plus doctor-edited dosage fields and resolved code. */

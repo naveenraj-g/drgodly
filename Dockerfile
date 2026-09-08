@@ -5,16 +5,17 @@ FROM node:22-alpine AS base
 # ─── deps: install node_modules via pnpm ─────────────────────────────────────
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY vendor ./vendor
+COPY patches ./patches
 RUN pnpm install --frozen-lockfile
 
 # ─── builder: prisma generate + next build ────────────────────────────────────
 FROM base AS builder
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -47,7 +48,11 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Generate the Prisma client (output: ./prisma/generated/prisma)
-RUN pnpm dlx prisma generate --schema ./prisma/schema/schema.prisma
+# Uses the pinned prisma devDependency via `exec` — `dlx` always fetches
+# npm's current `prisma@latest`, which can silently diverge from the
+# version this project actually depends on (and has broken builds when
+# that latest release changed its CLI surface).
+RUN pnpm exec prisma generate --schema ./prisma/schema/schema.prisma
 
 RUN pnpm run build
 

@@ -22,16 +22,42 @@
 
 "use client";
 
-import { useMemo } from "react";
-import { FlaskConical, Lock, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  ChevronDown,
+  Download,
+  FileCode,
+  FileText,
+  FileType,
+  FlaskConical,
+  Loader2,
+  Lock,
+  Pencil,
+  Printer,
+  ScrollText,
+  Upload,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { AttachmentList } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
 import { ClinicalEntryList } from "../entries/ClinicalEntryList";
 import { ServiceRequestFields } from "../entries/fields/ServiceRequestFields";
 import { serviceRequestSummary } from "../entries/summaries";
 import { doctorStore } from "../../../stores/doctor.store";
+import { downloadLabOrder, type LabOrderExportFormat } from "./exportLabOrders";
+import { LabOrderPreview } from "./LabOrderPreview";
 import type { Attachment } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
+import type { DocExportMeta } from "../exportDocument";
 import type { ServiceRequestFormItem } from "../../appointment-review/types";
 import type { TDiagnosticReportResponse } from "@/modules/entities/schemas/diagnostic-report";
 
@@ -65,6 +91,12 @@ interface OrdersTabProps {
   patientId: number;
   /** FHIR Appointment.id — part of the preview route this tab links into. */
   appointmentId: number;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
+  /** Letterhead, patient-info and signature details for the printable/downloadable order sheet. */
+  meta: DocExportMeta;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -85,7 +117,32 @@ export function OrdersTab({
   diagnosticReports,
   patientId,
   appointmentId,
+  orgId,
+  userId,
+  meta,
 }: OrdersTabProps) {
+  /** False = edit the order list, true = show the printable order sheet. */
+  const [previewing, setPreviewing] = useState(false);
+  /** True while a download is being generated — disables the menu trigger. */
+  const [isExporting, setIsExporting] = useState(false);
+
+  /**
+   * Generates and downloads the lab-request sheet in the given format.
+   *
+   * @param format - "pdf", "word" or "text".
+   */
+  async function handleDownload(format: LabOrderExportFormat) {
+    setIsExporting(true);
+    try {
+      await downloadLabOrder(format, serviceRequests, meta);
+    } catch (err) {
+      console.error("[OrdersTab] export failed:", err);
+      toast.error("Could not generate the file. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   /**
    * Map ServiceRequest.id → the files uploaded against it, flattened out of
    * every DiagnosticReport whose based_on[] points at that order.
@@ -128,39 +185,134 @@ export function OrdersTab({
     [filesByServiceRequestId],
   );
 
-  return (
-    <ClinicalEntryList
-      items={serviceRequests}
-      onChange={onServiceRequestsChange}
-      icon={FlaskConical}
-      title="Orders & Investigations"
-      addLabel="Add order"
-      emptyLabel="No orders for this visit."
-      hint={
-        totalFiles > 0
-          ? `${totalFiles} result file${totalFiles > 1 ? "s" : ""} attached`
-          : undefined
-      }
-      createItem={emptyServiceRequest}
-      summary={serviceRequestSummary}
-      onPersistItem={onPersistServiceRequest}
-      onDeleteItem={onDeleteServiceRequest}
-      renderFields={(item, onItemChange) => (
-        <ServiceRequestFields item={item} onChange={onItemChange} />
-      )}
-      renderRowExtra={(order) => (
-        <OrderResults
-          order={order}
-          files={
-            order.fhirId != null
-              ? (filesByServiceRequestId.get(order.fhirId) ?? [])
-              : []
+  if (!previewing) {
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setPreviewing(true)}
+          >
+            <ScrollText className="size-3.5" />
+            Preview order sheet
+          </Button>
+        </div>
+
+        <ClinicalEntryList
+          items={serviceRequests}
+          onChange={onServiceRequestsChange}
+          icon={FlaskConical}
+          title="Orders & Investigations"
+          addLabel="Add order"
+          emptyLabel="No orders for this visit."
+          hint={
+            totalFiles > 0
+              ? `${totalFiles} result file${totalFiles > 1 ? "s" : ""} attached`
+              : undefined
           }
-          patientId={patientId}
-          appointmentId={appointmentId}
+          createItem={emptyServiceRequest}
+          summary={serviceRequestSummary}
+          onPersistItem={onPersistServiceRequest}
+          onDeleteItem={onDeleteServiceRequest}
+          renderFields={(item, onItemChange) => (
+            <ServiceRequestFields item={item} onChange={onItemChange} />
+          )}
+          renderRowExtra={(order) => (
+            <OrderResults
+              order={order}
+              files={
+                order.fhirId != null
+                  ? (filesByServiceRequestId.get(order.fhirId) ?? [])
+                  : []
+              }
+              patientId={patientId}
+              appointmentId={appointmentId}
+              orgId={orgId}
+              userId={userId}
+            />
+          )}
         />
-      )}
-    />
+      </div>
+    );
+  }
+
+  return (
+    <Card className="print:border-0 print:shadow-none">
+      <CardContent className="space-y-3 px-4 py-3.5">
+        <div className="flex items-center gap-2 print:hidden">
+          <FlaskConical className="size-4 text-primary" />
+          <p className="text-sm font-semibold">Order sheet preview</p>
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setPreviewing(false)}
+            >
+              <Pencil className="size-3.5" />
+              Edit
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs"
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Download className="size-3.5" />
+                  )}
+                  Download
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={() => void handleDownload("pdf")}>
+                  <FileText className="size-3.5" />
+                  PDF
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    .pdf
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void handleDownload("word")}>
+                  <FileType className="size-3.5" />
+                  Word
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    .doc
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void handleDownload("text")}>
+                  <FileCode className="size-3.5" />
+                  Plain text
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    .txt
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => window.print()}>
+                  <Printer className="size-3.5" />
+                  Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <Separator className="print:hidden" />
+
+        <LabOrderPreview orders={serviceRequests} meta={meta} />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -175,6 +327,10 @@ interface OrderResultsProps {
   patientId: number;
   /** FHIR Appointment.id — part of the preview route. */
   appointmentId: number;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 /**
@@ -189,6 +345,8 @@ function OrderResults({
   files,
   patientId,
   appointmentId,
+  orgId,
+  userId,
 }: OrderResultsProps) {
   /* Unpublished: no ServiceRequest exists in FHIR for a DiagnosticReport to
      reference, so say that rather than offer an upload that cannot succeed. */
@@ -226,6 +384,8 @@ function OrderResults({
                 serviceRequestId: order.fhirId!,
                 serviceRequestCode: order.display,
                 patientFhirId: patientId,
+                orgId,
+                userId,
               },
             })
           }

@@ -62,6 +62,7 @@ import {
 import { createDocumentReferenceAction } from "@/modules/server/presentation/actions/document-reference";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 import { resultDocumentName } from "@/modules/client/telemedicine/shared/components/clinical/documentNaming";
+import { registerStagingMedicalRecords } from "@/modules/client/telemedicine/shared/components/clinical/registerStagingMedicalRecords";
 import type {
   TDiagnosticReportResponse,
   TPaginatedDiagnosticReportResponse,
@@ -226,6 +227,10 @@ interface UploadResultContentProps {
   serviceRequestId: number;
   patientFhirId?: number;
   serviceRequestCode?: string;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 /**
@@ -235,11 +240,15 @@ interface UploadResultContentProps {
  * @param serviceRequestId   - FHIR ServiceRequest.id.
  * @param patientFhirId      - FHIR Patient.id — used for subject refs and history fetch.
  * @param serviceRequestCode - Human-readable order name shown in the dialog description.
+ * @param orgId - Active organisation id, forwarded to the registered staging record.
+ * @param userId - Session user id, forwarded to the registered staging record.
  */
 function UploadResultContent({
   serviceRequestId,
   patientFhirId,
   serviceRequestCode,
+  orgId,
+  userId,
 }: UploadResultContentProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -404,6 +413,18 @@ function UploadResultContent({
           );
         }
 
+        // Queue every file for AI extraction. Best-effort — never blocks or
+        // rolls back the upload above, which has already succeeded.
+        void registerStagingMedicalRecords({
+          records,
+          serviceRequestId,
+          diagnosticReportId: drData?.id,
+          patientFhirId,
+          orgId,
+          userId,
+          createdBy: "patient",
+        });
+
         // Trigger a history refresh and clear the staging list.
         setRefreshKey((k) => k + 1);
         setIsLoadingReports(true);
@@ -418,7 +439,7 @@ function UploadResultContent({
         setIsSaving(false);
       }
     },
-    [serviceRequestId, patientFhirId, serviceRequestCode, router],
+    [serviceRequestId, patientFhirId, serviceRequestCode, orgId, userId, router],
   );
 
   // ── FileNest upload callbacks ───────────────────────────────────────────────
@@ -643,6 +664,8 @@ export function UploadResultModal() {
   const serviceRequestId = data?.serviceRequestId;
   const patientFhirId = data?.patientFhirId;
   const serviceRequestCode = data?.serviceRequestCode;
+  const orgId = data?.orgId;
+  const userId = data?.userId;
 
   /**
    * FileNest upload path: patientId is the root folder (same convention as
@@ -734,6 +757,8 @@ export function UploadResultModal() {
               serviceRequestId={serviceRequestId}
               patientFhirId={patientFhirId ?? undefined}
               serviceRequestCode={serviceRequestCode ?? undefined}
+              orgId={orgId}
+              userId={userId}
             />
           </FileNestProvider>
         ) : null}

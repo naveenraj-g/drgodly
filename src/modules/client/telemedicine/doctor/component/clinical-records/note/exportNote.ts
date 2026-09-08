@@ -21,8 +21,21 @@
  *
  * jsPDF is imported dynamically, matching export-utils.ts, so it stays out of
  * the initial bundle for everyone who never downloads a note.
+ *
+ * Page geometry, PDF pagination, the letterhead subtitle and the download
+ * plumbing are shared with the prescription and lab-request exports via
+ * ../exportDocument — this file only describes the note's own content.
  */
 
+import {
+  createPdfCursor,
+  downloadString,
+  PAGE,
+  slug,
+  subtitle,
+  escapeHtml,
+  type DocExportMeta,
+} from "../exportDocument";
 import type { SoapNote } from "../../appointment-review/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -31,13 +44,7 @@ import type { SoapNote } from "../../appointment-review/types";
 export type NoteExportFormat = "pdf" | "word" | "text";
 
 /** Letterhead details shown at the top of every export. */
-export interface NoteExportMeta {
-  /** Patient display name. */
-  patientName: string;
-  /** Authoring doctor's display name. */
-  doctorName: string;
-  /** Formatted visit date, or null when unknown. */
-  appointmentDate: string | null;
+export interface NoteExportMeta extends DocExportMeta {
   /**
    * Whether the doctor has approved the note. An unapproved note carries a
    * line saying so — once it leaves the app as a file there is no badge and no
@@ -133,54 +140,11 @@ function toSections(soap: SoapNote): NoteSection[] {
     .filter((section) => section.fields.length > 0);
 }
 
-/** Builds the letterhead sub-title, e.g. "Jane Doe · 12 Aug 2026 · Dr Smith". */
-function subtitle(meta: NoteExportMeta): string {
-  return [meta.patientName, meta.appointmentDate, meta.doctorName]
-    .filter(Boolean)
-    .join(" · ");
-}
-
 /** The draft warning, or null when the note has been approved. */
 function draftNotice(meta: NoteExportMeta): string | null {
   return meta.reviewed === false
     ? "DRAFT — not yet reviewed or approved by the treating clinician."
     : null;
-}
-
-/**
- * Builds a filesystem-safe filename stem, e.g. "consultation-note-jane-doe".
- *
- * @param meta - Letterhead details.
- * @returns Filename without an extension.
- */
-function filenameStem(meta: NoteExportMeta): string {
-  const slug = meta.patientName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return slug ? `consultation-note-${slug}` : "consultation-note";
-}
-
-/**
- * Triggers a browser download for a generated string.
- *
- * @param content - File body.
- * @param filename - Full filename including extension.
- * @param mimeType - MIME type for the Blob.
- */
-function downloadString(
-  content: string,
-  filename: string,
-  mimeType: string,
-): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  /* Deferred so the download has started before the URL is released. */
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // ── Text ──────────────────────────────────────────────────────────────────────
@@ -212,14 +176,6 @@ export function noteToPlainText(soap: SoapNote, meta: NoteExportMeta): string {
 }
 
 // ── Word ──────────────────────────────────────────────────────────────────────
-
-/** Escapes text for safe inclusion in the generated HTML document. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 /**
  * Renders the note as a Word-compatible HTML document.
@@ -266,10 +222,6 @@ export function noteToWordHtml(soap: SoapNote, meta: NoteExportMeta): string {
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
 
-/** Page geometry, in the jsPDF default unit (mm) for A4 portrait. */
-const PAGE = { width: 210, height: 297, margin: 18 } as const;
-const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2;
-
 /**
  * Builds the note as a jsPDF document.
  *
@@ -286,66 +238,46 @@ const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2;
 export async function buildNotePdf(soap: SoapNote, meta: NoteExportMeta) {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-
-  let y = PAGE.margin;
-
-  /** Advances to a new page when the next block would overflow the margin. */
-  function ensureSpace(needed: number) {
-    if (y + needed <= PAGE.height - PAGE.margin) return;
-    doc.addPage();
-    y = PAGE.margin;
-  }
-
-  /** Writes wrapped text and advances the cursor, paginating as needed. */
-  function write(text: string, size: number, style: "normal" | "bold", indent = 0) {
-    doc.setFontSize(size);
-    doc.setFont("helvetica", style);
-    const lineHeight = size * 0.42;
-    for (const l of doc.splitTextToSize(text, CONTENT_WIDTH - indent) as string[]) {
-      ensureSpace(lineHeight);
-      doc.text(l, PAGE.margin + indent, y);
-      y += lineHeight;
-    }
-  }
+  const cursor = createPdfCursor(doc);
 
   // ── Letterhead ──
-  write("Consultation Note", 16, "bold");
-  y += 1;
+  cursor.write("Consultation Note", 16, "bold");
+  cursor.y += 1;
   doc.setTextColor(110);
-  write(subtitle(meta), 10, "normal");
+  cursor.write(subtitle(meta), 10, "normal");
   doc.setTextColor(17);
-  y += 2;
+  cursor.y += 2;
 
   const draft = draftNotice(meta);
   if (draft) {
     doc.setTextColor(150, 80, 10);
-    write(draft, 10, "bold");
+    cursor.write(draft, 10, "bold");
     doc.setTextColor(17);
-    y += 2;
+    cursor.y += 2;
   }
 
   // ── Sections ──
   for (const section of toSections(soap)) {
-    y += 4;
-    ensureSpace(10);
-    write(section.heading, 12, "bold");
+    cursor.y += 4;
+    cursor.ensureSpace(10);
+    cursor.write(section.heading, 12, "bold");
     /* Rule under the heading, matching the on-screen section divider. */
     doc.setDrawColor(200);
-    doc.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
-    y += 4;
+    doc.line(PAGE.margin, cursor.y, PAGE.width - PAGE.margin, cursor.y);
+    cursor.y += 4;
 
     for (const field of section.fields) {
       if (field.label) {
         doc.setTextColor(110);
-        write(field.label.toUpperCase(), 8, "bold");
+        cursor.write(field.label.toUpperCase(), 8, "bold");
         doc.setTextColor(17);
-        y += 0.5;
+        cursor.y += 0.5;
       }
       const bullet = field.lines.length > 1;
       for (const l of field.lines) {
-        write(bullet ? `•  ${l}` : l, 10, "normal", bullet ? 3 : 0);
+        cursor.write(bullet ? `•  ${l}` : l, 10, "normal", bullet ? 3 : 0);
       }
-      y += 2;
+      cursor.y += 2;
     }
   }
 
@@ -368,7 +300,7 @@ export async function downloadNote(
   soap: SoapNote,
   meta: NoteExportMeta,
 ): Promise<void> {
-  const stem = filenameStem(meta);
+  const stem = slug("consultation-note", meta.patientName);
 
   switch (format) {
     case "pdf": {

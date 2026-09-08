@@ -36,6 +36,7 @@ import { createDiagnosticReportAction } from "@/modules/server/presentation/acti
 import { createDocumentReferenceAction } from "@/modules/server/presentation/actions/document-reference";
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 import { resultDocumentName } from "@/modules/client/telemedicine/shared/components/clinical/documentNaming";
+import { registerStagingMedicalRecords } from "@/modules/client/telemedicine/shared/components/clinical/registerStagingMedicalRecords";
 
 import { useDoctorStore } from "../../stores/doctor.store";
 import {
@@ -54,6 +55,10 @@ interface UploadOrderResultContentProps {
   patientFhirId?: number;
   /** Order name, e.g. "CBC" — used to name the created DocumentReference. */
   serviceRequestCode?: string;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 /**
@@ -62,11 +67,15 @@ interface UploadOrderResultContentProps {
  *
  * @param serviceRequestId - Order the results are for.
  * @param patientFhirId - FHIR Patient.id, when known.
+ * @param orgId - Active organisation id, forwarded to the registered staging record.
+ * @param userId - Session user id, forwarded to the registered staging record.
  */
 function UploadOrderResultContent({
   serviceRequestId,
   patientFhirId,
   serviceRequestCode,
+  orgId,
+  userId,
 }: UploadOrderResultContentProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -157,6 +166,18 @@ function UploadOrderResultContent({
         );
       }
 
+      // Queue every file for AI extraction. Best-effort — never blocks or
+      // rolls back the upload above, which has already succeeded.
+      void registerStagingMedicalRecords({
+        records,
+        serviceRequestId,
+        diagnosticReportId: drData?.id,
+        patientFhirId,
+        orgId,
+        userId,
+        createdBy: "doctor",
+      });
+
       /* The workspace is a server component that fetched DiagnosticReports at
          page load — refresh so the Orders tab shows the new files. */
       router.refresh();
@@ -191,6 +212,8 @@ export function UploadOrderResultModal() {
   const serviceRequestId = data?.serviceRequestId;
   const patientFhirId = data?.patientFhirId;
   const serviceRequestCode = data?.serviceRequestCode;
+  const orgId = data?.orgId;
+  const userId = data?.userId;
 
   /*
    * FileNest path convention: patient id is the root folder, matching how
@@ -241,6 +264,8 @@ export function UploadOrderResultModal() {
               serviceRequestId={serviceRequestId}
               patientFhirId={patientFhirId ?? undefined}
               serviceRequestCode={serviceRequestCode}
+              orgId={orgId}
+              userId={userId}
             />
           </FileNestProvider>
         ) : null}

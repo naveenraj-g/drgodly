@@ -21,7 +21,7 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Download,
@@ -46,10 +46,11 @@ import {
   formatBytes,
   openAttachment,
 } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
-import { DocumentChatPanel } from "./DocumentChatPanel";
+import { PdfChatPanel } from "./PdfChatPanel";
 import { DocumentSummaryPanel } from "./DocumentSummaryPanel";
 import { ExtractedDataPanel } from "./ExtractedDataPanel";
 import { FilePreviewPane } from "./FilePreviewPane";
+import { useStagingRecord } from "./useStagingRecord";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,10 @@ interface DocumentPreviewScreenProps {
   parentLabel: string;
   /** Where the back link goes — the tab the doctor came from. */
   backHref: string;
+  /** FHIR Patient.id — scopes the staging-record lookup and the created Observation's subject. */
+  patientId: number;
+  /** Acting practitioner id, recorded as the staging record's reviewed_by on accept/reject. */
+  reviewerId: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -94,8 +99,27 @@ export function DocumentPreviewScreen({
   size,
   parentLabel,
   backHref,
+  patientId,
+  reviewerId,
 }: DocumentPreviewScreenProps) {
   const groupRef = useRef<GroupImperativeHandle | null>(null);
+
+  // ── Staging record (AI extraction) ────────────────────────────────────────
+  const {
+    record: stagingRecord,
+    isLoading: stagingLoading,
+    refetch: refetchStagingRecord,
+  } = useStagingRecord(fileId, patientId);
+
+  /**
+   * Doctor's in-progress summary edit. null means "unedited" — display and
+   * accept both fall back to the record's own summary. Reset whenever a
+   * different underlying record loads so a stale draft can't leak onto it.
+   */
+  const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
+  useEffect(() => {
+    setSummaryDraft(null);
+  }, [stagingRecord?.id]);
 
   /* Restore the saved split once the group exists. Corrupt or stale entries are
      ignored rather than throwing — a bad localStorage value should cost the
@@ -219,17 +243,36 @@ export function DocumentPreviewScreen({
             {/* min-h-0 on each: without it the flex child refuses to shrink
                 and the panel's own scroll area never engages. */}
             <TabsContent value="extracted" className="mt-3 min-h-0 flex-1">
-              <ExtractedDataPanel fileTitle={title} />
+              <ExtractedDataPanel
+                fileTitle={title}
+                record={stagingRecord}
+                isLoading={stagingLoading}
+                patientId={patientId}
+                reviewerId={reviewerId}
+                summaryDraft={summaryDraft}
+                onReviewed={refetchStagingRecord}
+              />
             </TabsContent>
 
             <TabsContent value="chat" className="mt-3 min-h-0 flex-1">
-              <DocumentChatPanel fileTitle={title} />
+              {/* TEMP: swapped from DocumentChatPanel to PdfChatPanel (new
+                  pdf_chat agent). DocumentChatPanel is left in place, unused,
+                  so this can be swapped back. */}
+              <PdfChatPanel fileId={fileId} fileTitle={title} />
             </TabsContent>
 
             <TabsContent value="summary" className="mt-3 min-h-0 flex-1">
               <DocumentSummaryPanel
                 fileTitle={title}
                 parentLabel={parentLabel}
+                record={stagingRecord}
+                isLoading={stagingLoading}
+                summaryDraft={summaryDraft}
+                onSummaryDraftChange={setSummaryDraft}
+                onSaved={() => {
+                  setSummaryDraft(null);
+                  refetchStagingRecord();
+                }}
               />
             </TabsContent>
           </Tabs>

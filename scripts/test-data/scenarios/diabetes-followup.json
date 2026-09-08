@@ -1,0 +1,171 @@
+{
+  "meta": {
+    "id": "diabetes-followup",
+    "title": "Type 2 Diabetes — routine follow-up",
+    "summary": "Chronic-disease follow-up visit with an elevated HbA1c, an active metformin prescription, and a lipid panel ordered and resulted in the same visit.",
+    "diagnosisCodes": ["ICD-10 E11.9"],
+    "expectedUi": "Doctor Clinical Records: 1 condition, 2 observations, 1 active medication, 1 completed lab order with a resulted DiagnosticReport. Patient Doctor Report tab mirrors all of it."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:5:09:00}}",
+    "end": "{{DAYS_AGO:5:09:20}}",
+    "minutes_duration": 20,
+    "description": "Diabetes follow-up",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "FOLLOWUP",
+    "appointment_type_display": "A follow up visit from a previous appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:5:09:00}}",
+    "actual_period_end": "{{DAYS_AGO:5:09:20}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:5:09:00}}", "period_end": "{{DAYS_AGO:5:09:20}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-t2dm",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "E11.9",
+        "code_display": "Type 2 diabetes mellitus without complications",
+        "code_text": "Type 2 diabetes mellitus",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:400}}",
+        "recorded_date": "{{DAYS_AGO:5:09:10}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-hba1c",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "4548-4",
+        "code_display": "Hemoglobin A1c/Hemoglobin.total in Blood",
+        "code_text": "HbA1c",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:5:09:05}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_quantity_value": 7.8,
+        "value_quantity_unit": "%",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "%",
+        "performer": [{ "reference": "{{PRACTITIONER_REF}}" }]
+      }
+    },
+    {
+      "name": "obs-fasting-glucose",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "1558-6",
+        "code_display": "Fasting glucose [Mass/volume] in Serum or Plasma",
+        "code_text": "Fasting glucose",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:5:09:05}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "laboratory", "coding_display": "Laboratory" }
+        ],
+        "value_quantity_value": 142,
+        "value_quantity_unit": "mg/dL",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "mg/dL"
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-metformin",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "860975",
+        "medication_code_display": "metFORMIN hydrochloride 500 MG Oral Tablet",
+        "medication_code_text": "Metformin 500mg tablet",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:5:09:15}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Take 1 tablet by mouth twice daily with meals",
+            "patient_instruction": "Take with breakfast and dinner to reduce stomach upset.",
+            "route_system": "http://snomed.info/sct",
+            "route_code": "26643006",
+            "route_display": "Oral route",
+            "timing_repeat_frequency": 2,
+            "timing_repeat_period": 1,
+            "timing_repeat_period_unit": "d"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [
+    {
+      "name": "sr-lipid-panel",
+      "create": {
+        "status": "completed",
+        "intent": "order",
+        "priority": "routine",
+        "code_system": "http://loinc.org",
+        "code_code": "24331-1",
+        "code_display": "Lipid 1996 panel - Serum or Plasma",
+        "code_text": "Lipid panel",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "occurrence_datetime": "{{DAYS_AGO:5:09:10}}",
+        "authored_on": "{{DAYS_AGO:5:09:10}}",
+        "requester": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "diagnosticReports": [
+    {
+      "name": "dr-lipid-panel",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "24331-1",
+        "code_display": "Lipid 1996 panel - Serum or Plasma",
+        "code_text": "Lipid panel",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_datetime": "{{DAYS_AGO:5:09:10}}",
+        "issued": "{{DAYS_AGO:4}}",
+        "conclusion": "Borderline elevated LDL cholesterol. Recommend dietary modification and re-check in 3 months.",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/v2-0074", "coding_code": "LAB", "coding_display": "Laboratory" }
+        ],
+        "based_on": [{ "reference": "{{SERVICE_REQUEST_REF:sr-lipid-panel}}" }]
+      },
+      "resultFrom": []
+    }
+  ]
+}

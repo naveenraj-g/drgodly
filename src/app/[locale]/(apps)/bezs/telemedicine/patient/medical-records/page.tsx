@@ -59,7 +59,11 @@ export default async function PatientMedicalRecordsPage() {
         </p>
       </div>
 
-      <MedicalRecordsClient appointments={appointments} />
+      <MedicalRecordsClient
+        appointments={appointments}
+        orgId={session.session.activeOrganizationId ?? undefined}
+        userId={session.user.id}
+      />
     </div>
   );
 }

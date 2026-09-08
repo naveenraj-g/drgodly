@@ -86,6 +86,12 @@ import { DocumentsTab } from "./tabs/DocumentsTab";
 import { IntakeTab } from "./tabs/IntakeTab";
 
 import type {
+  DocExportMeta,
+  OrgLetterhead,
+  PractitionerLetterhead,
+  PatientLetterhead,
+} from "./exportDocument";
+import type {
   ConditionFormItem,
   MedicationFormItem,
   ObservationFormItem,
@@ -136,6 +142,16 @@ export interface ClinicalWorkspaceProps {
   doctorName: string;
   /** Formatted appointment date for headers. */
   appointmentDate: string | null;
+  /**
+   * Clinic/prescriber/patient letterhead extras for the Prescription and
+   * Lab-Request sheets. Undefined fields degrade gracefully — RxPreview and
+   * LabOrderPreview omit whatever isn't on file rather than showing a blank.
+   */
+  docMeta?: {
+    organization?: OrgLetterhead | null;
+    practitioner?: PractitionerLetterhead | null;
+    patientInfo?: PatientLetterhead | null;
+  };
   /** Conditions already published to the EMR for this encounter. */
   savedConditions: TConditionResponse[];
   /** Observations already published to the EMR for this encounter. */
@@ -167,6 +183,10 @@ export interface ClinicalWorkspaceProps {
    * not used anywhere else on this screen.
    */
   consultationCreatedAt: Date | string | null;
+  /** Active organisation id — forwarded to staging records registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to staging records registered on upload. */
+  userId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -186,6 +206,7 @@ export function ClinicalWorkspace({
   patientName,
   doctorName,
   appointmentDate,
+  docMeta,
   savedConditions,
   savedObservations,
   savedMedications,
@@ -198,6 +219,8 @@ export function ClinicalWorkspace({
   transcript,
   publishedAt,
   consultationCreatedAt,
+  orgId,
+  userId,
 }: ClinicalWorkspaceProps) {
   /* Refreshed after every write so server-derived data — the review status, the
      result files hanging off an order — reflects what was just saved. */
@@ -242,6 +265,24 @@ export function ClinicalWorkspace({
         : normaliseServiceRequests(staged.serviceRequests),
   );
 
+  // ── Prescription / Lab-Request letterhead ──────────────────────────────────
+
+  /* Base letterhead shared by both sheets — diagnosis reads the live
+     conditions list (not a frozen SOAP snapshot) since that's what the doctor
+     is actively editing on this screen. Doc Ref differs per sheet, so each
+     gets its own extension of the shared base rather than a single object. */
+  const baseMeta: DocExportMeta = {
+    patientName,
+    doctorName,
+    appointmentDate,
+    organization: docMeta?.organization,
+    practitioner: docMeta?.practitioner,
+    patientInfo: docMeta?.patientInfo,
+    diagnosis: conditions.map((c) => c.display).filter(Boolean).join(", ") || null,
+  };
+  const rxMeta: DocExportMeta = { ...baseMeta, docRef: `RX-${appointmentId}` };
+  const labMeta: DocExportMeta = { ...baseMeta, docRef: `LAB-${appointmentId}` };
+
   // ── Direct-to-EMR writes ────────────────────────────────────────────────────
 
   /*
@@ -263,7 +304,10 @@ export function ClinicalWorkspace({
    * @throws When there is no encounter to attach the record to.
    */
   function persistFor<K extends ClinicalEntryKind>(kind: K) {
-    return async (item: ClinicalEntryByKind[K]): Promise<number> => {
+    return async (
+      item: ClinicalEntryByKind[K],
+      original?: ClinicalEntryByKind[K],
+    ): Promise<number> => {
       if (!writeContext) {
         /* Every clinical resource hangs off an encounter, so without one there
            is nothing to attach the record to. */
@@ -271,7 +315,7 @@ export function ClinicalWorkspace({
           "This visit has no encounter yet, so records cannot be saved to it.",
         );
       }
-      const fhirId = await persistClinicalEntry(kind, item, writeContext);
+      const fhirId = await persistClinicalEntry(kind, item, writeContext, original);
       /* Re-read so anything derived from the record on the server — the review
          status, the result files hanging off an order — reflects the write. */
       router.refresh();
@@ -504,9 +548,7 @@ export function ClinicalWorkspace({
             onMedicationsChange={setMedications}
             onPersistMedication={persistFor("medication")}
             onDeleteMedication={deleteFor("medication")}
-            patientName={patientName}
-            doctorName={doctorName}
-            appointmentDate={appointmentDate}
+            meta={rxMeta}
           />
         </TabsContent>
 
@@ -519,6 +561,9 @@ export function ClinicalWorkspace({
             diagnosticReports={diagnosticReports}
             patientId={patientId}
             appointmentId={appointmentId}
+            orgId={orgId}
+            userId={userId}
+            meta={labMeta}
           />
         </TabsContent>
 

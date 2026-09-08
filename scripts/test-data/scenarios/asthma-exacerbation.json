@@ -1,0 +1,148 @@
+{
+  "meta": {
+    "id": "asthma-exacerbation",
+    "title": "Mild Persistent Asthma — exacerbation",
+    "summary": "Respiratory visit with vitals, a rescue inhaler, and a spirometry order that is deliberately left without a matching DiagnosticReport — exercises the 'pending order, no result yet' UI state.",
+    "diagnosisCodes": ["ICD-10 J45.30"],
+    "expectedUi": "Doctor Orders tab shows 1 active/pending spirometry order with no linked result; Prescriptions tab shows an as-needed albuterol inhaler."
+  },
+  "appointment": {
+    "status": "fulfilled",
+    "start": "{{DAYS_AGO:9:13:00}}",
+    "end": "{{DAYS_AGO:9:13:20}}",
+    "minutes_duration": 20,
+    "description": "Wheezing and shortness of breath",
+    "subject": "{{PATIENT_REF}}",
+    "appointment_type_code": "ROUTINE",
+    "appointment_type_display": "Routine appointment",
+    "participant": [
+      { "reference": "{{PATIENT_REF}}", "status": "accepted" },
+      { "reference": "{{PRACTITIONER_REF}}", "status": "accepted" }
+    ]
+  },
+  "encounter": {
+    "status": "completed",
+    "class": [
+      { "coding_system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "coding_code": "AMB", "coding_display": "ambulatory" }
+    ],
+    "subject": "{{PATIENT_REF}}",
+    "actual_period_start": "{{DAYS_AGO:9:13:00}}",
+    "actual_period_end": "{{DAYS_AGO:9:13:20}}",
+    "participant": [
+      { "reference": "{{PRACTITIONER_REF}}", "period_start": "{{DAYS_AGO:9:13:00}}", "period_end": "{{DAYS_AGO:9:13:20}}" }
+    ],
+    "appointment": [{ "reference": "{{APPOINTMENT_REF}}" }]
+  },
+  "conditions": [
+    {
+      "name": "cond-asthma",
+      "create": {
+        "clinical_status_system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "clinical_status_code": "active",
+        "clinical_status_display": "Active",
+        "verification_status_system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "verification_status_code": "confirmed",
+        "verification_status_display": "Confirmed",
+        "code_system": "http://hl7.org/fhir/sid/icd-10-cm",
+        "code_code": "J45.30",
+        "code_display": "Mild persistent asthma, uncomplicated",
+        "code_text": "Mild persistent asthma",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "onset_datetime": "{{DAYS_AGO:600}}",
+        "recorded_date": "{{DAYS_AGO:9:13:05}}",
+        "recorder": "{{PRACTITIONER_REF}}"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "obs-peak-flow",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "33452-4",
+        "code_display": "Peak expiratory flow rate",
+        "code_text": "Peak flow",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:9:13:03}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "vital-signs", "coding_display": "Vital Signs" }
+        ],
+        "value_quantity_value": 320,
+        "value_quantity_unit": "L/min",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "L/min"
+      }
+    },
+    {
+      "name": "obs-spo2",
+      "create": {
+        "status": "final",
+        "code_system": "http://loinc.org",
+        "code_code": "59408-5",
+        "code_display": "Oxygen saturation in Arterial blood by Pulse oximetry",
+        "code_text": "SpO2",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "effective_date_time": "{{DAYS_AGO:9:13:03}}",
+        "category": [
+          { "coding_system": "http://terminology.hl7.org/CodeSystem/observation-category", "coding_code": "vital-signs", "coding_display": "Vital Signs" }
+        ],
+        "value_quantity_value": 96,
+        "value_quantity_unit": "%",
+        "value_quantity_system": "http://unitsofmeasure.org",
+        "value_quantity_code": "%"
+      }
+    }
+  ],
+  "medicationRequests": [
+    {
+      "name": "mr-albuterol",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "medication_code_system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "medication_code_code": "746763",
+        "medication_code_display": "albuterol 0.09 MG/ACTUAT Metered Dose Inhaler",
+        "medication_code_text": "Albuterol inhaler",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "authored_on": "{{DAYS_AGO:9:13:15}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "dosage_instruction": [
+          {
+            "text": "Inhale 2 puffs every 4-6 hours as needed for wheezing",
+            "patient_instruction": "Rinse mouth after use.",
+            "as_needed_boolean": true,
+            "route_system": "http://snomed.info/sct",
+            "route_code": "18679011000036101",
+            "route_display": "Inhalation route"
+          }
+        ]
+      }
+    }
+  ],
+  "serviceRequests": [
+    {
+      "name": "sr-spirometry",
+      "create": {
+        "status": "active",
+        "intent": "order",
+        "priority": "routine",
+        "code_system": "http://loinc.org",
+        "code_code": "19926-5",
+        "code_display": "Spirometry study",
+        "code_text": "Spirometry",
+        "subject": "{{PATIENT_REF}}",
+        "encounter_id": "{{ENCOUNTER_ID}}",
+        "occurrence_datetime": "{{DAYS_AGO:9:13:18}}",
+        "authored_on": "{{DAYS_AGO:9:13:18}}",
+        "requester": "{{PRACTITIONER_REF}}",
+        "patient_instruction": "Schedule with the pulmonary function lab within 2 weeks."
+      }
+    }
+  ],
+  "diagnosticReports": []
+}

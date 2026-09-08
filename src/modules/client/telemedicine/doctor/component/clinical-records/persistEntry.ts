@@ -38,9 +38,11 @@ import {
   updateServiceRequestAction,
   deleteServiceRequestAction,
 } from "@/modules/server/presentation/actions/service-request/core.actions";
+import { toast } from "sonner";
 import {
   conditionCreatePayload,
   conditionUpdatePayload,
+  medicationCreateOnlyFieldsChanged,
   medicationCreatePayload,
   medicationUpdatePayload,
   observationCreatePayload,
@@ -119,6 +121,9 @@ function assertOk(
  * @param kind - Which resource the entry is.
  * @param item - The entry to write.
  * @param ctx - Subject and encounter for creates.
+ * @param original - The entry as it was before this edit, when editing an
+ *   existing one. Only medication uses it, to detect edits to fields that
+ *   fhir-gql cannot update in place (see medicationCreateOnlyFieldsChanged).
  * @returns The entry's FHIR id — newly assigned on create.
  * @throws Error when the write fails; callers surface it as a toast.
  */
@@ -126,6 +131,7 @@ export async function persistClinicalEntry<K extends ClinicalEntryKind>(
   kind: K,
   item: ClinicalEntryByKind[K],
   ctx: ClinicalWriteContext,
+  original?: ClinicalEntryByKind[K],
 ): Promise<number> {
   switch (kind) {
     case "condition": {
@@ -156,6 +162,43 @@ export async function persistClinicalEntry<K extends ClinicalEntryKind>(
     }
     case "medication": {
       const m = item as MedicationFormItem;
+      const prev = original as MedicationFormItem | undefined;
+
+      if (m.fhirId != null && prev && medicationCreateOnlyFieldsChanged(prev, m)) {
+        /*
+         * Dose/route/frequency/duration/patient instructions/indication/note
+         * live in dosage_instruction/reason_code/note — immutable child
+         * arrays fhir-gql only accepts at creation. A plain update would
+         * silently drop this edit (medicationUpdatePayload never sends
+         * them), so the only way to make it stick is to create the
+         * replacement first, then remove the superseded record.
+         *
+         * Create-then-delete (not the reverse) so a failure never leaves the
+         * prescription missing entirely — at worst a duplicate is left
+         * behind, which is recoverable from the list.
+         */
+        const newId = unwrapId(
+          await createMedicationRequestAction({
+            payload: medicationCreatePayload(m, ctx),
+          }),
+        );
+        try {
+          assertOk(
+            await deleteMedicationRequestAction({ payload: { id: m.fhirId } }),
+          );
+        } catch (err) {
+          console.error(
+            "[persistClinicalEntry] failed to remove superseded medication request",
+            m.fhirId,
+            err,
+          );
+          toast.warning(
+            "The updated prescription was saved, but the previous version could not be removed automatically — please delete the older duplicate from the list.",
+          );
+        }
+        return newId;
+      }
+
       return m.fhirId != null
         ? unwrapId(
             await updateMedicationRequestAction({

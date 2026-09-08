@@ -126,6 +126,10 @@ export interface ServiceRequestRecordCardProps {
    * Null/undefined when the SR has no encounter or appointment context.
    */
   appointment?: TAppointmentResponse | null;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -142,6 +146,8 @@ export function ServiceRequestRecordCard({
   sr,
   diagnosticReports,
   appointment,
+  orgId,
+  userId,
 }: ServiceRequestRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -192,6 +198,8 @@ export function ServiceRequestRecordCard({
         serviceRequestId: sr.id,
         serviceRequestCode: sr.code_display ?? sr.code_text ?? undefined,
         patientFhirId: sr.subject_id ?? undefined,
+        orgId,
+        userId,
       },
     });
   }

@@ -51,6 +51,10 @@ interface AppointmentReportTabsProps {
    * caller that has no consultation to check behaves as before.
    */
   reviewed?: boolean;
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -68,6 +72,8 @@ export function AppointmentReportTabs({
   doctorReport,
   isPatientView = false,
   reviewed = true,
+  orgId,
+  userId,
 }: AppointmentReportTabsProps) {
   /**
    * Opens the upload-result modal for the given ServiceRequest.
@@ -81,6 +87,8 @@ export function AppointmentReportTabs({
             serviceRequestId: sr.id,
             serviceRequestCode: sr.code_display ?? sr.code_text ?? undefined,
             patientFhirId: sr.subject_id ?? undefined,
+            orgId,
+            userId,
           },
         })
     : undefined;

@@ -36,7 +36,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { ReviewBadge } from "@/modules/client/telemedicine/shared/components/clinical/ReviewStatus";
 import { AttachmentList } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
+import { PatientPrescriptionsCard } from "./PatientPrescriptionsCard";
+import { PatientOrdersCard } from "./PatientOrdersCard";
+import { buildDiagnosis } from "@/modules/client/telemedicine/doctor/component/clinical-records/exportDocument";
 import type { Attachment } from "@/modules/client/telemedicine/shared/components/clinical/AttachmentList";
+import type {
+  DocExportMeta,
+  OrgLetterhead,
+  PractitionerLetterhead,
+  PatientLetterhead,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/exportDocument";
 import type { TConditionResponse } from "@/modules/entities/schemas/condition";
 import type { TObservationResponse } from "@/modules/entities/schemas/observation";
 import type { TMedicationRequestResponse } from "@/modules/entities/schemas/medication-request";
@@ -686,6 +695,25 @@ export interface DoctorReportSectionProps {
    * it as advice from their doctor.
    */
   isPatientView?: boolean;
+  /** FHIR Appointment.id — builds the sheets' traceable Doc Ref (e.g. "RX-1042"). */
+  appointmentId?: number;
+  /** Patient display name — also used as the sheets' letterhead patient name. */
+  patientName?: string;
+  /** Doctor display name — also used as the sheets' letterhead doctor name. */
+  doctorName?: string;
+  /** Formatted appointment date — also used as the sheets' letterhead date. */
+  appointmentDate?: string | null;
+  /**
+   * Clinic/prescriber/patient letterhead extras for the patient-view
+   * Prescription/Orders sheets. Only read when isPatientView is true — the
+   * doctor's own view keeps its plain MedicationList/ServiceRequestList,
+   * which need no letterhead. Undefined fields degrade gracefully.
+   */
+  letterheadExtras?: {
+    organization?: OrgLetterhead | null;
+    practitioner?: PractitionerLetterhead | null;
+    patientInfo?: PatientLetterhead | null;
+  };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -712,7 +740,15 @@ export function DoctorReportSection({
   onUploadResult,
   reviewed = true,
   isPatientView = false,
+  appointmentId,
+  patientName,
+  doctorName,
+  appointmentDate = null,
+  letterheadExtras,
 }: DoctorReportSectionProps) {
+  /** False = collapsed. Patient view only — Conditions/Observations are
+   *  secondary detail there, not the priority (Prescription/Orders are). */
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   /*
    * The note is withheld from the patient until approved, but still shown to
    * the doctor — it is their own draft, and reviewing it is what they came
@@ -726,6 +762,19 @@ export function DoctorReportSection({
     observations.length > 0 ||
     medications.length > 0 ||
     serviceRequests.length > 0;
+
+  /* Letterhead meta for the patient-view Prescription/Orders sheets — built
+     once here so both cards render the identical letterhead. Diagnosis reads
+     the confirmed Conditions list already loaded on this page. */
+  const docMeta: DocExportMeta = {
+    patientName: patientName ?? "",
+    doctorName: doctorName ?? "",
+    appointmentDate,
+    organization: letterheadExtras?.organization,
+    practitioner: letterheadExtras?.practitioner,
+    patientInfo: letterheadExtras?.patientInfo,
+    diagnosis: buildDiagnosis(conditions),
+  };
 
   /* Empty state — doctor hasn't confirmed the review yet */
   if (!hasSoap && !hasFhirData) {
@@ -779,7 +828,63 @@ export function DoctorReportSection({
         )}
 
         {/* FHIR records */}
-        {hasFhirData && (
+        {hasFhirData && isPatientView && (
+          <>
+            {hasSoap && <Separator />}
+            <div className="space-y-4">
+              {/* Prescription and Orders are what the patient came here for —
+                  the same letterhead sheets the doctor already sees, with a
+                  download menu. Conditions/Observations are secondary detail,
+                  collapsed below. */}
+              <PatientPrescriptionsCard
+                medications={medications}
+                meta={{
+                  ...docMeta,
+                  docRef: appointmentId != null ? `RX-${appointmentId}` : null,
+                }}
+              />
+              <PatientOrdersCard
+                serviceRequests={serviceRequests}
+                diagnosticReports={diagnosticReports}
+                meta={{
+                  ...docMeta,
+                  docRef: appointmentId != null ? `LAB-${appointmentId}` : null,
+                }}
+                onUploadResult={onUploadResult}
+              />
+
+              {(conditions.length > 0 || observations.length > 0) && (
+                <div className="rounded-md border">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between gap-1.5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-transparent"
+                    onClick={() => setDetailsExpanded((v) => !v)}
+                  >
+                    Also recorded
+                    {detailsExpanded ? (
+                      <ChevronUp className="size-3.5" />
+                    ) : (
+                      <ChevronDown className="size-3.5" />
+                    )}
+                  </Button>
+                  {detailsExpanded && (
+                    <div className="space-y-4 border-t px-3 py-3">
+                      <ConditionList conditions={conditions} />
+                      {conditions.length > 0 && observations.length > 0 && (
+                        <Separator />
+                      )}
+                      <ObservationList observations={observations} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {hasFhirData && !isPatientView && (
           <>
             {hasSoap && <Separator />}
             <div className="space-y-4">

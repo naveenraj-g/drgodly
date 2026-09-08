@@ -30,6 +30,22 @@ import { DocumentPreviewScreen } from "@/modules/client/telemedicine/doctor/comp
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "@/i18n/navigation";
+import type { TPractitionerResponse } from "@/modules/entities/schemas/practitioner";
+
+/**
+ * Derives a display name from a Practitioner FHIR record.
+ * Uses `name[0].text` when available, otherwise builds from prefix + given + family.
+ *
+ * @param practitioner - Full Practitioner FHIR response.
+ * @returns Formatted display name, or "" if no name data.
+ */
+function formatPractitionerName(practitioner: TPractitionerResponse): string {
+  const n = practitioner.name?.[0];
+  if (!n) return "";
+  if (n.text) return n.text;
+  const parts = [...(n.prefix ?? []), ...(n.given ?? []), n.family].filter(Boolean);
+  return parts.join(" ");
+}
 
 /** Route params and query string for the preview screen. */
 interface DocumentPreviewPageProps {
@@ -65,8 +81,9 @@ export default async function DocumentPreviewPage({
   }
 
   const workspaceHref = `/bezs/telemedicine/doctor/clinical-records/${patientId}/${appointmentId}`;
+  const numericPatientId = parseInt(patientId, 10);
 
-  const resolution = await resolvePreviewFile(query, parseInt(patientId, 10));
+  const resolution = await resolvePreviewFile(query, numericPatientId);
 
   // ── The order or document itself is gone ───────────────────────────────────
   if (!resolution.ok && resolution.reason !== "file-missing") {
@@ -102,6 +119,18 @@ export default async function DocumentPreviewPage({
     );
   }
 
+  /*
+   * FHIR-reference-style — Practitioner/{id} — rather than a bare id, plus a
+   * readable name appended for display. The staging service's reviewed_by is
+   * its own free-text field (not validated against real FHIR references), so
+   * the trailing /{name} segment is a deliberate, non-standard convenience
+   * rather than a claim that this whole string parses as one.
+   */
+  const practitionerName = formatPractitionerName(practitioner);
+  const reviewerId = practitionerName
+    ? `Practitioner/${practitioner.id}/${practitionerName}`
+    : `Practitioner/${practitioner.id}`;
+
   return (
     <DocumentPreviewScreen
       fileId={resolution.file.fileId}
@@ -110,6 +139,8 @@ export default async function DocumentPreviewPage({
       size={resolution.file.size}
       parentLabel={resolution.parentLabel}
       backHref={workspaceHref}
+      patientId={numericPatientId}
+      reviewerId={reviewerId}
     />
   );
 }

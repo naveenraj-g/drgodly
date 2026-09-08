@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:generate": "pnpm dlx prisma generate",
-    "db:push": "pnpm dlx prisma db push"
+    "db:generate": "pnpm exec prisma generate",
+    "db:push": "pnpm exec prisma db push",
+    "seed:test-data": "tsx scripts/test-data/seed.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -43,6 +44,7 @@
     "graphql-request": "^7.4.0",
     "html-to-image": "^1.11.13",
     "input-otp": "^1.4.2",
+    "jose": "^6.2.12",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "livekit-client": "^2.19.2",

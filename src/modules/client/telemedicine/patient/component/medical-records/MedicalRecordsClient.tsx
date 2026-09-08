@@ -145,6 +145,10 @@ function getDoctorName(appt: TAppointmentResponse): string | null {
 export interface MedicalRecordsClientProps {
   /** Fulfilled appointments for this patient (pre-fetched SSR). */
   appointments: TAppointmentResponse[];
+  /** Active organisation id — forwarded to the staging record registered on upload. */
+  orgId?: string;
+  /** Session user id — forwarded to the staging record registered on upload. */
+  userId?: string;
 }
 
 // ── Step 1 — Appointment picker ───────────────────────────────────────────────
@@ -302,9 +306,13 @@ function OrdersLoadingSkeleton() {
  * Step 1: appointment picker. Step 2: on-demand encounter → SR + DR fetch + upload cards.
  *
  * @param appointments - Pre-fetched fulfilled appointments (SSR).
+ * @param orgId - Active organisation id, forwarded to registered staging records.
+ * @param userId - Session user id, forwarded to registered staging records.
  */
 export function MedicalRecordsClient({
   appointments,
+  orgId,
+  userId,
 }: MedicalRecordsClientProps) {
   /** The appointment the patient selected in Step 1. */
   const [selectedAppt, setSelectedAppt] =
@@ -546,6 +554,8 @@ export function MedicalRecordsClient({
                 sr={sr}
                 diagnosticReports={drsByServiceRequestId.get(sr.id) ?? []}
                 appointment={selectedAppt}
+                orgId={orgId}
+                userId={userId}
               />
             ))}
           </div>

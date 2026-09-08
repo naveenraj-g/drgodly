@@ -4,7 +4,8 @@
  * Layer: client / telemedicine / doctor / component / dashboard
  *
  * Two-panel layout:
- *   Left  (280px sticky) — TodayAppointmentList: today's appointments; click to select.
+ *   Left  (280px sticky) — TodayAppointmentList: appointments for the
+ *                            selected date range (defaults to today); click to select.
  *   Right (flex-1)       — Detail cards for the selected appointment:
  *                            IntakeInsights (if pre-appointment intake exists)
  *                            ConsultationInsights (if completed consultation exists)
@@ -14,33 +15,65 @@
  * lazy-fetches intake and consultation data for that appointment ID via server
  * actions (called from the client via useEffect + useTransition).
  *
+ * The appointment list itself starts from the server-fetched "today" data
+ * (`initialAppointments`/`todayLabel`, still computed server-side in page.tsx
+ * so the default view is SSR'd with no client fetch on first paint). Changing
+ * the date range via AppointmentDateRangeFilter re-fetches client-side
+ * through the same listAppointmentsAction the server page uses, scoped by
+ * the same start_from/start_to window mechanism.
+ *
  * Mirrors drgodly-mvp Dashboard.tsx in overall UX and card grid layout.
  */
 
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
-import { CalendarDays, ClipboardList, Loader2, MousePointerClick } from "lucide-react";
+import { useCallback, useState, useEffect, useTransition } from "react";
+import {
+  CalendarDays,
+  ClipboardList,
+  History,
+  Loader2,
+  MousePointerClick,
+} from "lucide-react";
+import { endOfDay, startOfDay } from "date-fns";
+import type { DateRange } from "react-day-picker";
+import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TodayAppointmentList } from "./TodayAppointmentList";
+import { DoctorAssistant } from "./DoctorAssistant";
 import { ConsultationInsights } from "./ConsultationInsights";
 import { TreatmentEngine } from "./TreatmentEngine";
+import {
+  AppointmentDateRangeFilter,
+  formatRangeLabel,
+  isTodayRange,
+} from "./AppointmentDateRangeFilter";
+import { PreviousAppointmentDialog } from "./PreviousAppointmentDialog";
 import { IntakeInsights } from "../intake/IntakeInsights";
 import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
-import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
+import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
+import type {
+  TAppointmentResponse,
+  TPaginatedAppointmentResponse,
+} from "@/modules/entities/schemas/appointment";
 import type { TConsultationResponse } from "@/modules/entities/schemas/consultation";
+
+/** Maximum appointments to fetch per date-range query (matches page.tsx's initial SSR fetch). */
+export const DASHBOARD_APPOINTMENTS_LIMIT = 50;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DoctorDashboardProps {
-  /** Today's appointments scoped to this practitioner. */
+  /** Initial appointments (today, server-fetched) — seeds local state; superseded once the range changes. */
   appointments: TAppointmentResponse[];
   /** Doctor display name for the welcome heading. */
   doctorName: string;
-  /** Today's date formatted for display. */
+  /** Today's date formatted for display — shown as-is while the range stays "today". */
   todayLabel: string;
+  /** FHIR Practitioner id, needed to re-scope the appointment fetch when the date range changes. */
+  practitionerId: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -48,22 +81,33 @@ interface DoctorDashboardProps {
 /**
  * Doctor portal dashboard — appointment list + selected appointment detail cards.
  *
- * @param appointments - Today's appointment list from the server page.
+ * @param appointments - Today's appointment list from the server page (initial/default range).
  * @param doctorName - Practitioner display name.
  * @param todayLabel - Formatted date string for the header.
+ * @param practitionerId - FHIR Practitioner id, used to re-scope client-side range refetches.
  */
 export function DoctorDashboard({
-  appointments,
+  appointments: initialAppointments,
   doctorName,
   todayLabel,
+  practitionerId,
 }: DoctorDashboardProps) {
-  const [selectedId, setSelectedId] = useState<number | null>(
-    appointments[0]?.id ?? null,
+  const [appointments, setAppointments] = useState<TAppointmentResponse[]>(
+    initialAppointments,
   );
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({
+    from: new Date(),
+    to: new Date(),
+  }));
+  const [selectedId, setSelectedId] = useState<number | null>(
+    initialAppointments[0]?.id ?? null,
+  );
+  const [isPreviousVisitOpen, setIsPreviousVisitOpen] = useState(false);
   const [consultation, setConsultation] = useState<
     TConsultationResponse | null | undefined
   >(undefined); // undefined = loading / not yet fetched
   const [isPending, startTransition] = useTransition();
+  const [isAppointmentsPending, startAppointmentsTransition] = useTransition();
 
   /* ── Fetch consultation whenever selection changes ── */
   useEffect(() => {
@@ -82,9 +126,93 @@ export function DoctorDashboard({
     });
   }, [selectedId]);
 
+  /**
+   * Fetches appointments for a range and applies the result to state.
+   * Shared by the explicit date-range picker and the mount-time timezone
+   * correction below — mirrors page.tsx's initial SSR fetch (same action,
+   * same start_from/start_to window mechanism), just triggered client-side.
+   *
+   * @param range - Range to fetch (both ends set).
+   * @param options.resetSelection - True for a user-driven range change, so
+   *   stale detail cards don't linger while the new list loads. False for
+   *   the mount-time correction, which keeps the current selection if it's
+   *   still present in the corrected list rather than flashing it away.
+   */
+  const fetchAppointments = useCallback(
+    (range: DateRange, options: { resetSelection: boolean }) => {
+      if (!range.from || !range.to) return;
+      const from = range.from;
+      const to = range.to;
+      if (options.resetSelection) setSelectedId(null);
+
+      startAppointmentsTransition(async () => {
+        const [data, err] = await listAppointmentsAction({
+          payload: {
+            practitioner_id: practitionerId,
+            start_from: startOfDay(from).toISOString(),
+            start_to: endOfDay(to).toISOString(),
+            limit: DASHBOARD_APPOINTMENTS_LIMIT,
+            offset: 0,
+          },
+        });
+
+        if (err) {
+          toast.error("Failed to load appointments for that date range.");
+          return;
+        }
+
+        const next = (data as TPaginatedAppointmentResponse | null)?.data ?? [];
+        next.sort((a, b) => {
+          const aT = a.start ? new Date(a.start).getTime() : 0;
+          const bT = b.start ? new Date(b.start).getTime() : 0;
+          return aT - bT;
+        });
+        setAppointments(next);
+        setSelectedId((current) =>
+          current != null && next.some((appointment) => appointment.id === current)
+            ? current
+            : (next[0]?.id ?? null),
+        );
+      });
+    },
+    [practitionerId],
+  );
+
+  /**
+   * Refetches the appointment list for a newly picked date range.
+   *
+   * @param range - The newly selected range (both ends set).
+   */
+  const handleRangeChange = useCallback(
+    (range: DateRange) => {
+      if (!range.from || !range.to) return;
+      setDateRange(range);
+      fetchAppointments(range, { resetSelection: true });
+    },
+    [fetchAppointments],
+  );
+
+  /*
+   * page.tsx computes "today" using the server process's local time
+   * (setHours on a plain Date), which can differ from the doctor's browser
+   * timezone — the server has no way to know it. Re-run the same fetch once
+   * on mount using the browser's real "today" (dateRange's initial state,
+   * computed client-side) so the SSR-seeded list and the picker's own
+   * "Today" preset never silently disagree.
+   */
+  useEffect(() => {
+    fetchAppointments(dateRange, { resetSelection: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const isCurrentRangeToday = isTodayRange(dateRange);
+  const rangeLabel = isCurrentRangeToday ? todayLabel : formatRangeLabel(dateRange);
+
   const assessmentPlan = consultation?.full_report?.assessment_plan as
     | Record<string, unknown>
     | undefined;
+  const selectedAppointment =
+    appointments.find((appointment) => appointment.id === selectedId) ?? null;
 
   return (
     <div className="flex flex-col gap-0 h-full">
@@ -94,14 +222,15 @@ export function DoctorDashboard({
           <h1 className="text-xl font-semibold">
             Good {getGreeting()}, Dr. {doctorName.split(" ")[0]}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{todayLabel}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{rangeLabel}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4" />
             <span>
               <strong className="text-foreground">{appointments.length}</strong>{" "}
-              appointment{appointments.length !== 1 ? "s" : ""} today
+              appointment{appointments.length !== 1 ? "s" : ""}{" "}
+              {isCurrentRangeToday ? "today" : "in range"}
             </span>
           </div>
 
@@ -125,16 +254,30 @@ export function DoctorDashboard({
       <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
         {/* ── Left: appointment list ── */}
         <div className="w-[272px] shrink-0 border rounded-xl overflow-hidden bg-card flex flex-col">
-          <div className="px-3 py-2.5 border-b shrink-0">
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b shrink-0">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Today&apos;s Schedule
+              Schedule
             </p>
+            <div className="flex items-center gap-1.5">
+              {isAppointmentsPending && (
+                <Loader2 className="size-3 animate-spin text-muted-foreground" />
+              )}
+              <AppointmentDateRangeFilter value={dateRange} onChange={handleRangeChange} />
+            </div>
           </div>
           <div className="flex-1 min-h-0">
             <TodayAppointmentList
               appointments={appointments}
               selectedId={selectedId}
               onSelect={setSelectedId}
+              emptyStateTitle={
+                isCurrentRangeToday ? "No appointments today" : "No appointments in this range"
+              }
+              emptyStateDescription={
+                isCurrentRangeToday
+                  ? "Your schedule is clear for today."
+                  : "Try a different date range."
+              }
             />
           </div>
         </div>
@@ -144,25 +287,52 @@ export function DoctorDashboard({
           {selectedId === null ? (
             <EmptySelection />
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-4">
-              {/* Intake insights — self-fetching component */}
-              <IntakeInsights fhirAppointmentId={selectedId} />
+            <>
+              {/* Panel-level action, not nested in either card below, since
+                  the previous-visit dialog covers both intake and doctor's
+                  report. */}
+              <div className="flex items-center justify-between gap-2 px-1 pb-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {selectedAppointment && getPatientName(selectedAppointment)}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => setIsPreviousVisitOpen(true)}
+                >
+                  <History className="size-3.5" />
+                  View previous visit
+                </Button>
+              </div>
 
-              {/* Consultation insights */}
-              {isPending || consultation === undefined ? (
-                <ConsultationLoadingCard />
-              ) : consultation ? (
-                <>
-                  <ConsultationInsights consultation={consultation} />
-                  {assessmentPlan && (
-                    <TreatmentEngine assessmentPlan={assessmentPlan} />
-                  )}
-                </>
-              ) : null}
-            </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-4">
+                {/* Intake insights — self-fetching component */}
+                <IntakeInsights fhirAppointmentId={selectedId} />
+
+                {/* Consultation insights */}
+                {isPending || consultation === undefined ? (
+                  <ConsultationLoadingCard />
+                ) : consultation ? (
+                  <>
+                    <ConsultationInsights consultation={consultation} />
+                    {assessmentPlan && (
+                      <TreatmentEngine assessmentPlan={assessmentPlan} />
+                    )}
+                  </>
+                ) : null}
+              </div>
+            </>
           )}
         </div>
       </div>
+      <DoctorAssistant selectedAppointment={selectedAppointment} />
+      <PreviousAppointmentDialog
+        open={isPreviousVisitOpen}
+        onOpenChange={setIsPreviousVisitOpen}
+        patientId={selectedAppointment?.subject_id}
+        beforeStart={selectedAppointment?.start}
+      />
     </div>
   );
 }
@@ -204,4 +374,14 @@ function getGreeting(): string {
   if (h < 12) return "morning";
   if (h < 17) return "afternoon";
   return "evening";
+}
+
+/** Returns the patient's display name from appointment participants. */
+function getPatientName(appointment: TAppointmentResponse): string {
+  return (
+    appointment.subject_display ??
+    appointment.participant?.find((p) => p.reference_type === "Patient")
+      ?.reference_display ??
+    "Unknown Patient"
+  );
 }
