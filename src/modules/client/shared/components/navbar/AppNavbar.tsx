@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { CommandSearch } from "./CommandSearch";
 import { AppLauncher } from "./AppLauncher";
 import { NavUser } from "../NavUser";
-import LocaleSwitcher from "../LocaleSwitcher";
 import { ThemeSwitcher } from "@/theme/ThemeSwitcher";
 import BreadCrumb from "@/modules/client/shared/components/BreadCrumb";
 import { useRouteConfig } from "@/modules/client/shared/hooks/useRouteConfig";
@@ -58,7 +57,6 @@ const AppNavbar = ({ user, apps }: { user: TUser; apps: unknown[] }) => {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <LocaleSwitcher />
           <ThemeSwitcher />
           <Bell className="h-5 w-5 text-zinc-500 dark:text-zinc-300 cursor-pointer" />
           <AppLauncher apps={apps} />

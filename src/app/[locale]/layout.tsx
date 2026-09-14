@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans } from "next/font/google";
 import "../globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,8 +16,17 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DrGodly",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:4000"),
+  title: {
+    default: "DrGodly",
+    template: "%s | DrGodly",
+  },
   description: "Your personal health companion",
+  applicationName: "DrGodly",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#102F2A",
 };
 
 export default async function RootLayout({

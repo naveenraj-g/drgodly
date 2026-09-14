@@ -16,6 +16,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { HeartPulse } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/modules/client/shared/components/AppLogo";
 
 /** Handles the actual PKCE callback logic after Suspense resolves search params. */
 function CallbackContent() {
@@ -91,9 +92,7 @@ function CallbackContent() {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <HeartPulse className="h-5 w-5" />
-      </div>
+      <AppLogo size={40} className="h-10 w-10" />
       <p className="text-sm text-muted-foreground">Completing sign in…</p>
     </div>
   );
@@ -104,9 +103,7 @@ export default function CallbackPage() {
     <Suspense
       fallback={
         <div className="flex flex-col items-center gap-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <HeartPulse className="h-5 w-5" />
-          </div>
+          <AppLogo size={40} className="h-10 w-10" />
           <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       }

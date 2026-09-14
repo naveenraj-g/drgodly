@@ -11,7 +11,15 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
 import { capitalizeString } from "@/modules/shared/helper";
-const isProbablyId = (segment: string) => /^[0-9a-fA-F-]{6,}$/.test(segment);
+/**
+ * True for a path segment that's a database id rather than a real route
+ * name — either a pure-digit id of any length (e.g. "40019") or a longer
+ * hex/uuid-style id. The old digit-length-6+ threshold let short numeric
+ * ids like a 5-digit appointment id through unfiltered, adding a
+ * meaningless crumb and extra width to the breadcrumb.
+ */
+const isProbablyId = (segment: string) =>
+  /^\d+$/.test(segment) || /^[0-9a-fA-F-]{6,}$/.test(segment);
 
 export default function BreadCrumb({ className = "" }: { className?: string }) {
   const pathname = usePathname();

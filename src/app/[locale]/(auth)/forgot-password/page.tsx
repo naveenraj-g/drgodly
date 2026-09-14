@@ -5,7 +5,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { HeartPulse } from "lucide-react";
+import { AppLogo } from "@/modules/client/shared/components/AppLogo";
 
 /** Redirects to the IAM forgot-password page on mount. */
 export default function ForgotPasswordPage() {
@@ -16,9 +16,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <HeartPulse className="h-5 w-5" />
-      </div>
+      <AppLogo size={40} className="h-10 w-10" />
       <p className="text-sm text-muted-foreground">Redirecting…</p>
     </div>
   );

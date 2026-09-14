@@ -293,7 +293,7 @@ export function DoctorProfileForm({
       <div>
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Doctor Profile</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Doctor Profile</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {isCreateMode
               ? "Complete your practitioner profile to get started."

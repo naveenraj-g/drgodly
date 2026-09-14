@@ -75,7 +75,12 @@ function CopyButton({ text }: { text: string }) {
     setTimeout(() => setCopied(false), 2000);
   }
   return (
-    <Button size="icon" variant="ghost" className="size-7 shrink-0" onClick={copy}>
+    <Button
+      size="icon"
+      variant="ghost"
+      className="size-7 shrink-0"
+      onClick={copy}
+    >
       {copied ? (
         <Check className="size-3.5 text-green-500" />
       ) : (
@@ -92,7 +97,9 @@ export default function SecuritySettings({ user }: { user: User }) {
   const [showNewPw, setShowNewPw] = useState(false);
 
   const [twoFaStep, setTwoFaStep] = useState<TwoFaStep>("idle");
-  const [twoFaEnabled, setTwoFaEnabled] = useState(user.twoFactorEnabled ?? false);
+  const [twoFaEnabled, setTwoFaEnabled] = useState(
+    user.twoFactorEnabled ?? false,
+  );
   const [twoFaPassword, setTwoFaPassword] = useState("");
   const [totpSecret, setTotpSecret] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
@@ -115,7 +122,7 @@ export default function SecuritySettings({ user }: { user: User }) {
   async function onEmailSubmit(values: EmailForm) {
     const { error } = await authClient.changeEmail({
       newEmail: values.newEmail,
-      callbackURL: "/bezs/settings/security",
+      callbackURL: `${process.env.NEXT_PUBLIC_APP_URL}/bezs/settings/security`,
     });
     if (error) {
       toast.error(error.message ?? "Failed to change email.");
@@ -127,7 +134,11 @@ export default function SecuritySettings({ user }: { user: User }) {
 
   const passwordForm = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
-    defaultValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    },
   });
 
   async function onPasswordSubmit(values: PasswordForm) {
@@ -149,7 +160,9 @@ export default function SecuritySettings({ user }: { user: User }) {
     if (!twoFaPassword) return;
     setTwoFaPending(true);
     try {
-      const { data, error } = await authClient.twoFactor.getTotpUri({ password: twoFaPassword });
+      const { data, error } = await authClient.twoFactor.getTotpUri({
+        password: twoFaPassword,
+      });
       if (error) throw new Error(error.message);
       const uri = (data as { totpURI?: string })?.totpURI ?? "";
       setTotpSecret(extractTotpSecret(uri));
@@ -165,14 +178,21 @@ export default function SecuritySettings({ user }: { user: User }) {
     if (!verifyCode) return;
     setTwoFaPending(true);
     try {
-      const { error } = await authClient.twoFactor.verifyTotp({ code: verifyCode });
+      const { error } = await authClient.twoFactor.verifyTotp({
+        code: verifyCode,
+      });
       if (error) throw new Error(error.message);
 
-      const enableRes = await authClient.twoFactor.enable({ password: twoFaPassword });
+      const enableRes = await authClient.twoFactor.enable({
+        password: twoFaPassword,
+      });
       if (enableRes.error) throw new Error(enableRes.error.message);
 
-      const bcRes = await authClient.twoFactor.generateBackupCodes({ password: twoFaPassword });
-      const codes = (bcRes.data as { backupCodes?: string[] })?.backupCodes ?? [];
+      const bcRes = await authClient.twoFactor.generateBackupCodes({
+        password: twoFaPassword,
+      });
+      const codes =
+        (bcRes.data as { backupCodes?: string[] })?.backupCodes ?? [];
       setBackupCodes(codes);
       setTwoFaEnabled(true);
       setTwoFaStep("backup");
@@ -188,7 +208,9 @@ export default function SecuritySettings({ user }: { user: User }) {
     if (!twoFaPassword) return;
     setTwoFaPending(true);
     try {
-      const { error } = await authClient.twoFactor.disable({ password: twoFaPassword });
+      const { error } = await authClient.twoFactor.disable({
+        password: twoFaPassword,
+      });
       if (error) throw new Error(error.message);
       setTwoFaEnabled(false);
       setTwoFaStep("idle");
@@ -206,7 +228,9 @@ export default function SecuritySettings({ user }: { user: User }) {
     if (!twoFaPassword) return;
     setTwoFaPending(true);
     try {
-      const { data, error } = await authClient.twoFactor.viewBackupCodes({ password: twoFaPassword });
+      const { data, error } = await authClient.twoFactor.viewBackupCodes({
+        password: twoFaPassword,
+      });
       if (error) throw new Error(error.message);
       const codes = (data as { backupCodes?: string[] })?.backupCodes ?? [];
       setBackupCodes(codes);
@@ -222,7 +246,9 @@ export default function SecuritySettings({ user }: { user: User }) {
     if (!twoFaPassword) return;
     setTwoFaPending(true);
     try {
-      const { data, error } = await authClient.twoFactor.generateBackupCodes({ password: twoFaPassword });
+      const { data, error } = await authClient.twoFactor.generateBackupCodes({
+        password: twoFaPassword,
+      });
       if (error) throw new Error(error.message);
       const codes = (data as { backupCodes?: string[] })?.backupCodes ?? [];
       setBackupCodes(codes);
@@ -243,7 +269,9 @@ export default function SecuritySettings({ user }: { user: User }) {
             <KeyRound className="size-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Password & Authentication</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Password & Authentication
+            </h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               Manage your login credentials and account security.
             </p>
@@ -254,13 +282,16 @@ export default function SecuritySettings({ user }: { user: User }) {
           <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
             <AlertCircle className="size-4 mt-0.5 shrink-0" />
             <p>
-              Your account uses social login only. Email and password settings are not available.
-              Add an email/password account from your profile to access these settings.
+              Your account uses social login only. Email and password settings
+              are not available. Add an email/password account from your profile
+              to access these settings.
             </p>
           </div>
         )}
 
-        <Card className={!hasCredentials ? "opacity-50 pointer-events-none" : ""}>
+        <Card
+          className={!hasCredentials ? "opacity-50 pointer-events-none" : ""}
+        >
           <CardHeader>
             <div className="flex items-center gap-2">
               <Mail className="size-4 text-muted-foreground" />
@@ -270,13 +301,18 @@ export default function SecuritySettings({ user }: { user: User }) {
               Current:{" "}
               <span className="font-medium text-foreground">{user.email}</span>
               {user.emailVerified && (
-                <Badge variant="secondary" className="ml-2 text-xs">Verified</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  Verified
+                </Badge>
               )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...emailForm}>
-              <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-4">
+              <form
+                onSubmit={emailForm.handleSubmit(onEmailSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={emailForm.control}
                   name="newEmail"
@@ -284,7 +320,11 @@ export default function SecuritySettings({ user }: { user: User }) {
                     <FormItem>
                       <FormLabel>New Email Address</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="new@example.com" {...field} />
+                        <Input
+                          type="email"
+                          placeholder="new@example.com"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -305,7 +345,9 @@ export default function SecuritySettings({ user }: { user: User }) {
           </CardContent>
         </Card>
 
-        <Card className={!hasCredentials ? "opacity-50 pointer-events-none" : ""}>
+        <Card
+          className={!hasCredentials ? "opacity-50 pointer-events-none" : ""}
+        >
           <CardHeader>
             <div className="flex items-center gap-2">
               <KeyRound className="size-4 text-muted-foreground" />
@@ -317,7 +359,10 @@ export default function SecuritySettings({ user }: { user: User }) {
           </CardHeader>
           <CardContent>
             <Form {...passwordForm}>
-              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+              <form
+                onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={passwordForm.control}
                   name="currentPassword"
@@ -337,7 +382,11 @@ export default function SecuritySettings({ user }: { user: User }) {
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             onClick={() => setShowCurrentPw((v) => !v)}
                           >
-                            {showCurrentPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            {showCurrentPw ? (
+                              <EyeOff className="size-4" />
+                            ) : (
+                              <Eye className="size-4" />
+                            )}
                           </button>
                         </div>
                       </FormControl>
@@ -364,7 +413,11 @@ export default function SecuritySettings({ user }: { user: User }) {
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             onClick={() => setShowNewPw((v) => !v)}
                           >
-                            {showNewPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            {showNewPw ? (
+                              <EyeOff className="size-4" />
+                            ) : (
+                              <Eye className="size-4" />
+                            )}
                           </button>
                         </div>
                       </FormControl>
@@ -418,14 +471,18 @@ export default function SecuritySettings({ user }: { user: User }) {
               </div>
               <Badge
                 variant={twoFaEnabled ? "default" : "secondary"}
-                className={twoFaEnabled ? "bg-green-500/15 text-green-600 border-green-200" : ""}
+                className={
+                  twoFaEnabled
+                    ? "bg-green-500/15 text-green-600 border-green-200"
+                    : ""
+                }
               >
                 {twoFaEnabled ? "Enabled" : "Disabled"}
               </Badge>
             </div>
             <CardDescription>
-              Add an extra layer of security with a time-based one-time password (TOTP)
-              authenticator app.
+              Add an extra layer of security with a time-based one-time password
+              (TOTP) authenticator app.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -442,8 +499,13 @@ export default function SecuritySettings({ user }: { user: User }) {
             {twoFaStep === "idle" && (
               <div className="flex flex-wrap gap-2 pt-1">
                 {!twoFaEnabled ? (
-                  <Button onClick={handleEnable2FA} disabled={twoFaPending || !twoFaPassword}>
-                    {twoFaPending && <Loader2 className="size-4 mr-2 animate-spin" />}
+                  <Button
+                    onClick={handleEnable2FA}
+                    disabled={twoFaPending || !twoFaPassword}
+                  >
+                    {twoFaPending && (
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                    )}
                     Set Up 2FA
                   </Button>
                 ) : (
@@ -477,7 +539,9 @@ export default function SecuritySettings({ user }: { user: User }) {
                       onClick={handleDisable2FA}
                       disabled={twoFaPending || !twoFaPassword}
                     >
-                      {twoFaPending && <Loader2 className="size-4 mr-2 animate-spin" />}
+                      {twoFaPending && (
+                        <Loader2 className="size-4 mr-2 animate-spin" />
+                      )}
                       Disable 2FA
                     </Button>
                   </>
@@ -488,13 +552,17 @@ export default function SecuritySettings({ user }: { user: User }) {
             {twoFaStep === "setup" && (
               <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
                 <div>
-                  <p className="text-sm font-medium mb-1">1. Open your authenticator app</p>
+                  <p className="text-sm font-medium mb-1">
+                    1. Open your authenticator app
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Google Authenticator, Authy, or any TOTP app.
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium mb-2">2. Enter this key manually</p>
+                  <p className="text-sm font-medium mb-2">
+                    2. Enter this key manually
+                  </p>
                   <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
                     <code className="flex-1 text-sm font-mono tracking-widest break-all">
                       {totpSecret}
@@ -503,14 +571,18 @@ export default function SecuritySettings({ user }: { user: User }) {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">3. Enter the 6-digit code</p>
+                  <p className="text-sm font-medium">
+                    3. Enter the 6-digit code
+                  </p>
                   <div className="flex gap-2">
                     <Input
                       placeholder="000000"
                       maxLength={6}
                       className="w-36 font-mono text-center tracking-widest"
                       value={verifyCode}
-                      onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) =>
+                        setVerifyCode(e.target.value.replace(/\D/g, ""))
+                      }
                     />
                     <Button
                       onClick={handleVerifyTotp}
@@ -527,7 +599,10 @@ export default function SecuritySettings({ user }: { user: User }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setTwoFaStep("idle"); setVerifyCode(""); }}
+                  onClick={() => {
+                    setTwoFaStep("idle");
+                    setVerifyCode("");
+                  }}
                 >
                   Cancel
                 </Button>
@@ -541,8 +616,8 @@ export default function SecuritySettings({ user }: { user: User }) {
                   <CopyButton text={backupCodes.join("\n")} />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Save these codes somewhere safe. Each can be used once if you lose access to
-                  your authenticator app.
+                  Save these codes somewhere safe. Each can be used once if you
+                  lose access to your authenticator app.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {backupCodes.map((code, i) => (
@@ -557,7 +632,10 @@ export default function SecuritySettings({ user }: { user: User }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setTwoFaStep("idle"); setVerifyCode(""); }}
+                  onClick={() => {
+                    setTwoFaStep("idle");
+                    setVerifyCode("");
+                  }}
                 >
                   Done
                 </Button>

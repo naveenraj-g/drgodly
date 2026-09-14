@@ -10,6 +10,19 @@
 import { TPaginatedAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 
+/**
+ * Default server-side sort for the doctor appointment list — newest day
+ * first, chronological (earliest time first) within each day. Uses the
+ * independent `day`/`time-of-day` sort tokens (split out of the single
+ * `start` timestamp) rather than the single `date` token, since "newest
+ * day, but earliest-first within it" is a genuinely different compound
+ * order than a plain single-field timestamp sort. Matches the Date/Time
+ * columns' default header sort state (initialSorting in
+ * DoctorAppointmentsTable) so the SSR-seeded page and the first client
+ * render always agree on ordering.
+ */
+export const DEFAULT_APPOINTMENT_SORT = "-day,time-of-day";
+
 // ── Query key factory ─────────────────────────────────────────────────────────
 
 /**
@@ -33,8 +46,17 @@ export const doctorAppointmentKeys = {
    *
    * @param params - Pagination + tenant filter used in this fetch.
    */
-  list: (params: { pageIndex: number; pageSize: number; orgId: string | null; practitionerId: number | null; status?: string }) =>
-    [...doctorAppointmentKeys.lists(), params] as const,
+  list: (params: {
+    pageIndex: number;
+    pageSize: number;
+    orgId: string | null;
+    practitionerId: number | null;
+    status?: string;
+    patientSearch?: string;
+    startFrom?: string;
+    startTo?: string;
+    sort?: string;
+  }) => [...doctorAppointmentKeys.lists(), params] as const,
 };
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
@@ -54,6 +76,14 @@ export async function fetchDoctorAppointments(params: {
   practitionerId: number | null;
   /** FHIR status code to filter by — undefined means "all statuses". */
   status?: string;
+  /** Case-insensitive substring match on patient display name. */
+  patientSearch?: string;
+  /** ISO 8601 — return appointments starting at or after this datetime. */
+  startFrom?: string;
+  /** ISO 8601 — return appointments starting at or before this datetime. */
+  startTo?: string;
+  /** FHIR `_sort`-style string — defaults to DEFAULT_APPOINTMENT_SORT when omitted. */
+  sort?: string;
 }): Promise<TPaginatedAppointmentResponse> {
   const [data, err] = await listAppointmentsAction({
     payload: {
@@ -61,8 +91,12 @@ export async function fetchDoctorAppointments(params: {
       offset: params.pageIndex * params.pageSize,
       org_id: params.orgId ?? undefined,
       practitioner_id: params.practitionerId ?? undefined,
-      // Only include status when a filter is active
-      ...(params.status ? { status: params.status as never } : {}),
+      sort: params.sort ?? DEFAULT_APPOINTMENT_SORT,
+      // Only include filters when active
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.patientSearch ? { patient_search: params.patientSearch } : {}),
+      ...(params.startFrom ? { start_from: params.startFrom } : {}),
+      ...(params.startTo ? { start_to: params.startTo } : {}),
     },
   });
 

@@ -19,6 +19,7 @@ import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePatientProfile } from "@/modules/server/auth/require-profile";
 import { getMyAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { PatientAppointmentsTable } from "@/modules/client/telemedicine/patient/component/appointments/list/PatientAppointmentsTable";
+import { DEFAULT_APPOINTMENT_SORT } from "@/modules/client/telemedicine/patient/component/appointments/list/appointmentQueries";
 
 /** Page-level page size — must match INITIAL_PAGE_SIZE in the table component. */
 const INITIAL_PAGE_SIZE = 10;
@@ -42,11 +43,16 @@ export default async function PatientAppointmentsPage() {
   // Redirects to /patient/profile if no FHIR Patient record exists
   await requirePatientProfile();
 
-  // Pre-fetch page 0 — userId is injected from the session inside the action
+  // Pre-fetch page 0 — userId is injected from the session inside the action.
+  // Sort must match the client fetcher's (fetchMyAppointments) exactly — this
+  // seeds the same TanStack Query cache key, so a mismatch here would show
+  // unsorted SSR data until the 60s staleTime lapsed and the client refetch
+  // corrected it.
   const [data] = await getMyAppointmentsAction({
     payload: {
       limit: INITIAL_PAGE_SIZE,
       offset: 0,
+      sort: DEFAULT_APPOINTMENT_SORT,
     },
   });
 

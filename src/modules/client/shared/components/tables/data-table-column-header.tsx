@@ -37,6 +37,17 @@ interface DataTableColumnHeaderProps<TData, TValue>
   column: Column<TData, TValue>;
   /** Visible label text displayed inside the header button */
   label: string;
+  /**
+   * When true, picking Asc/Desc here adds/updates this column's entry in
+   * the table's sort state instead of replacing the whole thing — so
+   * sorting another multiSort column afterwards doesn't reset this one.
+   * "Reset" still only clears this column's own entry either way.
+   * Opt-in per column (e.g. two columns that split one underlying field,
+   * like Date/Time here) — every other column keeps the default
+   * single-column-replaces-all behavior.
+   * @default false
+   */
+  multiSort?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,6 +67,7 @@ export function DataTableColumnHeader<TData, TValue>({
   column,
   label,
   className,
+  multiSort = false,
   ...props
 }: DataTableColumnHeaderProps<TData, TValue>) {
   // Plain label — no sort or hide support needed
@@ -94,7 +106,7 @@ export function DataTableColumnHeader<TData, TValue>({
             <DropdownMenuCheckboxItem
               className="relative pr-8 pl-2 [&>span:first-child]:right-2 [&>span:first-child]:left-auto [&_svg]:text-muted-foreground"
               checked={column.getIsSorted() === "asc"}
-              onClick={() => column.toggleSorting(false)}
+              onClick={() => column.toggleSorting(false, multiSort)}
             >
               <ChevronUp />
               Asc
@@ -103,7 +115,7 @@ export function DataTableColumnHeader<TData, TValue>({
             <DropdownMenuCheckboxItem
               className="relative pr-8 pl-2 [&>span:first-child]:right-2 [&>span:first-child]:left-auto [&_svg]:text-muted-foreground"
               checked={column.getIsSorted() === "desc"}
-              onClick={() => column.toggleSorting(true)}
+              onClick={() => column.toggleSorting(true, multiSort)}
             >
               <ChevronDown />
               Desc

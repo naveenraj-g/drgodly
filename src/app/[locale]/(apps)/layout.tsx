@@ -35,7 +35,7 @@ const AppsLayout = async ({ children }: { children: React.ReactNode }) => {
           pages; the flex-col chain ensures it fills the remaining height. */}
       <SidebarInset className="min-w-0 h-dvh overflow-hidden">
         <AppNavbar user={user} apps={apps} />
-        <main className="flex-1 min-h-0 overflow-y-auto mx-auto px-4 py-4 pb-6 max-w-[110rem] space-y-6 w-full">
+        <main className="flex-1 min-h-0 overflow-y-auto mx-auto px-4 pb-4 max-w-[110rem] space-y-6 w-full">
           <LayoutBreadCrumb />
           {/* h-full/min-h-0 so a page relying on h-full for its own internal
               scroll regions (e.g. a fixed-height panel with its own

@@ -35,12 +35,15 @@ import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
   User,
   Loader2,
   Sparkles,
 } from "lucide-react";
 import { SoapEditor } from "./soap/SoapEditor";
 import { ClinicalExtractionPanel } from "./clinical/ClinicalExtractionPanel";
+import { AssessmentTab } from "../dashboard/ConsultationInsights";
 import { publishClinicalRecords } from "./publishClinicalRecords";
 import { saveClinicalDataAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import {
@@ -154,6 +157,14 @@ interface AppointmentReviewProps {
    */
   fullReport?: unknown;
   /**
+   * Sibling field on the same Consultation.full_report — risk level, clinical
+   * overview, differential diagnosis, diagnostic/treatment plan, red flags.
+   * Shown as a read-only reference section (not part of the editable SOAP
+   * note or the saved clinical extraction — it has no FHIR resource of its
+   * own, so there's nothing here to diff/save).
+   */
+  assessmentPlan?: Record<string, unknown> | null;
+  /**
    * Existing FHIR Conditions linked to this encounter (from a previous save).
    * When non-empty, these take precedence over the AI extraction for initial state.
    */
@@ -180,6 +191,7 @@ interface AppointmentReviewProps {
  * @param doctorName - Doctor display name.
  * @param appointmentDate - Formatted date string for the header.
  * @param fullReport - Raw AI full-report-agent output for pre-population.
+ * @param assessmentPlan - Sibling AI risk/differential-diagnosis assessment, read-only reference.
  * @param savedConditions - Existing FHIR Conditions for this encounter (revisit).
  * @param savedObservations - Existing FHIR Observations for this encounter (revisit).
  * @param savedMedications - Existing FHIR MedicationRequests for this encounter (revisit).
@@ -194,6 +206,7 @@ export function AppointmentReview({
   doctorName,
   appointmentDate,
   fullReport,
+  assessmentPlan,
   savedConditions = [],
   savedObservations = [],
   savedMedications = [],
@@ -225,6 +238,9 @@ export function AppointmentReview({
 
   /* Form state — rehydrate from saved FHIR records on revisit, else from AI report. */
   const [soap, setSoap] = useState<SoapNote>(report.soap);
+  /* Read-only Assessment Plan reference section — collapsed by default so it
+     doesn't compete with the SOAP note for space on first paint. */
+  const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [conditions, setConditions] = useState<ConditionFormItem[]>(
     hasSaved
       ? savedConditions.map(conditionFromFhir)
@@ -358,7 +374,8 @@ export function AppointmentReview({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-156px)] gap-0">
+    // 156
+    <div className="flex flex-col h-[calc(100dvh-132px)] gap-0">
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-6 py-3 border-b bg-background shrink-0">
         <div className="flex items-center gap-4">
@@ -441,7 +458,37 @@ export function AppointmentReview({
             </Button>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="p-4">
+            <div className="p-4 space-y-4">
+              {/* Read-only reference — the AI's risk/differential-diagnosis
+                  assessment from the same full_report as the SOAP note
+                  below, but with no FHIR resource of its own, so it isn't
+                  part of the editable note or the save/diff flow on the
+                  right. Collapsed by default; expand for context while
+                  reviewing. */}
+              {assessmentPlan && (
+                <div className="rounded-lg border bg-muted/20">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-between px-3 h-9 text-xs text-muted-foreground"
+                    onClick={() => setAssessmentOpen((v) => !v)}
+                  >
+                    <span className="font-medium">
+                      AI Assessment Plan (reference only)
+                    </span>
+                    {assessmentOpen ? (
+                      <ChevronUp className="size-3.5" />
+                    ) : (
+                      <ChevronDown className="size-3.5" />
+                    )}
+                  </Button>
+                  {assessmentOpen && (
+                    <div className="border-t px-3 pt-3 pb-1">
+                      <AssessmentTab plan={assessmentPlan} />
+                    </div>
+                  )}
+                </div>
+              )}
               <SoapEditor soap={soap} onChange={setSoap} />
             </div>
           </div>

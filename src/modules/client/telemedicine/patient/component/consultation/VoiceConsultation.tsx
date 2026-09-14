@@ -21,7 +21,7 @@ import { Card } from "@/components/ui/card";
  */
 export function VoiceConsultation() {
   return (
-    <div className="flex flex-col items-center justify-center h-[calc(100dvh-156px)] w-full">
+    <div className="flex flex-col items-center justify-center h-[calc(100dvh-132px)] w-full">
       <Card className="flex flex-col items-center gap-6 p-10 max-w-sm w-full text-center">
         {/* Ripple animation around mic icon */}
         <div className="relative flex items-center justify-center">

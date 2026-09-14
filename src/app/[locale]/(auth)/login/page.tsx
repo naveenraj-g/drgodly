@@ -10,7 +10,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { HeartPulse } from "lucide-react";
+import { AppLogo } from "@/modules/client/shared/components/AppLogo";
 
 /** Base64url-encodes an ArrayBuffer (no padding, URL-safe chars). */
 function base64UrlEncode(buf: ArrayBuffer): string {
@@ -70,9 +70,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <HeartPulse className="h-5 w-5" />
-      </div>
+      <AppLogo size={40} className="h-10 w-10" />
       <p className="text-sm text-muted-foreground">Redirecting to sign in…</p>
     </div>
   );

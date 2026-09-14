@@ -191,6 +191,7 @@ export default async function DoctorAppointmentReviewPage({
       doctorName={doctorName}
       appointmentDate={appointmentDate}
       fullReport={consultation?.full_report?.soap_report ?? null}
+      assessmentPlan={consultation?.full_report?.assessment_plan ?? null}
       savedConditions={savedConditions}
       savedObservations={savedObservations}
       savedMedications={savedMedications}

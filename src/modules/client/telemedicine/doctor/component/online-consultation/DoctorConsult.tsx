@@ -311,7 +311,7 @@ export function DoctorConsult({
       serverUrl={livekitUrl}
       data-lk-theme="default"
       onDisconnected={handleEndCall}
-      className="!bg-transparent !shadow-none !h-[calc(100vh-162px)]"
+      className="!bg-transparent !shadow-none !h-[calc(100vh-132px)]"
       style={
         {
           "--lk-accent-bg": "var(--primary)",

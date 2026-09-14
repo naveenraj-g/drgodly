@@ -19,8 +19,6 @@
  * than just the first, so the Timeline tab can show every one the visit produced.
  */
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 
@@ -43,13 +41,13 @@ import { listPractitionerRolesAction } from "@/modules/server/presentation/actio
 import { getParticipantName } from "@/modules/server/presentation/helpers/doctorPatients";
 import { ClinicalWorkspace } from "@/modules/client/telemedicine/doctor/component/clinical-records/ClinicalWorkspace";
 import { VisitOverview } from "@/modules/client/telemedicine/doctor/component/clinical-records/VisitOverview";
+import { BackButton } from "@/modules/client/telemedicine/doctor/component/clinical-records/BackButton";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 import {
   buildOrgLetterhead,
   buildPractitionerLetterhead,
   buildPatientLetterhead,
 } from "@/modules/client/telemedicine/doctor/component/clinical-records/exportDocument";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 import type { TPaginatedEncounterResponse } from "@/modules/entities/schemas/encounter";
@@ -90,10 +88,9 @@ export default async function ClinicalWorkspacePage({
 
   const numericPatientId = parseInt(patientId, 10);
   const numericAppointmentId = parseInt(appointmentId, 10);
-  const backHref = `/${locale}/bezs/telemedicine/doctor/clinical-records/${patientId}`;
 
   if (isNaN(numericPatientId) || isNaN(numericAppointmentId)) {
-    return <WorkspaceError backHref={backHref} message="Invalid record reference." />;
+    return <WorkspaceError message="Invalid record reference." />;
   }
 
   /* Appointment, staging row, intake, encounters, and the letterhead extras
@@ -130,7 +127,7 @@ export default async function ClinicalWorkspacePage({
   ]);
 
   if (!appointment) {
-    return <WorkspaceError backHref={backHref} message="Appointment not found." />;
+    return <WorkspaceError message="Appointment not found." />;
   }
 
   /* Letterhead extras for the Prescription/Lab-Request sheets. */
@@ -166,7 +163,7 @@ export default async function ClinicalWorkspacePage({
   if (encounterId == null) {
     return (
       <div className="mx-auto w-full max-w-3xl space-y-4">
-        <BackLink href={backHref} />
+        <BackButton />
         <VisitOverview
           appointment={appointment}
           patientName={patientName}
@@ -213,7 +210,7 @@ export default async function ClinicalWorkspacePage({
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 w-full">
-      <BackLink href={backHref} />
+      <BackButton />
 
       <ClinicalWorkspace
         appointmentId={numericAppointmentId}
@@ -272,44 +269,14 @@ export default async function ClinicalWorkspacePage({
 // ── Shared bits ───────────────────────────────────────────────────────────────
 
 /**
- * Back link to the patient's appointment list.
- * Shared by all three states this route can render (workspace, visit overview,
- * error) so they navigate identically.
+ * Minimal error card with a back button.
  *
- * @param href - Target of the back link.
- */
-function BackLink({ href }: { href: string }) {
-  return (
-    <Button
-      asChild
-      variant="ghost"
-      size="sm"
-      className="gap-1.5 -ml-2 text-muted-foreground print:hidden"
-    >
-      <Link href={href}>
-        <ArrowLeft className="size-4" />
-        Back to Appointments
-      </Link>
-    </Button>
-  );
-}
-
-/**
- * Minimal error card with a back link.
- *
- * @param backHref - Where the back button navigates.
  * @param message - Human-readable reason for the failure.
  */
-function WorkspaceError({
-  backHref,
-  message,
-}: {
-  backHref: string;
-  message: string;
-}) {
+function WorkspaceError({ message }: { message: string }) {
   return (
     <div className="max-w-md mx-auto mt-16 space-y-4">
-      <BackLink href={backHref} />
+      <BackButton />
       <Card>
         <CardContent className="py-12 text-center text-sm text-muted-foreground">
           {message}

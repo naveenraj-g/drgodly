@@ -11,8 +11,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AppLogo } from "@/modules/client/shared/components/AppLogo";
 
 /**
  * Marketing page footer with compliance trust badges and navigation links.
@@ -31,9 +31,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
             <a href="#" className="flex items-center space-x-2 text-primary">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-                <Activity className="w-5 h-5" />
-              </div>
+              <AppLogo size={32} className="w-8 h-8" />
               <span className="text-2xl font-bold text-foreground">DrGodly</span>
             </a>
             <p className="mt-4 text-muted-foreground text-sm leading-relaxed">

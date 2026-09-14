@@ -67,10 +67,24 @@ export function DataTablePagination<TData>({
       )}
       {...props}
     >
-      {/* Selected rows indicator */}
+      {/* Selected rows indicator — only for tables that actually offer row
+          selection (a "select" checkbox column). Tables without one (e.g.
+          the doctor/patient appointment lists) would otherwise always show
+          a meaningless "0 of N row(s) selected."
+          Checked via getAllLeafColumns().some(...) rather than
+          table.getColumn("select") — TanStack's getColumn() logs a
+          "[Table] Column with id 'x' does not exist." console error
+          whenever the column isn't found, even though it just returns
+          undefined; inspecting the columns array directly avoids that. */}
       <div className="flex-1 whitespace-nowrap text-muted-foreground text-sm">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
+        {table.getAllLeafColumns().some((column) => column.id === "select") ? (
+          <>
+            {table.getFilteredSelectedRowModel().rows.length} of{" "}
+            {table.getFilteredRowModel().rows.length} row(s) selected.
+          </>
+        ) : (
+          <>&nbsp;</>
+        )}
       </div>
 
       <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">

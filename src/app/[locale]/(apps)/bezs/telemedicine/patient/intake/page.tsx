@@ -16,6 +16,7 @@ import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePatientProfile } from "@/modules/server/auth/require-profile";
+import { buildPatientContextPrefix } from "@/modules/shared/helper";
 import { TextIntake } from "@/modules/client/telemedicine/patient/component/intake/TextIntake";
 
 /**
@@ -34,13 +35,20 @@ export default async function IntakePage() {
   const patient = await requirePatientProfile();
 
   const basePath = `/${locale}/bezs/telemedicine/patient`;
+  const userName = session.user.name ?? "Patient";
+
+  // Precomputed once here (server-side, already have the full Patient record)
+  // so the agent gets the patient's name/age/contact on the very first turn
+  // instead of asking for it again every session.
+  const patientContext = buildPatientContextPrefix(patient, userName);
 
   return (
     <TextIntake
       patientFhirId={patient.id}
       orgId={session.session.activeOrganizationId}
       basePath={basePath}
-      userName={session.user.name ?? "Patient"}
+      userName={userName}
+      patientContext={patientContext}
     />
   );
 }

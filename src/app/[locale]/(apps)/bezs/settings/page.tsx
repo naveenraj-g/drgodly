@@ -107,7 +107,7 @@ export default async function BezsSettingsPage() {
             <Settings className="size-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               Manage your account, preferences, and workspace configuration.
             </p>

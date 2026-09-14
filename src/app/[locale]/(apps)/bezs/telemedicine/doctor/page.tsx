@@ -12,8 +12,10 @@
  *  SSR → listAppointmentsAction(practitioner_id, today's date range)
  *      → DoctorDashboard (two-panel: appointment list + lazy-loaded detail cards)
  *
- * Today's appointments are filtered server-side using start_from / start_to so
- * only same-day appointments are passed to the client component.
+ * Today's appointments are scoped and ordered entirely server-side:
+ * start_from/start_to restrict to the day, status=pending,booked (OR'd on the
+ * backend) hides fulfilled/cancelled/etc., and sort=date returns them already
+ * chronological — no client-side filtering or sorting happens on this list.
  */
 
 import { redirect } from "@/i18n/navigation";
@@ -23,8 +25,11 @@ import { requirePractitionerProfile } from "@/modules/server/auth/require-profil
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import {
   DASHBOARD_APPOINTMENTS_LIMIT,
+  DASHBOARD_APPOINTMENT_SORT,
+  DASHBOARD_APPOINTMENT_STATUS,
   DoctorDashboard,
 } from "@/modules/client/telemedicine/doctor/component/dashboard/DoctorDashboard";
+import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
@@ -85,6 +90,8 @@ export default async function DoctorPage() {
       practitioner_id: practitioner.id,
       start_from: startOfDay.toISOString(),
       start_to: endOfDay.toISOString(),
+      status: DASHBOARD_APPOINTMENT_STATUS,
+      sort: DASHBOARD_APPOINTMENT_SORT,
       limit: DASHBOARD_APPOINTMENTS_LIMIT,
       offset: 0,
     },
@@ -92,13 +99,6 @@ export default async function DoctorPage() {
 
   const appointments: TAppointmentResponse[] =
     (data as TPaginatedAppointmentResponse | null)?.data ?? [];
-
-  // Sort by start time ascending so the list reads chronologically
-  appointments.sort((a, b) => {
-    const aT = a.start ? new Date(a.start).getTime() : 0;
-    const bT = b.start ? new Date(b.start).getTime() : 0;
-    return aT - bT;
-  });
 
   const doctorName = getPractitionerDisplayName(practitioner.name);
 
@@ -109,12 +109,24 @@ export default async function DoctorPage() {
     day: "numeric",
   });
 
+  const base = `/${locale}/bezs/telemedicine/doctor`;
+
   return (
-    <DoctorDashboard
-      appointments={appointments}
-      doctorName={doctorName}
-      todayLabel={todayLabel}
-      practitionerId={practitioner.id}
-    />
+    <>
+      <DoctorDashboard
+        appointments={appointments}
+        doctorName={doctorName}
+        todayLabel={todayLabel}
+        practitionerId={practitioner.id}
+        viewHref={`${base}/appointments`}
+        clinicalRecordsHref={`${base}/clinical-records`}
+      />
+
+      {/* Modal singletons — controlled by doctor Zustand store. Needed here
+          too since Confirm/Reschedule/Cancel are now also actionable from
+          the dashboard's selected-appointment action bar, not just the
+          full appointments table. */}
+      <DoctorModalProvider />
+    </>
   );
 }

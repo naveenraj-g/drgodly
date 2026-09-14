@@ -146,6 +146,8 @@ export interface DoctorAppointmentColumnCallbacks {
   onInPersonConsult: (row: TAppointmentResponse) => void;
   /** Called when the doctor opens the post-consultation review page. */
   onReview: (row: TAppointmentResponse) => void;
+  /** Called when the doctor opens Clinical Records for this appointment's patient. */
+  onClinicalRecords: (row: TAppointmentResponse) => void;
 }
 
 /**
@@ -187,15 +189,16 @@ export function createDoctorAppointmentColumns(
           </span>
         </div>
       ),
+      // No filterFn here — this table runs manualFiltering (see
+      // useServerDataTable), so TanStack never calls a column filterFn
+      // itself. The "patient" search box's value is read out of
+      // state.columnFilters by DoctorAppointmentsTable and forwarded to the
+      // server as patient_search.
       meta: {
         label: "Patient",
         variant: "text",
         placeholder: "Search patient...",
       },
-      filterFn: (row, _columnId, filterValue: string) =>
-        (row.original.subject_display ?? "")
-          .toLowerCase()
-          .includes(filterValue.toLowerCase()),
     },
 
     // ── Appointment type ─────────────────────────────────────────────────────
@@ -219,14 +222,21 @@ export function createDoctorAppointmentColumns(
       id: "date",
       accessorFn: (row) => row.start,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Date" />
+        // multiSort: Date and Time split one underlying `start` timestamp
+        // into independent server-side sort tokens (day / time-of-day) —
+        // sorting one shouldn't reset the other's chosen direction.
+        <DataTableColumnHeader column={column} label="Date" multiSort />
       ),
       cell: ({ row }) => (
         <span className="tabular-nums text-sm">
           {formatDate(row.original.start)}
         </span>
       ),
-      meta: { label: "Date" },
+      // dateRange renders a calendar-range popover in the toolbar (same shared
+      // system as the status/patient filters); DoctorAppointmentsTable reads
+      // the [from, to] timestamp pair out of this column's filter value and
+      // forwards it to the server as start_from/start_to.
+      meta: { label: "Date", variant: "dateRange" },
     },
 
     // ── Time ─────────────────────────────────────────────────────────────────
@@ -234,7 +244,7 @@ export function createDoctorAppointmentColumns(
       id: "time",
       accessorFn: (row) => row.start,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Time" />
+        <DataTableColumnHeader column={column} label="Time" multiSort />
       ),
       cell: ({ row }) => (
         <span className="tabular-nums text-sm">
@@ -296,6 +306,10 @@ export function createDoctorAppointmentColumns(
           (status === "pending" || status === "booked") &&
           !!row.original.slot?.length;
 
+        // Clinical Records needs a resolved patient — appointments without a
+        // subject reference (shouldn't normally happen) have nowhere to link to.
+        const canOpenClinicalRecords = row.original.subject_id != null;
+
         const actions: RowAction<TAppointmentResponse>[] = [
           // Review — navigates to the post-consultation review page
           {
@@ -303,6 +317,15 @@ export function createDoctorAppointmentColumns(
             icon: ClipboardList,
             onClick: () => callbacks.onReview(row.original),
           },
+          ...(canOpenClinicalRecords
+            ? [
+                {
+                  label: "Clinical Records",
+                  icon: Stethoscope,
+                  onClick: () => callbacks.onClinicalRecords(row.original),
+                },
+              ]
+            : []),
           ...(canConfirm
             ? [
                 {
@@ -344,7 +367,7 @@ export function createDoctorAppointmentColumns(
               <Eye className="size-3 mr-1" />
               View
             </Button>
-            {/* Consult Online — opens the LiveKit virtual consultation room */}
+            {/* Join Meeting — opens the LiveKit virtual consultation room */}
             {isBooked && (
               <Button
                 size="sm"
@@ -353,7 +376,7 @@ export function createDoctorAppointmentColumns(
                 onClick={() => callbacks.onConsult(row.original)}
               >
                 <Video className="size-3 mr-1" />
-                Consult Online
+                Join Meeting
               </Button>
             )}
             {/* In-Person — opens the diarization recording screen for face-to-face visits */}

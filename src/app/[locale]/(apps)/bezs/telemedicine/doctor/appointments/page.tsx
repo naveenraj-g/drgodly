@@ -23,6 +23,7 @@ import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { DoctorAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentsTable";
+import { DEFAULT_APPOINTMENT_SORT } from "@/modules/client/telemedicine/doctor/component/appointments/list/appointmentQueries";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 
 /** Page-level page size — must match INITIAL_PAGE_SIZE in the table component. */
@@ -50,13 +51,17 @@ export default async function DoctorAppointmentsPage() {
   const practitionerId = practitioner.id;
   const base = `/${locale}/bezs/telemedicine/doctor`;
 
-  // Pre-fetch page 0 scoped to this practitioner
+  // Pre-fetch page 0 scoped to this practitioner. Sort must match the client
+  // fetcher's (fetchDoctorAppointments) exactly — this seeds the same
+  // TanStack Query cache key, so a mismatch here would show unsorted SSR
+  // data until the 60s staleTime lapsed and the client refetch corrected it.
   const [data] = await listAppointmentsAction({
     payload: {
       limit: INITIAL_PAGE_SIZE,
       offset: 0,
       org_id: orgId ?? undefined,
       practitioner_id: practitionerId,
+      sort: DEFAULT_APPOINTMENT_SORT,
     },
   });
 
@@ -98,6 +103,7 @@ export default async function DoctorAppointmentsPage() {
         orgId={orgId}
         practitionerId={practitionerId}
         viewHref={`${base}/appointments`}
+        clinicalRecordsHref={`${base}/clinical-records`}
       />
 
       {/* Modal singletons — controlled by doctor Zustand store */}

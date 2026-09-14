@@ -56,6 +56,7 @@ export {
   type ServerTableState,
 } from "./hooks/use-server-data-table";
 export { useDebouncedCallback } from "./hooks/use-debounced-callback";
+export { useDebouncedValue } from "./hooks/use-debounced-value";
 
 // Utilities
 export { getColumnPinningStyle, formatDate } from "./utils";

@@ -244,9 +244,14 @@ function SoapTab({ soap }: { soap: TSoapNote | null }) {
 /**
  * Assessment & Plan tab content — mirrors IntakeInsights report layout.
  *
+ * Exported so AppointmentReview.tsx (the review page) can reuse the same
+ * rendering for its read-only "Assessment Plan" reference section, instead
+ * of duplicating the risk-level/differential/diagnostic-plan/treatment-plan
+ * extraction logic in a second place.
+ *
  * @param plan - Raw assessment_plan object from full_report.
  */
-function AssessmentTab({ plan }: { plan: Record<string, unknown> | undefined }) {
+export function AssessmentTab({ plan }: { plan: Record<string, unknown> | undefined }) {
   if (!plan) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">

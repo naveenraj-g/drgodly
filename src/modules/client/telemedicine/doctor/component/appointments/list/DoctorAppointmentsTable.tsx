@@ -21,22 +21,24 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { endOfDay } from "date-fns";
 import {
   DataTable,
   DataTableToolbar,
   useServerDataTable,
+  useDebouncedValue,
 } from "@/modules/client/shared/components/tables";
 import {
   type TAppointmentResponse,
   type TPaginatedAppointmentResponse,
 } from "@/modules/entities/schemas/appointment";
 import {
+  DEFAULT_APPOINTMENT_SORT,
   doctorAppointmentKeys,
   fetchDoctorAppointments,
 } from "./appointmentQueries";
 import { createDoctorAppointmentColumns } from "./DoctorAppointmentColumns";
 import { AppointmentDetailPanel } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailPanel";
-import { sortAppointmentsByStatusPriority } from "@/modules/client/telemedicine/shared/components/appointment/appointmentStatusPriority";
 import { doctorStore } from "@/modules/client/telemedicine/doctor/stores/doctor.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -63,6 +65,8 @@ interface DoctorAppointmentsTableProps {
   practitionerId: number | null;
   /** Localised base href for appointment detail pages (e.g. /en/…/appointments). */
   viewHref: string;
+  /** Localised base href for Clinical Records (e.g. /en/…/doctor/clinical-records). */
+  clinicalRecordsHref: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -78,19 +82,21 @@ interface DoctorAppointmentsTableProps {
  * @param orgId - Active organisation ID for scoping the list query.
  * @param practitionerId - FHIR Practitioner.id to scope appointments to this doctor.
  * @param viewHref - Base href for the appointment detail page.
+ * @param clinicalRecordsHref - Base href for Clinical Records.
  */
 export function DoctorAppointmentsTable({
   initialData,
   orgId,
   practitionerId,
   viewHref,
+  clinicalRecordsHref,
 }: DoctorAppointmentsTableProps) {
   const router = useRouter();
 
   // ── Row + page count state (seeded from SSR, synced from client query) ──────
-  const [rows, setRows] = useState<TAppointmentResponse[]>(
-    sortAppointmentsByStatusPriority(initialData.data ?? []),
-  );
+  // Ordering is now server-side (sort=status-priority,-date, applied by
+  // fetchDoctorAppointments and page.tsx's SSR fetch) — no client re-sort here.
+  const [rows, setRows] = useState<TAppointmentResponse[]>(initialData.data ?? []);
   const [pageCount, setPageCount] = useState(
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
@@ -124,8 +130,12 @@ export function DoctorAppointmentsTable({
           router.push(`${viewHref}/inperson-consultation?appointmentId=${row.id}`),
         // Navigates to the post-consultation review page for this appointment.
         onReview: (row) => router.push(`${viewHref}/${row.id}/review`),
+        // Navigates to Clinical Records for this appointment's patient — same
+        // deep-link shape as the Dashboard's own "Clinical Records" button.
+        onClinicalRecords: (row) =>
+          router.push(`${clinicalRecordsHref}/${row.subject_id}/${row.id}`),
       }),
-    [router, viewHref],
+    [router, viewHref, clinicalRecordsHref],
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
@@ -134,24 +144,95 @@ export function DoctorAppointmentsTable({
     data: rows,
     pageCount,
     initialPageSize: INITIAL_PAGE_SIZE,
+    // Default sort: newest day first, chronological within each day.
+    // Matches DEFAULT_APPOINTMENT_SORT so the SSR-seeded page and the first
+    // client render agree on ordering. Seeding both entries (rather than
+    // just "date") also makes both headers show their sorted-direction
+    // chevron on load — clicking either one afterwards still replaces the
+    // whole sort with just that column, same single-sort behavior as any
+    // other column here.
+    initialSorting: [
+      { id: "date", desc: true },
+      { id: "time", desc: false },
+    ],
+    // Type and Duration are secondary detail — hidden by default to keep the
+    // table compact; still available via the toolbar's column-visibility toggle.
+    initialColumnVisibility: { appointment_type: false, duration: false },
     // Every appointment carries detail worth expanding into, so no row is
     // excluded — the panel hides its own empty sections.
     getRowCanExpand: () => true,
   });
 
   // Extract server-side filter params from the column filter state.
-  // multiSelect returns string[] — we take the first value since the API
-  // accepts a single status code. undefined means "no filter" (all statuses).
+  // multiSelect returns string[] — join every selected status into one
+  // comma-separated string; the backend ORs them together (status.in_(...)
+  // when there's more than one, a plain equality check for a single value).
+  // undefined means "no filter" (all statuses).
   const statusFilter = state.columnFilters.find((f) => f.id === "status")
     ?.value as string[] | undefined;
-  const activeStatus = statusFilter?.[0];
+  const activeStatus =
+    statusFilter && statusFilter.length > 0 ? statusFilter.join(",") : undefined;
 
-  // Reset to page 0 whenever the status filter changes so stale page indices
-  // don't produce empty results after filtering.
+  // Patient name search — debounced so typing doesn't fire a request per
+  // keystroke. The input itself (rendered by DataTableToolbar from the
+  // column's meta.variant: "text") updates columnFilters immediately for a
+  // responsive box; this is a delayed echo used only for the actual fetch.
+  const patientFilterRaw = state.columnFilters.find((f) => f.id === "patient")
+    ?.value as string | undefined;
+  const patientSearch = useDebouncedValue(patientFilterRaw, 400);
+
+  // Date range — the "date" column's dateRange filter (same shared toolbar
+  // system as patient/status) stores a [fromMs, toMs] timestamp pair.
+  // "to" is bumped to end-of-day so the picked day is inclusive — a bare
+  // midnight timestamp would otherwise exclude every appointment later that
+  // same day, same correction DoctorDashboard's own range fetch applies.
+  const dateFilterRaw = state.columnFilters.find((f) => f.id === "date")
+    ?.value as [number | undefined, number | undefined] | undefined;
+  const startFrom = dateFilterRaw?.[0]
+    ? new Date(dateFilterRaw[0]).toISOString()
+    : undefined;
+  const startTo = dateFilterRaw?.[1]
+    ? endOfDay(new Date(dateFilterRaw[1])).toISOString()
+    : undefined;
+
+  // Reset to page 0 whenever a filter changes so stale page indices don't
+  // produce empty results.
   useEffect(() => {
     resetPage();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStatus]);
+  }, [activeStatus, patientSearch, startFrom, startTo]);
+
+  // Maps a TanStack column id to the fhir-server `_sort` field it
+  // corresponds to. "date" and "time" both derive from the same underlying
+  // `start` timestamp, but the backend splits it into independent `day` /
+  // `time-of-day` sort expressions — so each header can carry its own
+  // direction (e.g. date desc + time asc simultaneously) rather than both
+  // collapsing onto the one full-timestamp `date` token.
+  const SORT_FIELD_MAP: Record<string, string> = useMemo(
+    () => ({
+      date: "day",
+      time: "time-of-day",
+      patient: "patient",
+      status: "status",
+      appointment_type: "type",
+      duration: "duration",
+    }),
+    [],
+  );
+
+  // Builds a FHIR `_sort`-style string from the table's column-header sort
+  // state. Falls back to DEFAULT_APPOINTMENT_SORT when nothing is explicitly
+  // sorted (or every sorted column id is unmapped).
+  const sort = useMemo(() => {
+    if (state.sorting.length === 0) return DEFAULT_APPOINTMENT_SORT;
+    const tokens = state.sorting
+      .map((s) => {
+        const field = SORT_FIELD_MAP[s.id];
+        return field ? (s.desc ? `-${field}` : field) : null;
+      })
+      .filter((t): t is string => t !== null);
+    return tokens.length > 0 ? tokens.join(",") : DEFAULT_APPOINTMENT_SORT;
+  }, [state.sorting, SORT_FIELD_MAP]);
 
   // ── Server query ─────────────────────────────────────────────────────────────
   const { data, isFetching } = useQuery({
@@ -161,6 +242,10 @@ export function DoctorAppointmentsTable({
       orgId,
       practitionerId,
       status: activeStatus,
+      patientSearch,
+      startFrom,
+      startTo,
+      sort,
     }),
     queryFn: () =>
       fetchDoctorAppointments({
@@ -169,13 +254,25 @@ export function DoctorAppointmentsTable({
         orgId,
         practitionerId,
         status: activeStatus,
+        patientSearch,
+        startFrom,
+        startTo,
+        sort,
       }),
-    // Only seed the SSR data for the exact initial query (no filter, page 0).
-    // Any other key (filtered, paginated) must always fetch — if we pass
-    // initialData for every key, TanStack marks filtered keys "fresh" with the
-    // wrong unfiltered data and skips the fetch entirely for staleTime duration.
+    // Only seed the SSR data for the exact query page.tsx pre-fetched: no
+    // filter, default sort, page 0. Any other key (filtered, re-sorted,
+    // paginated) must always fetch — if we pass initialData for every key,
+    // TanStack marks it "fresh" with the wrong data and skips the fetch
+    // entirely for staleTime duration.
     initialData:
-      !activeStatus && state.pagination.pageIndex === 0 ? initialData : undefined,
+      !activeStatus &&
+      !patientSearch &&
+      !startFrom &&
+      !startTo &&
+      sort === DEFAULT_APPOINTMENT_SORT &&
+      state.pagination.pageIndex === 0
+        ? initialData
+        : undefined,
     staleTime: 60_000,
     placeholderData: (prev) => prev,
   });
@@ -183,7 +280,7 @@ export function DoctorAppointmentsTable({
   // Sync table rows whenever a new page or filter result arrives
   useEffect(() => {
     if (data) {
-      setRows(sortAppointmentsByStatusPriority(data.data ?? []));
+      setRows(data.data ?? []);
       setPageCount(
         Math.ceil((data.total ?? 0) / state.pagination.pageSize),
       );

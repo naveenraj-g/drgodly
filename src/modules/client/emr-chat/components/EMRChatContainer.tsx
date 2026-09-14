@@ -129,8 +129,8 @@ export default function EMRChatContainer({
   // offset so the chat fills the viewport correctly.
   const { breadcrumbs } = useRouteConfig();
   const containerHeight = breadcrumbs
-    ? "h-[calc(100dvh-160px)]"
-    : "h-[calc(100dvh-108px)]";
+    ? "h-[calc(100dvh-132px)]"
+    : "h-[calc(100dvh-84px)]";
 
   // ── Local state ───────────────────────────────────────────────────────────
 

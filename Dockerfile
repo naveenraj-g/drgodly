@@ -33,6 +33,17 @@ ARG NEXT_PUBLIC_VAPI_AGENT_ID
 ARG NEXT_PUBLIC_FILENEST_PROJECT_ID
 ARG NEXT_PUBLIC_FILENEST_API_URL
 
+# NEXT_DEPLOYMENT_ID feeds next.config.ts's `deploymentId` so a client from a
+# previous deployment gets a forced hard reload instead of "Failed to find
+# Server Action" — see docker-build.sh. Not sensitive, plain ARG/ENV is fine.
+ARG NEXT_DEPLOYMENT_ID
+
+# NEXT_SERVER_ACTIONS_ENCRYPTION_KEY is a secret (keeps the Server Actions
+# encryption key stable across builds instead of Next.js generating a new
+# random one per build) — passed via --mount=type=secret on the build RUN
+# below instead of ARG/ENV, so it's never written into the image's layer
+# history/metadata (see docker-build.sh).
+
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_BETTER_AUTH_URL=$NEXT_PUBLIC_BETTER_AUTH_URL
 ENV NEXT_PUBLIC_BETTER_AUTH_CLIENT_ID=$NEXT_PUBLIC_BETTER_AUTH_CLIENT_ID
@@ -42,6 +53,7 @@ ENV NEXT_PUBLIC_VAPI_PUBLIC_KEY=$NEXT_PUBLIC_VAPI_PUBLIC_KEY
 ENV NEXT_PUBLIC_VAPI_AGENT_ID=$NEXT_PUBLIC_VAPI_AGENT_ID
 ENV NEXT_PUBLIC_FILENEST_PROJECT_ID=$NEXT_PUBLIC_FILENEST_PROJECT_ID
 ENV NEXT_PUBLIC_FILENEST_API_URL=$NEXT_PUBLIC_FILENEST_API_URL
+ENV NEXT_DEPLOYMENT_ID=$NEXT_DEPLOYMENT_ID
 
 ENV DOCKER_BUILD=true
 ENV NODE_OPTIONS="--max-old-space-size=4096"
@@ -54,7 +66,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # that latest release changed its CLI surface).
 RUN pnpm exec prisma generate --schema ./prisma/schema/schema.prisma
 
-RUN pnpm run build
+# The secret is exposed as the NEXT_SERVER_ACTIONS_ENCRYPTION_KEY env var only
+# for this RUN's process — BuildKit never persists it into the image layer.
+RUN --mount=type=secret,id=next_server_actions_key,env=NEXT_SERVER_ACTIONS_ENCRYPTION_KEY \
+    pnpm run build
 
 # ─── runner: minimal production image ─────────────────────────────────────────
 FROM base AS runner

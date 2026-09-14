@@ -7,7 +7,10 @@
  * and triggers the detail panel to load intake + consultation data.
  *
  * Each row shows:
- *   - Appointment start time (HH:MM)
+ *   - Appointment date + start time (e.g. "Sep 10 · 14:30") — the date is
+ *     always shown, not just when the range spans multiple days, since a
+ *     doctor scanning the list has no other way to tell which day a row
+ *     belongs to once the date-range filter is anything wider than "today".
  *   - Patient name (from participant where reference_type === "Patient")
  *   - Appointment type label
  *   - FHIR status badge
@@ -16,7 +19,6 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { CalendarX } from "lucide-react";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
@@ -92,6 +94,18 @@ function formatTime(iso: string): string {
   });
 }
 
+/**
+ * Formats an ISO datetime to a short "Mon d" date string (e.g. "Sep 10").
+ *
+ * @param iso - ISO 8601 datetime string.
+ */
+function formatShortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
@@ -126,11 +140,17 @@ export function TodayAppointmentList({
   }
 
   return (
-    <ScrollArea className="h-full">
+    // Plain overflow-y-auto instead of the shadcn/Radix ScrollArea — Radix
+    // wraps children in a `display: table` div to measure content, which
+    // sizes to the widest row's intrinsic content width instead of the
+    // container, breaking `truncate` (text-overflow: ellipsis needs a
+    // bounded width) on the patient name / appointment type lines below.
+    <div className="h-full overflow-y-auto">
       <div className="flex flex-col gap-1 p-2">
         {appointments.map((appt) => {
           const patientName = getPatientName(appt);
           const time = appt.start ? formatTime(appt.start) : "--:--";
+          const date = appt.start ? formatShortDate(appt.start) : null;
           const status = appt.status ?? "pending";
           const statusCfg = STATUS_CONFIG[status] ?? {
             label: status,
@@ -148,9 +168,11 @@ export function TodayAppointmentList({
                 isSelected && "bg-accent border border-primary/20",
               )}
             >
-              {/* Time row */}
+              {/* Date + time row */}
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                  {date && <span className="font-normal">{date}</span>}
+                  {date && " · "}
                   {time}
                 </span>
                 <Badge
@@ -176,6 +198,6 @@ export function TodayAppointmentList({
           );
         })}
       </div>
-    </ScrollArea>
+    </div>
   );
 }

@@ -4,9 +4,11 @@
  * Layer: client / telemedicine / patient / component / medical-records
  *
  * Step 1 — Appointment picker:
- *   Shows all fulfilled appointments newest-first. Each card shows the date,
- *   doctor name (from participant[Practitioner]), and appointment type.
- *   Patient taps a card to proceed.
+ *   Shows all fulfilled appointments newest-first in a responsive 1/2/3-column
+ *   grid. Each card shows the date, doctor name (from participant[Practitioner]),
+ *   and appointment type. A doctor-name search and a single-date filter narrow
+ *   the grid client-side (all appointments are already SSR-fetched, so there's
+ *   no server round-trip for these). Patient taps a card to proceed.
  *
  * Step 2 — Orders view (after appointment selected):
  *   All FHIR data is fetched on-demand when the patient selects an appointment:
@@ -34,11 +36,21 @@ import {
   Clock,
   Timer,
   Stethoscope,
+  Search,
+  CalendarIcon,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   ServiceRequestRecordCard,
   RecordListEmptyState,
@@ -160,13 +172,52 @@ interface AppointmentPickerProps {
 }
 
 /**
- * Lists fulfilled appointments for the patient to choose from.
- * Shows date, doctor, and appointment type on each card.
+ * Lists fulfilled appointments for the patient to choose from, in a
+ * responsive grid with a doctor-name search and a single-date filter
+ * (both client-side — the full list is already SSR-fetched).
  *
  * @param appointments - Pre-fetched fulfilled appointments.
  * @param onSelect     - Callback with the chosen appointment.
  */
 function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
+  /** Case-insensitive substring match against the appointment's doctor name. */
+  const [doctorQuery, setDoctorQuery] = useState("");
+  /** Exact-calendar-day filter — matched against each appointment's start date. */
+  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+
+  /* Newest first, then narrowed by whichever filters are active. Recomputed
+     only when the inputs actually change — this list is small (a patient's
+     own completed appointments) but there's no reason to re-sort/re-filter
+     on unrelated re-renders. */
+  const filtered = useMemo(() => {
+    const sorted = [...appointments].sort((a, b) =>
+      (b.start ?? "").localeCompare(a.start ?? ""),
+    );
+
+    return sorted.filter((appt) => {
+      if (doctorQuery.trim()) {
+        const doctorName = getDoctorName(appt) ?? "";
+        if (!doctorName.toLowerCase().includes(doctorQuery.trim().toLowerCase())) {
+          return false;
+        }
+      }
+      if (dateFilter) {
+        if (!appt.start) return false;
+        const apptDate = new Date(appt.start);
+        if (
+          apptDate.getFullYear() !== dateFilter.getFullYear() ||
+          apptDate.getMonth() !== dateFilter.getMonth() ||
+          apptDate.getDate() !== dateFilter.getDate()
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [appointments, doctorQuery, dateFilter]);
+
+  const hasActiveFilters = doctorQuery.trim() !== "" || dateFilter != null;
+
   if (appointments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
@@ -182,95 +233,160 @@ function AppointmentPicker({ appointments, onSelect }: AppointmentPickerProps) {
     );
   }
 
-  /* Newest first. */
-  const sorted = [...appointments].sort((a, b) =>
-    (b.start ?? "").localeCompare(a.start ?? ""),
-  );
-
   return (
-    <div className="space-y-3">
-      {sorted.map((appt) => {
-        const doctorName = getDoctorName(appt);
-        const apptType =
-          appt.appointment_type_display ??
-          appt.appointment_type_text ??
-          null;
-        const startTime = fmtTime(appt.start);
-        const endTime = fmtTime(appt.end);
-        const duration = fmtDuration(appt.start, appt.end, appt.minutes_duration);
-        const description = appt.description ?? null;
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-56">
+          <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={doctorQuery}
+            onChange={(e) => setDoctorQuery(e.target.value)}
+            placeholder="Search by doctor..."
+            className="h-9 pl-8 text-sm"
+          />
+        </div>
 
-        return (
-          <Card
-            key={appt.id}
-            className="cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-            onClick={() => onSelect(appt)}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5">
+              <CalendarIcon className="size-3.5" />
+              {dateFilter ? fmtDate(dateFilter.toISOString()) : "Filter by date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateFilter}
+              onSelect={setDateFilter}
+            />
+          </PopoverContent>
+        </Popover>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1.5 text-muted-foreground"
+            onClick={() => {
+              setDoctorQuery("");
+              setDateFilter(undefined);
+            }}
           >
-            <CardContent className="px-4 py-3 flex items-start gap-4">
-              {/* Left: all details */}
-              <div className="flex-1 min-w-0 space-y-2">
-                {/* Date — primary identifier */}
-                <div className="flex items-center gap-1.5 text-sm font-semibold">
-                  <CalendarDays className="size-3.5 text-primary shrink-0" />
-                  {fmtDate(appt.start)}
-                </div>
+            <X className="size-3.5" />
+            Clear
+          </Button>
+        )}
+      </div>
 
-                {/* Time + duration row */}
-                {(startTime ?? duration) && (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {startTime && (
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="size-3 shrink-0" />
-                        {endTime ? `${startTime} – ${endTime}` : startTime}
-                      </span>
+      {/* No results after filtering (appointments themselves do exist) */}
+      {filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+          <ClipboardX className="size-10 opacity-30" />
+          <p className="text-sm font-medium text-center">
+            No appointments match your filters.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDoctorQuery("");
+              setDateFilter(undefined);
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
+      )}
+
+      {/* Cards */}
+      {filtered.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {filtered.map((appt) => {
+            const doctorName = getDoctorName(appt);
+            const apptType =
+              appt.appointment_type_display ??
+              appt.appointment_type_text ??
+              null;
+            const startTime = fmtTime(appt.start);
+            const endTime = fmtTime(appt.end);
+            const duration = fmtDuration(
+              appt.start,
+              appt.end,
+              appt.minutes_duration,
+            );
+            const description = appt.description ?? null;
+
+            return (
+              <Card
+                key={appt.id}
+                className="cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                onClick={() => onSelect(appt)}
+              >
+                <CardContent className="px-4 py-3 flex items-start gap-4">
+                  {/* Left: all details */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {/* Date — primary identifier */}
+                    <div className="flex items-center gap-1.5 text-sm font-semibold">
+                      <CalendarDays className="size-3.5 text-primary shrink-0" />
+                      {fmtDate(appt.start)}
+                    </div>
+
+                    {/* Time + duration row */}
+                    {(startTime ?? duration) && (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {startTime && (
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock className="size-3 shrink-0" />
+                            {endTime ? `${startTime} – ${endTime}` : startTime}
+                          </span>
+                        )}
+                        {duration && (
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Timer className="size-3 shrink-0" />
+                            {duration}
+                          </span>
+                        )}
+                      </div>
                     )}
-                    {duration && (
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Timer className="size-3 shrink-0" />
-                        {duration}
-                      </span>
+
+                    {/* Doctor name */}
+                    {doctorName && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <UserRound className="size-3 shrink-0" />
+                        {doctorName}
+                      </div>
+                    )}
+
+                    {/* Appointment type */}
+                    {apptType && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Stethoscope className="size-3 shrink-0" />
+                        {apptType}
+                      </div>
+                    )}
+
+                    {/* Free-text description (if different from type) */}
+                    {description && description !== apptType && (
+                      <p className="text-xs text-muted-foreground/70 truncate pl-0.5">
+                        {description}
+                      </p>
                     )}
                   </div>
-                )}
 
-                {/* Doctor name */}
-                {doctorName && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <UserRound className="size-3 shrink-0" />
-                    {doctorName}
+                  {/* Right: chevron */}
+                  <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      Completed
+                    </Badge>
+                    <ChevronRight className="size-4 text-muted-foreground" />
                   </div>
-                )}
-
-                {/* Appointment type */}
-                {apptType && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Stethoscope className="size-3 shrink-0" />
-                    {apptType}
-                  </div>
-                )}
-
-                {/* Free-text description (if different from type) */}
-                {description && description !== apptType && (
-                  <p className="text-xs text-muted-foreground/70 truncate pl-0.5">
-                    {description}
-                  </p>
-                )}
-              </div>
-
-              {/* Right: chevron */}
-              <div className="flex items-center gap-2 shrink-0 mt-0.5">
-                <Badge
-                  variant="secondary"
-                  className="text-xs font-normal"
-                >
-                  Completed
-                </Badge>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

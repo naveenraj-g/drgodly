@@ -4,11 +4,10 @@
  * Layer: client / telemedicine / patient / appointments / list
  *
  * Produces TanStack Table v8 ColumnDef array for the patient's own appointment
- * list. Columns: Expand, Doctor, Type, Date, Time, Duration, Status, Actions.
+ * list. Columns: Doctor, Type, Date, Time, Duration, Status, Actions.
  *
- * The Expand column drives the row-detail panel (AppointmentDetailPanel); it
- * only works because the parent table passes `getRowCanExpand` and
- * `renderSubComponent` — the button renders invisible without them.
+ * No expand/detail-panel row here (unlike the doctor's table) — the patient
+ * portal keeps this list to a flat, scannable summary.
  *
  * Factory function pattern — callers pass action callbacks so the column
  * definitions remain pure (no Zustand, no React context dependency) and the
@@ -20,7 +19,6 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   DataTableColumnHeader,
-  DataTableExpandButton,
   DataTableRowActions,
   type RowAction,
 } from "@/modules/client/shared/components/tables";
@@ -171,20 +169,6 @@ export function createPatientAppointmentColumns(
   callbacks: PatientAppointmentColumnCallbacks,
 ): ColumnDef<TAppointmentResponse>[] {
   return [
-    // ── Expand ───────────────────────────────────────────────────────────────
-    // Leads the row so the chevron sits at the left edge, matching the
-    // Organizations table. Excluded from export — it carries no data.
-    {
-      id: "expand",
-      header: () => null,
-      cell: ({ row }) => <DataTableExpandButton row={row} />,
-      enableSorting: false,
-      enableHiding: false,
-      enableResizing: false,
-      size: 40,
-      meta: { exportable: false },
-    },
-
     // ── Doctor (Practitioner participant) ────────────────────────────────────
     {
       id: "doctor",
@@ -200,15 +184,16 @@ export function createPatientAppointmentColumns(
           </span>
         </div>
       ),
+      // No filterFn here — this table runs manualFiltering (see
+      // useServerDataTable), so TanStack never calls a column filterFn
+      // itself. The "doctor" search box's value is read out of
+      // state.columnFilters by PatientAppointmentsTable and forwarded to
+      // the server as practitioner_search.
       meta: {
         label: "Doctor",
         variant: "text",
         placeholder: "Search doctor...",
       },
-      filterFn: (row, _columnId, filterValue: string) =>
-        getDoctorName(row.original.participant)
-          .toLowerCase()
-          .includes(filterValue.toLowerCase()),
     },
 
     // ── Appointment type ─────────────────────────────────────────────────────
@@ -232,14 +217,21 @@ export function createPatientAppointmentColumns(
       id: "date",
       accessorFn: (row) => row.start,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Date" />
+        // multiSort: Date and Time split one underlying `start` timestamp
+        // into independent server-side sort tokens (day / time-of-day) —
+        // sorting one shouldn't reset the other's chosen direction.
+        <DataTableColumnHeader column={column} label="Date" multiSort />
       ),
       cell: ({ row }) => (
         <span className="tabular-nums text-sm">
           {formatDate(row.original.start)}
         </span>
       ),
-      meta: { label: "Date" },
+      // dateRange renders a calendar-range popover in the toolbar (same
+      // shared system as the status/doctor filters); PatientAppointmentsTable
+      // reads the [from, to] timestamp pair out of this column's filter
+      // value and forwards it to the server as start_from/start_to.
+      meta: { label: "Date", variant: "dateRange" },
     },
 
     // ── Time ─────────────────────────────────────────────────────────────────
@@ -247,7 +239,7 @@ export function createPatientAppointmentColumns(
       id: "time",
       accessorFn: (row) => row.start,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} label="Time" />
+        <DataTableColumnHeader column={column} label="Time" multiSort />
       ),
       cell: ({ row }) => (
         <span className="tabular-nums text-sm">
@@ -341,7 +333,7 @@ export function createPatientAppointmentColumns(
               <Eye className="size-3 mr-1" />
               View
             </Button>
-            {/* Consult Online — only for booked appointments with a virtual consultation room */}
+            {/* Join Meeting — only for booked appointments with a virtual consultation room */}
             {isBooked && (
               <Button
                 size="sm"
@@ -350,7 +342,7 @@ export function createPatientAppointmentColumns(
                 onClick={() => callbacks.onConsult(row.original)}
               >
                 <Video className="size-3 mr-1" />
-                Consult Online
+                Join Meeting
               </Button>
             )}
             {/* Three-dot menu — only when status-dependent actions exist */}

@@ -25,8 +25,6 @@
  * page of appointments is loaded.
  */
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 
@@ -41,7 +39,7 @@ import {
 } from "@/modules/server/presentation/helpers/doctorPatients";
 import { PatientHeaderCard } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientHeaderCard";
 import { PatientAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientAppointmentsTable";
-import { Button } from "@/components/ui/button";
+import { BackButton } from "@/modules/client/telemedicine/doctor/component/clinical-records/BackButton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 import type { TPaginatedEncounterResponse } from "@/modules/entities/schemas/encounter";
@@ -79,7 +77,7 @@ export default async function PatientClinicalRecordsPage({
   const numericPatientId = parseInt(patientId, 10);
 
   if (isNaN(numericPatientId)) {
-    return <RecordsError backHref={backHref} message="Invalid patient ID." />;
+    return <RecordsError message="Invalid patient ID." />;
   }
 
   /* Patient record, the first page of this doctor's appointments with them,
@@ -143,18 +141,8 @@ export default async function PatientClinicalRecordsPage({
     /* Wider than the other Clinical Records pages so the appointment grid has
        room for three columns — it caps at 1152px, giving ~370px per card. */
     <div className="mx-auto w-full max-w-6xl space-y-5">
-      {/* ── Back link ── */}
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 -ml-2 text-muted-foreground"
-      >
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" />
-          Back to Patients
-        </Link>
-      </Button>
+      {/* ── Back button ── */}
+      <BackButton />
 
       {/* ── Patient identity ── */}
       <PatientHeaderCard
@@ -180,31 +168,14 @@ export default async function PatientClinicalRecordsPage({
 // ── Error state ───────────────────────────────────────────────────────────────
 
 /**
- * Minimal error card with a back link.
+ * Minimal error card with a back button.
  *
- * @param backHref - Where the back button navigates.
  * @param message - Human-readable reason for the failure.
  */
-function RecordsError({
-  backHref,
-  message,
-}: {
-  backHref: string;
-  message: string;
-}) {
+function RecordsError({ message }: { message: string }) {
   return (
     <div className="max-w-md mx-auto mt-16 space-y-4">
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 -ml-2 text-muted-foreground"
-      >
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" />
-          Back to Patients
-        </Link>
-      </Button>
+      <BackButton />
       <Card>
         <CardContent className="py-12 text-center text-sm text-muted-foreground">
           {message}

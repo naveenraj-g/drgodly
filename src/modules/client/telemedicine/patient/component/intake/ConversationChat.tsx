@@ -12,7 +12,7 @@
 
 "use client";
 
-import { Brain, MessageSquareIcon } from "lucide-react";
+import { Bot, MessageSquareIcon } from "lucide-react";
 import {
   Conversation,
   ConversationContent,
@@ -45,7 +45,7 @@ const TypingIndicator = () => (
     <MessageContent>
       <div className="flex gap-2 items-center">
         <div className="bg-secondary w-fit rounded-full p-2">
-          <Brain className="size-6" />
+          <Bot className="size-6" />
         </div>
         <div className="flex items-center gap-1 px-3 py-2 rounded-2xl bg-secondary">
           <span className="size-2 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
@@ -108,7 +108,7 @@ export function ConversationChat({
                   <div className="flex gap-2 items-center">
                     {message.from === "assistant" ? (
                       <div className="bg-secondary w-fit rounded-full p-2">
-                        <Brain className="size-6" />
+                        <Bot className="size-6" />
                       </div>
                     ) : (
                       <div className="bg-primary/50 flex-1 w-fit rounded-full p-2">
@@ -133,7 +133,7 @@ export function ConversationChat({
                   <div className="flex gap-2 items-center">
                     {liveRole === "assistant" ? (
                       <div className="bg-secondary w-fit rounded-full p-2">
-                        <Brain className="size-6" />
+                        <Bot className="size-6" />
                       </div>
                     ) : (
                       <div className="bg-primary h-6 w-6 flex items-center justify-center rounded-full text-primary-foreground">

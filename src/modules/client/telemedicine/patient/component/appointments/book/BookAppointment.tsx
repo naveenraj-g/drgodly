@@ -9,9 +9,12 @@
  *   and practitioner_id are locked in.
  *
  * Step 2 — Choose Date & Slot
- *   Fetches free Slots for the selected PractitionerRole from today onward (start_from = today).
- *   Derives available dates from slot.start datetimes.
- *   DateScroller shows the next 30 days; only dates with free slots are enabled.
+ *   DateScroller shows the next 30 days, dimming any day-of-week the selected
+ *   PractitionerRole never works (from its own availability data — no fetch
+ *   needed). Slots are fetched one day at a time, only once a date is picked
+ *   (`date=` query, not a range) — a single day never comes close to the
+ *   API's 200-row page cap the way a whole month's slots can, so this can't
+ *   silently truncate the way an eager 30-day fetch did.
  *   User picks a date → time buttons appear → user picks a slot → slot_id locked.
  *
  * Step 3 — Confirm
@@ -29,7 +32,7 @@
 
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Search,
   Calendar,
@@ -171,6 +174,41 @@ function formatFullDate(date: Date): string {
   }).format(date);
 }
 
+/** FHIR R4 DaysOfWeek codes, indexed to match JS Date.getDay() (0 = Sunday). */
+const WEEKDAY_CODES = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+] as const;
+
+/**
+ * Reads which days of the week a PractitionerRole has ANY declared available
+ * time on, straight off the booking-search response — no extra fetch needed.
+ *
+ * @param role - Selected practitioner role (booking-enriched).
+ * @returns Set of lowercase weekday codes (e.g. "mon"), or null if the role
+ *   declares no availability data at all — callers should treat null as
+ *   "don't restrict," not "restrict to nothing," since absent data isn't the
+ *   same claim as an empty schedule.
+ */
+function getRoleAvailableDaysOfWeek(
+  role: TPractitionerRoleBookingResponse,
+): Set<string> | null {
+  const days = new Set<string>();
+  let hasAnyAvailableTime = false;
+  role.availability?.forEach((block) => {
+    block.available_times?.forEach((t) => {
+      hasAnyAvailableTime = true;
+      t.days_of_week?.forEach((d) => days.add(d.toLowerCase().slice(0, 3)));
+    });
+  });
+  return hasAnyAvailableTime ? days : null;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
@@ -205,6 +243,15 @@ export function BookAppointment({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TSlotResponse | null>(null);
 
+  // "Now", as state rather than a bare Date.now() call in render — refreshed
+  // every minute so a slot rolls off the list on its own if this page is left
+  // open past its start time, instead of only re-checking on the next render.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // ── Step 3: booking ─────────────────────────────────────────────────────────
   const [isBooking, setIsBooking] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
@@ -229,17 +276,14 @@ export function BookAppointment({
     toast.error("Failed to load practitioners. Please try again.");
   }
 
-  // ── Fetch free slots for selected practitioner role (TanStack Query) ─────────
-  // Date range for the slot query — matches the 30-day DateScroller window exactly.
-  const slotDateRange = useMemo(() => {
-    const from = new Date();
-    const to = new Date();
-    to.setDate(to.getDate() + 30);
-    return {
-      start_from: from.toISOString().slice(0, 10),
-      start_to: to.toISOString().slice(0, 10),
-    };
-  }, []);
+  // ── Fetch free slots for the selected date (TanStack Query) ──────────────────
+  // One day at a time, not a 30-day range — a single day's slots never come
+  // close to the API's 200-row page cap the way a whole month's can, so this
+  // can't silently truncate the calendar the way the old eager range-fetch did.
+  const selectedDateStr = useMemo(
+    () => selectedDate?.toISOString().slice(0, 10) ?? null,
+    [selectedDate],
+  );
 
   const {
     data: slotsData,
@@ -250,17 +294,15 @@ export function BookAppointment({
       payload: {
         practitioner_role_id: selectedRole?.id ?? 0,
         status: "free",
-        // Bound to the 30-day window shown by DateScroller — server filters precisely.
-        start_from: slotDateRange.start_from,
-        start_to: slotDateRange.start_to,
-        limit: 150,
+        date: selectedDateStr ?? undefined,
+        limit: 200,
       },
     },
-    queryKey: ["slots-free", selectedRole?.id],
-    enabled: !!selectedRole,
+    queryKey: ["slots-free", selectedRole?.id, selectedDateStr],
+    enabled: !!selectedRole && !!selectedDateStr,
   });
 
-  const freeSlots = useMemo<TSlotResponse[]>(
+  const slotsForSelectedDate = useMemo<TSlotResponse[]>(
     () => slotsData?.data ?? [],
     [slotsData],
   );
@@ -295,15 +337,6 @@ export function BookAppointment({
     });
   }, [roles, searchQuery, selectedSpecialty]);
 
-  // ── Derived: set of ISO date strings that have free slots ──────────────────
-  const availableDateStrings = useMemo<Set<string>>(() => {
-    const s = new Set<string>();
-    freeSlots.forEach((sl) => {
-      if (sl.start) s.add(sl.start.slice(0, 10));
-    });
-    return s;
-  }, [freeSlots]);
-
   // ── Derived: rolling 30-day calendar for the DateScroller ──────────────────
   const calendarDates = useMemo<Date[]>(() => {
     const dates: Date[] = [];
@@ -316,14 +349,35 @@ export function BookAppointment({
     return dates;
   }, []);
 
+  // ── Derived: which calendar dates to show as enabled ────────────────────────
+  // Dims any day-of-week the selected role never declares available time on
+  // (data already on the role, no fetch needed) — this is a hint, not a
+  // guarantee; a date can still turn out empty once its slots are fetched,
+  // which the time-grid's own empty state handles. If the role has no
+  // availability data at all, every date stays enabled rather than none.
+  const availableDateStrings = useMemo<Set<string> | undefined>(() => {
+    if (!selectedRole) return undefined;
+    const allowedDays = getRoleAvailableDaysOfWeek(selectedRole);
+    if (allowedDays === null) return undefined;
+    const s = new Set<string>();
+    calendarDates.forEach((d) => {
+      if (allowedDays.has(WEEKDAY_CODES[d.getDay()])) {
+        s.add(d.toISOString().slice(0, 10));
+      }
+    });
+    return s;
+  }, [selectedRole, calendarDates]);
+
   // ── Derived: slots for the currently selected date ──────────────────────────
+  // Already scoped server-side to selectedDateStr — this just drops any slot
+  // whose start has already passed (a no-op for future dates, but keeps
+  // today's list from offering times earlier than right now) and sorts.
   const slotsForDate = useMemo<TSlotResponse[]>(() => {
     if (!selectedDate) return [];
-    const dateStr = selectedDate.toISOString().slice(0, 10);
-    return freeSlots
-      .filter((sl) => sl.start?.startsWith(dateStr))
+    return slotsForSelectedDate
+      .filter((sl) => sl.start && new Date(sl.start).getTime() > now)
       .sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""));
-  }, [freeSlots, selectedDate]);
+  }, [slotsForSelectedDate, selectedDate, now]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -481,7 +535,7 @@ export function BookAppointment({
       <div className="flex-1">
         {/* Page header */}
         <div className="mb-4">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
+          <h1 className="text-2xl font-semibold mb-1">
             Book an Appointment
           </h1>
           <p className="text-muted-foreground">
@@ -539,13 +593,13 @@ export function BookAppointment({
 
               {/* Practitioner grid */}
               {isLoadingRoles ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-20 w-full rounded-xl" />
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredRoles.map((role) => (
                     <PractitionerCard
                       key={role.id}
@@ -614,94 +668,72 @@ export function BookAppointment({
                 </div>
               </div>
 
-              {isLoadingSlots ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-24 w-full rounded-xl" />
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <Skeleton key={i} className="h-9 w-full rounded-md" />
-                    ))}
-                  </div>
+              <Card className="space-y-8 py-4 px-4 h-fit">
+                {/* Date Scroller */}
+                <div>
+                  <h3 className="font-semibold text-muted-foreground text-sm mb-4">
+                    Available Dates{" "}
+                    {selectedDate ? `(${selectedDate.toDateString()})` : null}
+                  </h3>
+                  <DateScroller
+                    dates={calendarDates}
+                    selectedDate={selectedDate}
+                    onSelect={(d) => {
+                      setSelectedDate(d);
+                      setSelectedSlot(null);
+                    }}
+                    availableDates={availableDateStrings}
+                  />
                 </div>
-              ) : freeSlots.length === 0 ? (
-                <Card className="p-8 text-center border border-dashed">
-                  <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">
-                    No free slots available for this practitioner right now.
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handlePrevStep}
-                    className="mt-3"
-                  >
-                    Choose another doctor
-                  </Button>
-                </Card>
-              ) : (
-                <Card className="space-y-8 py-4 px-4 h-fit">
-                  {/* Date Scroller */}
-                  <div>
-                    <h3 className="font-semibold text-muted-foreground text-sm mb-4">
-                      Available Dates{" "}
-                      {selectedDate ? `(${selectedDate.toDateString()})` : null}
-                    </h3>
-                    <DateScroller
-                      dates={calendarDates}
-                      selectedDate={selectedDate}
-                      onSelect={(d) => {
-                        setSelectedDate(d);
-                        setSelectedSlot(null);
-                      }}
-                      availableDates={availableDateStrings}
-                    />
-                  </div>
 
-                  {/* Time Slot Grid */}
-                  <div
-                    className={`transition-opacity duration-300 ${
-                      !selectedDate
-                        ? "opacity-50 pointer-events-none grayscale"
-                        : "opacity-100"
-                    }`}
-                  >
-                    <h3 className="font-semibold mb-4 text-muted-foreground text-sm">
-                      Available Times
-                    </h3>
-                    {slotsForDate.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-4">
-                        No available slots for this day.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                        {slotsForDate.map((slot) => {
-                          const isSelected = selectedSlot?.id === slot.id;
-                          const time = getSlotTime(slot);
-                          const duration = getSlotDuration(slot);
-                          return (
-                            <Button
-                              key={slot.id}
-                              variant={isSelected ? "default" : "outline"}
-                              onClick={() => setSelectedSlot(slot)}
-                              className="flex flex-col items-center gap-0.5 h-auto py-2"
-                            >
-                              <span className="flex items-center gap-1.5 text-xs">
-                                <Clock className="w-3 h-3" />
-                                {time}
+                {/* Time Slot Grid */}
+                <div>
+                  <h3 className="font-semibold mb-4 text-muted-foreground text-sm">
+                    Available Times
+                  </h3>
+                  {!selectedDate ? (
+                    <p className="text-sm text-muted-foreground py-4">
+                      Pick a date above to see available times.
+                    </p>
+                  ) : isLoadingSlots ? (
+                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <Skeleton key={i} className="h-9 w-full rounded-md" />
+                      ))}
+                    </div>
+                  ) : slotsForDate.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-4">
+                      No available slots for this day. Please pick another date.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                      {slotsForDate.map((slot) => {
+                        const isSelected = selectedSlot?.id === slot.id;
+                        const time = getSlotTime(slot);
+                        const duration = getSlotDuration(slot);
+                        return (
+                          <Button
+                            key={slot.id}
+                            variant={isSelected ? "default" : "outline"}
+                            onClick={() => setSelectedSlot(slot)}
+                            className="flex flex-col items-center gap-0.5 h-auto py-2"
+                          >
+                            <span className="flex items-center gap-1.5 text-xs">
+                              <Clock className="w-3 h-3" />
+                              {time}
+                            </span>
+                            {duration && (
+                              <span className="text-[10px] opacity-70">
+                                {duration} min
                               </span>
-                              {duration && (
-                                <span className="text-[10px] opacity-70">
-                                  {duration} min
-                                </span>
-                              )}
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              )}
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </Card>
             </div>
           )}
 

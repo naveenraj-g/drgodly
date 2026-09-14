@@ -14,7 +14,7 @@
  *     c. updateIntakeAction(id, conversation, report) → status=COMPLETED.
  *     d. Opens IntakeCompleteModal.
  *
- * UI mirrors drgodly-mvp TextIntake exactly: Brain-icon header with live
+ * UI mirrors drgodly-mvp TextIntake exactly: Bot-icon header with live
  * Online/Thinking status, ConversationChat thread, Input + Stop/Send + End Chat.
  */
 
@@ -23,7 +23,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
-import { Brain, Loader2, Send, Square } from "lucide-react";
+import { Bot, Loader2, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -43,6 +43,14 @@ interface TextIntakeProps {
   basePath: string;
   /** Patient's display name — shown as avatar initial in the chat thread. */
   userName: string;
+  /**
+   * Precomputed "[Patient context: name=..., age=..., email=..., phone=...]"
+   * string (see buildPatientContextPrefix in shared/helper.ts). Silently
+   * prepended to the first outgoing agent message of a new session only —
+   * lets the agent skip re-asking for demographic details already on file.
+   * Never shown in the chat bubble itself.
+   */
+  patientContext?: string;
 }
 
 /**
@@ -60,6 +68,7 @@ export function TextIntake({
   orgId,
   basePath,
   userName,
+  patientContext,
 }: TextIntakeProps) {
   // DB id — only set after endChat creates the record
   const [intakeId, setIntakeId] = useState<number | null>(null);
@@ -156,12 +165,20 @@ export function TextIntake({
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // sessionId is null only before the very first response of a brand-new
+      // session — that's the one turn we silently prepend the patient context
+      // to, so the agent has name/age/contact up front instead of asking.
+      const apiMessage =
+        sessionId === null && patientContext
+          ? `${patientContext}\n\n${text}`
+          : text;
+
       try {
         const res = await fetch("/api/intake-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           // sessionId is null on the first message; the agent creates a new session
-          body: JSON.stringify({ message: text, session_id: sessionId }),
+          body: JSON.stringify({ message: apiMessage, session_id: sessionId }),
           signal: controller.signal,
         });
 
@@ -221,7 +238,7 @@ export function TextIntake({
         abortRef.current = null;
       }
     },
-    [isStreaming, sessionId, parseChunkLine],
+    [isStreaming, sessionId, parseChunkLine, patientContext],
   );
 
   const cancelStream = () => abortRef.current?.abort();
@@ -304,19 +321,16 @@ export function TextIntake({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-156px)]">
+      <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-132px)]">
         {/* ── Header ── */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border bg-card shadow-sm">
           <div
             className={`bg-primary/10 rounded-full p-2 shrink-0 ${isStreaming ? "animate-pulse" : ""}`}
           >
-            <Brain className="size-5 text-primary" />
+            <Bot className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm leading-none">Bezs AI</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Intake Assistant
-            </p>
+            <p className="font-semibold text-sm">Pre-Visit Intake Bot</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span

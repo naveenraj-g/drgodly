@@ -800,7 +800,7 @@ export function DoctorReportSection({
         {/* Header */}
         <div className="flex items-center gap-2">
           <Stethoscope className="size-4 text-primary" />
-          <h2 className="font-semibold text-sm">Doctor&apos;s Report</h2>
+          <h2 className="font-semibold text-base">Doctor&apos;s Report</h2>
           {/* Doctor side only. The patient never sees an unreviewed note, so
               there is nothing for them to tag. */}
           {!isPatientView && soap != null && (

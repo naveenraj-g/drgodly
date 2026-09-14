@@ -173,7 +173,7 @@ export default function ProfileSettings({ user }: { user: User }) {
             <UserCircle className="size-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Profile</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Profile</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               Manage your personal information and connected accounts.
             </p>

@@ -4,14 +4,20 @@
  * Layer: client / telemedicine / patient / modals / appointments
  *
  * Opens when the patient store's type === "rescheduleAppointment".
- * Fetches free FHIR Slots for the appointment's practitioner, then renders
- * the same DateScroller + time-slot grid used in the booking wizard (Step 2).
+ * Mirrors the day-of-week-hinted date/slot picker from the booking wizard's
+ * Step 2 (BookAppointment.tsx): the DateScroller dims any day-of-week the
+ * practitioner never works (read straight off the resolved PractitionerRole's
+ * own `availability` data — no fetch needed), and slots are fetched one day
+ * at a time (`date=`, not a 30-day range) once a date is picked — a single
+ * day never comes close to the API's 200-row page cap the way a whole
+ * month's slots can, so this can't silently truncate the calendar.
  *
  * Data flow:
  *   1. Extract practitioner_id from appointment.participant.
- *   2. listPractitionerRolesAction({ practitioner_id }) → practitioner_role_id.
- *   3. listSlotsAction({ practitioner_role_id, status: "free" }) → free slots.
- *   4. User picks date → slot → updateAppointmentAction({ id, start, end }).
+ *   2. listPractitionerRolesAction({ practitioner_id }) → practitioner_role_id
+ *      (its `availability` field also hints which days of the week to show).
+ *   3. User picks a date → listSlotsAction({ practitioner_role_id, status: "free", date }).
+ *   4. User picks a slot → rescheduleAppointmentAction({ id, new_slot_id }).
  *
  * Mounted once inside PatientModalProvider. No props required.
  */
@@ -46,6 +52,7 @@ import { usePatientStore } from "../../stores/patient.store";
 import { patientAppointmentKeys } from "../../component/appointments/list/appointmentQueries";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import type { TSlotResponse } from "@/modules/entities/schemas/slot";
+import type { TPractitionerRoleResponse } from "@/modules/entities/schemas/practitioner-role";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -105,6 +112,41 @@ function getPractitionerId(
   );
 }
 
+/** FHIR R4 DaysOfWeek codes, indexed to match JS Date.getDay() (0 = Sunday). */
+const WEEKDAY_CODES = [
+  "sun",
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+] as const;
+
+/**
+ * Reads which days of the week a PractitionerRole has ANY declared available
+ * time on — same helper as BookAppointment.tsx's Step 2. Straight off the
+ * resolved role, no extra fetch needed.
+ *
+ * @param role - The resolved PractitionerRole for this appointment.
+ * @returns Set of lowercase weekday codes (e.g. "mon"), or null if the role
+ *   declares no availability data at all — callers should treat null as
+ *   "don't restrict," not "restrict to nothing."
+ */
+function getRoleAvailableDaysOfWeek(
+  role: TPractitionerRoleResponse,
+): Set<string> | null {
+  const days = new Set<string>();
+  let hasAnyAvailableTime = false;
+  role.availability?.forEach((block) => {
+    block.available_times?.forEach((t) => {
+      hasAnyAvailableTime = true;
+      t.days_of_week?.forEach((d) => days.add(d.toLowerCase().slice(0, 3)));
+    });
+  });
+  return hasAnyAvailableTime ? days : null;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
@@ -126,6 +168,15 @@ export function RescheduleAppointmentModal() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<TSlotResponse | null>(null);
 
+  // "Now", as state rather than a bare Date.now() call in render — refreshed
+  // every minute so a slot rolls off the list on its own if this dialog is
+  // left open past its start time, instead of only re-checking on the next render.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Reset selections each time the modal opens so stale state doesn't carry over.
   useEffect(() => {
     if (open) {
@@ -133,17 +184,6 @@ export function RescheduleAppointmentModal() {
       setSelectedSlot(null);
     }
   }, [open]);
-
-  // ── 30-day date window (memo-stable) ─────────────────────────────────────────
-  const dateRange = useMemo(() => {
-    const from = new Date();
-    const to = new Date();
-    to.setDate(to.getDate() + 30);
-    return {
-      start_from: from.toISOString().slice(0, 10),
-      start_to: to.toISOString().slice(0, 10),
-    };
-  }, []);
 
   const calendarDates = useMemo<Date[]>(() => {
     const dates: Date[] = [];
@@ -168,9 +208,37 @@ export function RescheduleAppointmentModal() {
     },
   );
 
-  const practitionerRoleId = rolesData?.data[0]?.id ?? null;
+  const practitionerRole = rolesData?.data[0] ?? null;
+  const practitionerRoleId = practitionerRole?.id ?? null;
 
-  // ── Step 2: fetch free slots for the resolved role ────────────────────────────
+  // ── Derived: which calendar dates to show as enabled ────────────────────────
+  // Dims any day-of-week the resolved role never declares available time on
+  // (data already on the role, no fetch needed) — a hint, not a guarantee; a
+  // date can still turn out empty once its slots are fetched, which the
+  // time-grid's own empty state handles. Null availability data (role not
+  // resolved yet, or declares none) leaves every date enabled.
+  const availableDateStrings = useMemo<Set<string> | undefined>(() => {
+    if (!practitionerRole) return undefined;
+    const allowedDays = getRoleAvailableDaysOfWeek(practitionerRole);
+    if (allowedDays === null) return undefined;
+    const s = new Set<string>();
+    calendarDates.forEach((d) => {
+      if (allowedDays.has(WEEKDAY_CODES[d.getDay()])) {
+        s.add(d.toISOString().slice(0, 10));
+      }
+    });
+    return s;
+  }, [practitionerRole, calendarDates]);
+
+  // ── Step 2: fetch free slots for the selected date only ───────────────────────
+  // One day at a time, not a 30-day range — a single day's slots never come
+  // close to the API's 200-row page cap the way a whole month's can, so this
+  // can't silently truncate the calendar the way the old eager range-fetch did.
+  const selectedDateStr = useMemo(
+    () => selectedDate?.toISOString().slice(0, 10) ?? null,
+    [selectedDate],
+  );
+
   const { data: slotsData, isLoading: isLoadingSlots } = useServerActionQuery(
     listSlotsAction,
     {
@@ -178,35 +246,29 @@ export function RescheduleAppointmentModal() {
         payload: {
           practitioner_role_id: practitionerRoleId ?? 0,
           status: "free",
-          start_from: dateRange.start_from,
-          start_to: dateRange.start_to,
-          limit: 150,
+          date: selectedDateStr ?? undefined,
+          limit: 200,
         },
       },
-      queryKey: ["reschedule-slots", practitionerRoleId, dateRange.start_from],
-      enabled: !!practitionerRoleId,
+      queryKey: ["reschedule-slots", practitionerRoleId, selectedDateStr],
+      enabled: !!practitionerRoleId && !!selectedDateStr,
     },
   );
 
-  const freeSlots = slotsData?.data ?? [];
-
-  // ── Derived: ISO date strings that have at least one free slot ────────────────
-  const availableDateStrings = useMemo<Set<string>>(() => {
-    const s = new Set<string>();
-    freeSlots.forEach((sl) => {
-      if (sl.start) s.add(sl.start.slice(0, 10));
-    });
-    return s;
-  }, [freeSlots]);
+  const slotsForSelectedDate = useMemo<TSlotResponse[]>(
+    () => slotsData?.data ?? [],
+    [slotsData],
+  );
 
   // ── Derived: slots for the currently selected date ────────────────────────────
+  // Already scoped server-side to selectedDateStr — this just drops any slot
+  // whose start has already passed and sorts.
   const slotsForDate = useMemo<TSlotResponse[]>(() => {
     if (!selectedDate) return [];
-    const dateStr = selectedDate.toISOString().slice(0, 10);
-    return freeSlots
-      .filter((sl) => sl.start?.startsWith(dateStr))
+    return slotsForSelectedDate
+      .filter((sl) => sl.start && new Date(sl.start).getTime() > now)
       .sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""));
-  }, [freeSlots, selectedDate]);
+  }, [slotsForSelectedDate, selectedDate, now]);
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   const { execute, isPending } = useServerAction(rescheduleAppointmentAction, {
@@ -240,7 +302,6 @@ export function RescheduleAppointmentModal() {
   }
 
   const doctorName = getDoctorName(appointment);
-  const isLoading = isLoadingRole || isLoadingSlots;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -263,8 +324,9 @@ export function RescheduleAppointmentModal() {
           <span className="text-foreground text-sm font-semibold">{doctorName}</span>
         </div>
 
-        {/* Loading skeleton — mirrors the DateScroller + slot grid layout */}
-        {isLoading ? (
+        {/* Loading skeleton — while the PractitionerRole is still resolving.
+            Mirrors the DateScroller + slot grid layout so the swap-in is seamless. */}
+        {isLoadingRole ? (
           <Card className="space-y-6 p-4">
             {/* Date scroller skeleton */}
             <div>
@@ -304,17 +366,23 @@ export function RescheduleAppointmentModal() {
             </div>
 
             {/* Time slot grid */}
-            <div
-              className={`transition-opacity duration-300 ${
-                !selectedDate ? "opacity-50 pointer-events-none grayscale" : "opacity-100"
-              }`}
-            >
+            <div>
               <h3 className="font-semibold text-muted-foreground text-sm mb-4">
                 Available Times
               </h3>
-              {slotsForDate.length === 0 && selectedDate ? (
+              {!selectedDate ? (
                 <p className="text-sm text-muted-foreground py-4">
-                  No available slots for this day.
+                  Pick a date above to see available times.
+                </p>
+              ) : isLoadingSlots ? (
+                <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Skeleton key={i} className="h-9 w-full rounded-md" />
+                  ))}
+                </div>
+              ) : slotsForDate.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">
+                  No available slots for this day. Please pick another date.
                 </p>
               ) : (
                 <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">

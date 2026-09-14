@@ -3,8 +3,8 @@
  *
  * Layer: client / telemedicine / patient / component / dashboard
  *
- * A lightweight, non-paginated table displaying appointment date, type, doctor, and
- * status badge. Consumed only by PatientDashboard (not the full appointments list page).
+ * A lightweight, non-paginated table displaying appointment date, time, doctor,
+ * and status badge. Consumed only by PatientDashboard (not the full appointments list page).
  * Status badges map FHIR status codes to human-readable labels and colours.
  */
 
@@ -31,8 +31,6 @@ export interface DashboardAppointment {
   id: number;
   /** ISO datetime string, e.g. "2026-06-15T09:30:00Z". */
   date?: string | null;
-  /** Appointment type label, e.g. "Virtual Consultation". */
-  type?: string | null;
   /** Doctor display name derived from participants. */
   doctorName?: string | null;
   /** FHIR appointment status code. */
@@ -91,6 +89,19 @@ function formatDate(iso: string): string {
   });
 }
 
+/**
+ * Returns a localised time string for display in the table.
+ *
+ * @param iso - ISO 8601 datetime string (same value formatDate reads).
+ * @returns Human-readable time, e.g. "9:30 AM".
+ */
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
@@ -123,7 +134,7 @@ export function RecentAppointmentsTable({ appointments }: RecentAppointmentsTabl
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
+              <TableHead>Time</TableHead>
               <TableHead>Doctor</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -143,7 +154,7 @@ export function RecentAppointmentsTable({ appointments }: RecentAppointmentsTabl
                     {appt.date ? formatDate(appt.date) : "—"}
                   </TableCell>
                   <TableCell className="text-sm">
-                    {appt.type ?? "Consultation"}
+                    {appt.date ? formatTime(appt.date) : "—"}
                   </TableCell>
                   <TableCell className="text-sm">
                     {appt.doctorName ?? "—"}

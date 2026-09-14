@@ -131,7 +131,6 @@ export function PatientDashboard({ userName, appointments }: PatientDashboardPro
       .map((a) => ({
         id: a.id,
         date: a.start,
-        type: a.appointment_type_display,
         doctorName: getDoctorName(a),
         status: a.status,
       }));
@@ -149,58 +148,70 @@ export function PatientDashboard({ userName, appointments }: PatientDashboardPro
         </p>
       </div>
 
-      {/* ── Two-column layout ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
-        {/* ── Left column ── */}
-        <div className="space-y-6">
-          {/* Stat cards — 2×2 grid */}
-          <div className="grid grid-cols-2 gap-4">
-            <StatCard
-              title="Total"
-              value={stats.total}
-              icon={Calendar}
-              colorVariant="blue"
-              note="All appointments on record"
-            />
-            <StatCard
-              title="Pending"
-              value={stats.pending}
-              icon={Clock}
-              colorVariant="yellow"
-              note="Awaiting or upcoming"
-            />
-            <StatCard
-              title="Completed"
-              value={stats.completed}
-              icon={CheckCircle2}
-              colorVariant="emerald"
-              note="Fulfilled consultations"
-            />
-            <StatCard
-              title="Cancelled"
-              value={stats.cancelled}
-              icon={XCircle}
-              colorVariant="rose"
-              note="Cancelled or no-show"
-            />
-          </div>
-
-          {/* Monthly bar chart */}
-          <div className="h-80">
-            <AppointmentBarChart data={monthlyData} />
-          </div>
-
-          {/* Recent appointments table */}
-          <RecentAppointmentsTable appointments={recentAppointments} />
+      {/*
+       * One shared grid for all four widgets, using `order` (not DOM
+       * position) to control layout per breakpoint — this lets the mobile
+       * stacking order (stats, recent, chart, summary) differ from the
+       * desktop pairing (stats+summary in row 1, chart+recent in row 2)
+       * without duplicating any component.
+       *
+       * 12 columns (rather than a plain 2-column grid) so each row can carry
+       * its own ratio via col-span: row 1 is 9/3 (stats wide, summary
+       * narrow), row 2 is 6/6 (chart/recent split evenly). Auto-placement
+       * fills by ascending order value, wrapping to a new row once a row's
+       * spans add up to 12 — order 1-2 (9+3) fill row 1, order 3-4 (6+6)
+       * fill row 2. Below xl (single column) items just stack in order.
+       *
+       * xl:h-auto on the summary chart lets it stretch to the stat-cards
+       * grid's own height (its only row sibling), instead of spanning the
+       * whole page like before restructuring this.
+       */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div className="order-1 xl:order-1 xl:col-span-9 grid grid-cols-2 gap-4">
+          <StatCard
+            title="Total"
+            value={stats.total}
+            icon={Calendar}
+            colorVariant="blue"
+            note="All appointments on record"
+          />
+          <StatCard
+            title="Pending"
+            value={stats.pending}
+            icon={Clock}
+            colorVariant="yellow"
+            note="Awaiting or upcoming"
+          />
+          <StatCard
+            title="Completed"
+            value={stats.completed}
+            icon={CheckCircle2}
+            colorVariant="emerald"
+            note="Fulfilled consultations"
+          />
+          <StatCard
+            title="Cancelled"
+            value={stats.cancelled}
+            icon={XCircle}
+            colorVariant="rose"
+            note="Cancelled or no-show"
+          />
         </div>
 
-        {/* ── Right column ── */}
-        <div className="h-[360px] xl:h-auto">
+        <div className="order-4 xl:order-2 xl:col-span-3 h-[280px] xl:h-auto">
           <AppointmentSummaryChart
             pending={stats.pending}
             completed={stats.completed}
             total={stats.total}
           />
+        </div>
+
+        <div className="order-3 xl:order-3 xl:col-span-6 h-80">
+          <AppointmentBarChart data={monthlyData} />
+        </div>
+
+        <div className="order-2 xl:order-4 xl:col-span-6">
+          <RecentAppointmentsTable appointments={recentAppointments} />
         </div>
       </div>
     </div>

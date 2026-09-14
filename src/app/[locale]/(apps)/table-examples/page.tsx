@@ -38,7 +38,7 @@ export default function TableExamplesPage() {
     <div className="space-y-10">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Table Examples</h1>
+        <h1 className="text-2xl font-semibold">Table Examples</h1>
         <p className="mt-1 text-muted-foreground">
           Reusable data-table components with advanced filters, sorting,
           pagination, row selection, bulk actions, and grid view.

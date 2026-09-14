@@ -580,10 +580,18 @@ export function DoctorAssistant({ selectedAppointment }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const liveRef = useRef("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem(SHOW_TOOL_ACTIVITY_KEY, String(showToolActivity));
   }, [showToolActivity]);
+
+  // Re-focus the input whenever the agent finishes streaming so the doctor
+  // can type their next question without clicking the field manually —
+  // mirrors TextIntake.tsx's same pattern.
+  useEffect(() => {
+    if (!isStreaming) inputRef.current?.focus();
+  }, [isStreaming]);
 
   useEffect(() => {
     setMessages([]);
@@ -770,6 +778,13 @@ export function DoctorAssistant({ selectedAppointment }: Props) {
           side="right"
           className="@container flex h-full w-full max-w-none flex-col gap-0 p-0"
           style={{ width: `${drawerWidth}px`, maxWidth: "calc(100vw - 1rem)" }}
+          // Radix focuses the first focusable element (the sheet's own
+          // close button) by default when it opens — override that and put
+          // the cursor straight in the question box instead.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+          }}
         >
           <div
             role="separator"
@@ -898,6 +913,7 @@ export function DoctorAssistant({ selectedAppointment }: Props) {
           <div className="border-t px-4 py-3">
             <div className="flex items-center gap-2">
               <Input
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {

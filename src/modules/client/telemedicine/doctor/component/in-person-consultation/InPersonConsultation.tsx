@@ -32,13 +32,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  Loader2,
-  Mic,
-  MicOff,
-  Stethoscope,
-  CheckCircle2,
-} from "lucide-react";
+import { Loader2, Mic, MicOff, Stethoscope, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "@/i18n/navigation";
 import { completeConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
@@ -138,7 +132,10 @@ function float32ToPcm16(float32: Float32Array): ArrayBuffer {
  * @param timestamp - ISO timestamp to attach to every line (agent doesn't provide per-line timestamps).
  * @returns Parsed DiarizedLine array.
  */
-function parseDiarizedTranscript(raw: string, timestamp: string): DiarizedLine[] {
+function parseDiarizedTranscript(
+  raw: string,
+  timestamp: string,
+): DiarizedLine[] {
   return raw
     .split("\n")
     .map((line) => line.trim())
@@ -195,7 +192,9 @@ export function InPersonConsultation({
   /** Detected language code from the agent (e.g. "en", "ta"). */
   const [detectedLang, setDetectedLang] = useState<string | null>(null);
   /** Final diarized lines — populated only after the session completes. */
-  const [diarizedLines, setDiarizedLines] = useState<DiarizedLine[] | null>(null);
+  const [diarizedLines, setDiarizedLines] = useState<DiarizedLine[] | null>(
+    null,
+  );
   /** Elapsed seconds — ticked while recording. */
   const [elapsed, setElapsed] = useState(0);
 
@@ -300,7 +299,10 @@ export function InPersonConsultation({
 
       // Map to the virtual_conversation schema shape expected by completeConsultationAction
       const virtualConversation = lines.map((l) => ({
-        speaker: l.speaker === "UNKNOWN" ? "PATIENT" : l.speaker as "DOCTOR" | "PATIENT",
+        speaker:
+          l.speaker === "UNKNOWN"
+            ? "PATIENT"
+            : (l.speaker as "DOCTOR" | "PATIENT"),
         text: l.text,
         timestamp: l.timestamp,
       }));
@@ -316,7 +318,8 @@ export function InPersonConsultation({
         });
         if (res.ok) {
           fullReport = await res.json();
-          soapNote = (fullReport?.soap_report as Record<string, unknown>) ?? null;
+          soapNote =
+            (fullReport?.soap_report as Record<string, unknown>) ?? null;
         }
       } catch {
         /* non-fatal — still complete the consultation without a report */
@@ -333,7 +336,9 @@ export function InPersonConsultation({
       });
 
       if (completeErr) {
-        toast.error("In-person consultation ended but report could not be saved.");
+        toast.error(
+          "In-person consultation ended but report could not be saved.",
+        );
       } else {
         toast.success("In-person consultation completed");
       }
@@ -368,7 +373,11 @@ export function InPersonConsultation({
             actual_period_end: new Date().toISOString(),
             appointment: [{ reference: `Appointment/${fhirAppointmentId}` }],
             ...(practitionerId
-              ? { participant: [{ reference: `Practitioner/${practitionerId}` }] }
+              ? {
+                  participant: [
+                    { reference: `Practitioner/${practitionerId}` },
+                  ],
+                }
               : {}),
             ...(orgId ? { org_id: orgId } : {}),
           },
@@ -507,7 +516,11 @@ export function InPersonConsultation({
             });
           }
         } catch (parseErr) {
-          console.warn("[InPersonConsultation] unparseable message:", event.data, parseErr);
+          console.warn(
+            "[InPersonConsultation] unparseable message:",
+            event.data,
+            parseErr,
+          );
         }
       };
 
@@ -555,7 +568,9 @@ export function InPersonConsultation({
   /** Formats elapsed seconds as MM:SS or H:MM:SS. */
   function formatElapsed(secs: number): string {
     const h = Math.floor(secs / 3600);
-    const m = Math.floor((secs % 3600) / 60).toString().padStart(2, "0");
+    const m = Math.floor((secs % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
     const s = (secs % 60).toString().padStart(2, "0");
     return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
   }
@@ -585,8 +600,7 @@ export function InPersonConsultation({
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-3 w-full h-[calc(100dvh-156px)] overflow-hidden">
-
+    <div className="flex flex-col gap-3 w-full h-[calc(100dvh-132px)] overflow-hidden">
       {/* ── Header bar ── */}
       <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-secondary border border-border shrink-0">
         <div className="flex items-center gap-4">
@@ -596,9 +610,13 @@ export function InPersonConsultation({
               {isRecording && (
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
               )}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${statusDotClass}`} />
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${statusDotClass}`}
+              />
             </span>
-            <span className={`text-xs font-semibold uppercase tracking-wider ${isRecording ? "text-red-500" : "text-muted-foreground"}`}>
+            <span
+              className={`text-xs font-semibold uppercase tracking-wider ${isRecording ? "text-red-500" : "text-muted-foreground"}`}
+            >
               {isRecording ? "Live" : statusLabel}
             </span>
           </div>
@@ -607,7 +625,9 @@ export function InPersonConsultation({
 
           <div className="text-sm leading-tight">
             <p className="text-muted-foreground text-xs">Doctor</p>
-            <p className="font-medium text-secondary-foreground">{doctorName}</p>
+            <p className="font-medium text-secondary-foreground">
+              {doctorName}
+            </p>
           </div>
 
           {patientName && (
@@ -615,7 +635,9 @@ export function InPersonConsultation({
               <div className="h-4 w-px bg-border" />
               <div className="text-sm leading-tight">
                 <p className="text-muted-foreground text-xs">Patient</p>
-                <p className="font-medium text-secondary-foreground">{patientName}</p>
+                <p className="font-medium text-secondary-foreground">
+                  {patientName}
+                </p>
               </div>
             </>
           )}
@@ -699,7 +721,6 @@ export function InPersonConsultation({
 
       {/* ── Body: two-column layout ── */}
       <div className="flex flex-1 gap-3 min-h-0">
-
         {/* Left: live partial transcripts */}
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <div className="flex items-center gap-2">
@@ -710,11 +731,14 @@ export function InPersonConsultation({
             </span>
           </div>
 
-          <div ref={partialsScrollRef} className="flex-1 min-h-0 rounded-xl border bg-card overflow-auto p-4">
+          <div
+            ref={partialsScrollRef}
+            className="flex-1 min-h-0 rounded-xl border bg-card overflow-auto p-4"
+          >
             {partials.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">
                 {sessionStatus === "idle"
-                  ? "Click \"Start Recording\" to begin the in-person consultation."
+                  ? 'Click "Start Recording" to begin the in-person consultation.'
                   : isConnecting
                     ? "Connecting to diarization agent..."
                     : "Waiting for speech..."}
@@ -729,7 +753,9 @@ export function InPersonConsultation({
                     <span className="shrink-0 mt-0.5 text-[10px] font-mono font-semibold text-muted-foreground bg-muted border rounded px-1.5 py-0.5 leading-none">
                       {i + 1}
                     </span>
-                    <p className="text-sm text-foreground leading-relaxed">{p}</p>
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {p}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -744,7 +770,10 @@ export function InPersonConsultation({
             <span className="text-sm font-medium">Diarized Transcript</span>
           </div>
 
-          <div ref={diarizedScrollRef} className="flex-1 min-h-0 rounded-xl border bg-card overflow-auto p-4">
+          <div
+            ref={diarizedScrollRef}
+            className="flex-1 min-h-0 rounded-xl border bg-card overflow-auto p-4"
+          >
             {diarizedLines === null ? (
               <p className="text-sm text-muted-foreground italic">
                 {isFinalizing
@@ -770,7 +799,9 @@ export function InPersonConsultation({
                           ? "Patient"
                           : "Unknown"}
                     </span>
-                    <p className="text-sm text-foreground leading-relaxed">{line.text}</p>
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {line.text}
+                    </p>
                   </div>
                 ))}
               </div>

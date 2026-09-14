@@ -22,7 +22,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
-import { Brain, Loader2 } from "lucide-react";
+import { Bot, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -248,9 +248,9 @@ export function VoiceIntake({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="flex flex-col gap-4 w-full overflow-hidden h-[calc(100dvh-156px)]">
+      <div className="flex flex-col gap-4 w-full overflow-hidden h-[calc(100dvh-132px)]">
         {/* ── Title ── */}
-        <h1 className="text-xl font-bold text-center">
+        <h1 className="text-2xl font-semibold text-center">
           Talk to Your AI Intake Assistant
         </h1>
 
@@ -261,10 +261,9 @@ export function VoiceIntake({
             <div
               className={`bg-secondary w-fit rounded-full p-4 mb-1 ${callStarted ? "animate-pulse" : ""}`}
             >
-              <Brain className="size-10" />
+              <Bot className="size-10" />
             </div>
-            <p className="font-bold">Bezs AI</p>
-            <p className="text-xs text-muted-foreground">Intake Assistant</p>
+            <p className="font-bold">Pre-Visit Intake Bot</p>
             <Badge className="mt-4" variant="secondary">
               {callStarted
                 ? "Connected"

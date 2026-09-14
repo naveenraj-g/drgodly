@@ -384,7 +384,12 @@ export type TUpdateAppointment = z.infer<typeof UpdateAppointmentValidationSchem
 
 /** Query params for GET /appointments/ (admin cross-tenant list). */
 export const ListAppointmentsValidationSchema = z.object({
-  status: AppointmentStatusSchema.optional(),
+  /**
+   * Filter by lifecycle status. Comma-separate multiple values to OR them
+   * together (e.g. "pending,booked") — a plain string rather than the
+   * AppointmentStatusSchema enum so it can carry more than one code.
+   */
+  status: z.string().optional(),
   patient_id: z.number().int().optional(),
   /** Filter appointments where this practitioner is a participant (integer FHIR Practitioner.id). */
   practitioner_id: z.number().int().optional(),
@@ -392,8 +397,19 @@ export const ListAppointmentsValidationSchema = z.object({
   start_from: z.string().optional(),
   /** Filter by appointment start ≤ this datetime (ISO 8601). */
   start_to: z.string().optional(),
+  /** Case-insensitive substring match on the patient's denormalised display name. */
+  patient_search: z.string().optional(),
   user_id: z.string().optional(),
   org_id: z.string().optional(),
+  /**
+   * FHIR `_sort`-style ordering, forwarded to fhir-gql/fhir-server as `_sort`.
+   * Comma-separated fields, each optionally "-"-prefixed for descending —
+   * e.g. "status-priority,-date". Supported: date, status, _id, patient, type,
+   * duration, and status-priority (buckets status into active/tentative/terminal
+   * tiers — a drgodly addition on top of the standard FHIR search params,
+   * replacing the client-side re-sort tables previously applied after fetching).
+   */
+  sort: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -407,9 +423,21 @@ export type TListAppointmentsQuery = z.infer<typeof ListAppointmentsValidationSc
 export const GetMyAppointmentsValidationSchema = z.object({
   /** Injected from session by the server action — never supplied by the client directly. */
   userId: z.string(),
-  status: AppointmentStatusSchema.optional(),
+  /**
+   * Filter by lifecycle status. Comma-separate multiple values to OR them
+   * together (e.g. "pending,booked") — a plain string rather than the
+   * AppointmentStatusSchema enum so it can carry more than one code.
+   */
+  status: z.string().optional(),
   start_from: z.string().optional(),
   start_to: z.string().optional(),
+  /** Case-insensitive substring match on the practitioner's denormalised display name. */
+  practitioner_search: z.string().optional(),
+  /**
+   * FHIR `_sort`-style ordering, forwarded to fhir-gql/fhir-server as `_sort`.
+   * Comma-separated fields, each optionally "-"-prefixed for descending.
+   */
+  sort: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),
 });

@@ -25,7 +25,7 @@
 import { useState, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
-import { Brain, Loader2, Send, Square } from "lucide-react";
+import { Bot, Loader2, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -47,6 +47,14 @@ interface TextConsultationProps {
   basePath: string;
   /** Patient's display name — shown as avatar initial in the chat thread. */
   userName: string;
+  /**
+   * Precomputed "[Patient context: name=..., age=..., email=..., phone=...]"
+   * string (see buildPatientContextPrefix in shared/helper.ts). Silently
+   * prepended to the first outgoing agent message of a new session only —
+   * lets the agent skip re-asking for demographic details already on file.
+   * Never shown in the chat bubble itself.
+   */
+  patientContext?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -67,6 +75,7 @@ export function TextConsultation({
   orgId,
   basePath,
   userName,
+  patientContext,
 }: TextConsultationProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -142,7 +151,11 @@ export function TextConsultation({
     async (text: string) => {
       if (!text.trim() || isStreaming) return;
 
-      const userMsg: ChatMessage = { key: nanoid(), from: "user", content: text };
+      const userMsg: ChatMessage = {
+        key: nanoid(),
+        from: "user",
+        content: text,
+      };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setIsStreaming(true);
@@ -152,11 +165,19 @@ export function TextConsultation({
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // sessionId is null only before the very first response of a brand-new
+      // session — that's the one turn we silently prepend the patient context
+      // to, so the agent has name/age/contact up front instead of asking.
+      const apiMessage =
+        sessionId === null && patientContext
+          ? `${patientContext}\n\n${text}`
+          : text;
+
       try {
         const res = await fetch("/api/consultation-agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text, session_id: sessionId }),
+          body: JSON.stringify({ message: apiMessage, session_id: sessionId }),
           signal: controller.signal,
         });
 
@@ -213,7 +234,7 @@ export function TextConsultation({
         abortRef.current = null;
       }
     },
-    [isStreaming, sessionId, parseChunkLine],
+    [isStreaming, sessionId, parseChunkLine, patientContext],
   );
 
   const cancelStream = () => abortRef.current?.abort();
@@ -259,7 +280,10 @@ export function TextConsultation({
         },
       });
       if (createErr || !created) {
-        console.error("[endChat] createAiConsultationAction failed:", createErr);
+        console.error(
+          "[endChat] createAiConsultationAction failed:",
+          createErr,
+        );
         toast.error("Failed to save consultation session");
         return;
       }
@@ -276,7 +300,10 @@ export function TextConsultation({
         },
       });
       if (updateErr) {
-        console.error("[endChat] updateAiConsultationAction failed:", updateErr);
+        console.error(
+          "[endChat] updateAiConsultationAction failed:",
+          updateErr,
+        );
         toast.error("Failed to save conversation");
         return;
       }
@@ -298,19 +325,16 @@ export function TextConsultation({
 
   return (
     <>
-      <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-156px)]">
+      <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-132px)]">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border bg-card shadow-sm">
           <div
             className={`bg-primary/10 rounded-full p-2 shrink-0 ${isStreaming ? "animate-pulse" : ""}`}
           >
-            <Brain className="size-5 text-primary" />
+            <Bot className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm leading-none">Bezs AI</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Consultation Agent
-            </p>
+            <p className="font-semibold text-sm">Consultation Bot</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span

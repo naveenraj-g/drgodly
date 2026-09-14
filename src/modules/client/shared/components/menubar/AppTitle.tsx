@@ -1,6 +1,5 @@
 "use client";
 
-import { Activity } from "lucide-react";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -8,6 +7,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Link } from "@/i18n/navigation";
+import { AppLogo } from "@/modules/client/shared/components/AppLogo";
 
 export function AppTitle() {
   const { setOpenMobile } = useSidebar();
@@ -21,9 +21,7 @@ export function AppTitle() {
           asChild
         >
           <Link href="/bezs" onClick={() => setOpenMobile(false)}>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Activity className="size-4" />
-            </div>
+            <AppLogo size={32} className="aspect-square size-8" />
             <div className="grid flex-1 text-start text-sm leading-tight">
               <span className="truncate font-bold">DrGodly</span>
               <span className="truncate text-xs text-muted-foreground">

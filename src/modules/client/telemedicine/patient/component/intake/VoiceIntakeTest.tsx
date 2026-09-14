@@ -30,7 +30,13 @@
  *     d. updateIntakeAction(id, conversation, report) → status=COMPLETED.
  *     e. Opens IntakeCompleteModal.
  *
- * UI mirrors TextIntake: Brain-icon header with live status dot, ConversationChat
+ *  While connected, two extra controls sit next to "End Call":
+ *     - Mic toggle: disables the captured MediaStreamTrack (sends silence)
+ *       rather than tearing down the capture pipeline.
+ *     - Restart: discards the in-progress call/transcript and immediately
+ *       reconnects — nothing from the aborted attempt is saved.
+ *
+ * UI mirrors TextIntake: Bot-icon header with live status dot, ConversationChat
  * thread, Start Call / End Call button.
  *
  * Optimisations over the plain HTML reference:
@@ -44,7 +50,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
-import { Brain, Loader2 } from "lucide-react";
+import { Bot, Loader2, Mic, MicOff, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   createIntakeAction,
@@ -85,6 +91,14 @@ interface VoiceIntakeTestProps {
   basePath: string;
   /** Patient's display name — shown in the header and as avatar initial. */
   userName: string;
+  /**
+   * Precomputed "[Patient context: name=..., age=..., email=..., phone=...]"
+   * string (see buildPatientContextPrefix in shared/helper.ts). Forwarded to
+   * /api/intake-voice-agent as ?patient_context=..., which appends it onto
+   * the resolved wsUrl — lets the voice agent read the patient's known
+   * demographics at connection time instead of asking for them again.
+   */
+  patientContext?: string;
 }
 
 /** Connection/activity status driving header indicator and button label. */
@@ -179,6 +193,7 @@ export function VoiceIntakeTest({
   orgId,
   basePath,
   userName,
+  patientContext,
 }: VoiceIntakeTestProps) {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -187,9 +202,14 @@ export function VoiceIntakeTest({
   const [endingPhase, setEndingPhase] = useState<EndingPhase>("idle");
   const [intakeId, setIntakeId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   // WebSocket
   const wsRef = useRef<WebSocket | null>(null);
+
+  /** Lets restartCall bypass startCall's "already disconnected?" guard —
+   *  set right before calling it, consumed (reset) on the very next call. */
+  const skipStartGuardRef = useRef(false);
 
   // Capture-side audio resources
   const captureCtxRef = useRef<AudioContext | null>(null);
@@ -306,6 +326,7 @@ export function VoiceIntakeTest({
     setStatus("disconnected");
     setLiveTranscript("");
     setLiveRole(null);
+    setIsMuted(false);
 
     const finalMessages = messagesRef.current;
     if (finalMessages.length === 0) {
@@ -370,12 +391,19 @@ export function VoiceIntakeTest({
     } finally {
       setEndingPhase("idle");
     }
-  }, [flushPendingUserTranscript, flushPendingAssistantText, teardown, patientFhirId, orgId]);
+  }, [
+    flushPendingUserTranscript,
+    flushPendingAssistantText,
+    teardown,
+    patientFhirId,
+    orgId,
+  ]);
 
   // ── Start call ────────────────────────────────────────────────────────────────
 
   const startCall = useCallback(async () => {
-    if (status !== "disconnected") return;
+    if (status !== "disconnected" && !skipStartGuardRef.current) return;
+    skipStartGuardRef.current = false;
 
     setMessages([]);
     messagesRef.current = [];
@@ -383,11 +411,17 @@ export function VoiceIntakeTest({
     pendingAssistantTextRef.current = "";
     setLiveTranscript("");
     setLiveRole(null);
+    setIsMuted(false);
     setStatus("connecting");
 
     try {
-      // 1. Get auth token + WS URL from the server-side proxy endpoint
-      const tokenRes = await fetch("/api/intake-voice-agent");
+      // 1. Get auth token + WS URL from the server-side proxy endpoint.
+      // Forward the patient context so the resolved wsUrl carries it as a
+      // query param the voice agent can read at connection time.
+      const tokenUrl = patientContext
+        ? `/api/intake-voice-agent?patient_context=${encodeURIComponent(patientContext)}`
+        : "/api/intake-voice-agent";
+      const tokenRes = await fetch(tokenUrl);
       if (!tokenRes.ok) {
         toast.error("Could not authenticate with voice agent");
         setStatus("disconnected");
@@ -398,9 +432,13 @@ export function VoiceIntakeTest({
         wsUrl: string;
       };
 
-      // 2. Open WebSocket
-      console.log("[VoiceIntakeTest] connecting to WS:", wsUrl);
-      const ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
+      // 2. Open WebSocket — wsUrl may already carry ?patient_context=..., so
+      // add the token via the URL API rather than string-concatenating a
+      // second "?".
+      const wsUrlObj = new URL(wsUrl);
+      wsUrlObj.searchParams.set("token", token);
+      console.log("[VoiceIntakeTest] connecting to WS:", wsUrlObj.toString());
+      const ws = new WebSocket(wsUrlObj.toString());
       wsRef.current = ws;
       ws.binaryType = "arraybuffer";
 
@@ -491,7 +529,10 @@ export function VoiceIntakeTest({
 
           if (data.type === "text" && data.text) {
             // Streaming agent text (backend sends incremental "text" events)
-            console.log("[VoiceIntakeTest] text (agent):", data.text.slice(0, 100));
+            console.log(
+              "[VoiceIntakeTest] text (agent):",
+              data.text.slice(0, 100),
+            );
             flushPendingUserTranscript();
             pendingAssistantTextRef.current += data.text;
             setLiveTranscript(pendingAssistantTextRef.current);
@@ -576,7 +617,47 @@ export function VoiceIntakeTest({
       teardown();
       setStatus("disconnected");
     }
-  }, [status, addMessage, flushPendingUserTranscript, flushPendingAssistantText, teardown]);
+  }, [
+    status,
+    addMessage,
+    flushPendingUserTranscript,
+    flushPendingAssistantText,
+    teardown,
+    patientContext,
+  ]);
+
+  // ── Mic mute toggle ───────────────────────────────────────────────────────────
+
+  /**
+   * Mutes/unmutes the mic by disabling the captured MediaStreamTrack — the
+   * AudioWorklet keeps running and sending frames (now silent) rather than
+   * tearing down and rebuilding the whole capture pipeline for a mute.
+   */
+  const toggleMic = useCallback(() => {
+    const stream = mediaStreamRef.current;
+    if (!stream) return;
+    const nextMuted = !isMuted;
+    stream.getAudioTracks().forEach((track) => {
+      track.enabled = !nextMuted;
+    });
+    setIsMuted(nextMuted);
+  }, [isMuted]);
+
+  // ── Restart call ──────────────────────────────────────────────────────────────
+
+  /**
+   * Discards the in-progress call/transcript and immediately reconnects —
+   * nothing from the aborted attempt is saved (unlike End Call).
+   */
+  const restartCall = useCallback(() => {
+    teardown();
+    setStatus("disconnected");
+    setLiveTranscript("");
+    setLiveRole(null);
+    setIsMuted(false);
+    skipStartGuardRef.current = true;
+    startCall();
+  }, [teardown, startCall]);
 
   // ── Derived UI values ─────────────────────────────────────────────────────────
 
@@ -604,19 +685,16 @@ export function VoiceIntakeTest({
 
   return (
     <>
-      <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-156px)]">
+      <div className="flex flex-col gap-3 w-full overflow-hidden h-[calc(100dvh-132px)]">
         {/* ── Header ── */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border bg-card shadow-sm">
           <div
             className={`bg-primary/10 rounded-full p-2 shrink-0 ${isConnected ? "animate-pulse" : ""}`}
           >
-            <Brain className="size-5 text-primary" />
+            <Bot className="size-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm leading-none">Bezs AI</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Voice Intake Assistant
-            </p>
+            <p className="font-semibold text-sm">Pre-Visit Intake Bot</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className={`size-2 rounded-full ${statusDotClass}`} />
@@ -635,27 +713,57 @@ export function VoiceIntakeTest({
         {/* ── Call controls ── */}
         <div className="flex gap-2 items-center justify-center">
           {isConnected ? (
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={endCall}
-              disabled={endingPhase !== "idle"}
-              className="px-6 rounded-2xl h-9"
-            >
-              {endingPhase === "report" ? (
-                <>
-                  <Loader2 className="animate-spin mr-1 size-3" />
-                  Generating...
-                </>
-              ) : endingPhase === "saving" ? (
-                <>
-                  <Loader2 className="animate-spin mr-1 size-3" />
-                  Saving...
-                </>
-              ) : (
-                "End Call"
-              )}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={toggleMic}
+                disabled={endingPhase !== "idle"}
+                className="rounded-2xl h-9 px-3 gap-1.5"
+                aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
+              >
+                {isMuted ? (
+                  <MicOff className="size-4" />
+                ) : (
+                  <Mic className="size-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {isMuted ? "Unmute" : "Mute"}
+                </span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={restartCall}
+                disabled={endingPhase !== "idle"}
+                className="rounded-2xl h-9 px-3 gap-1.5"
+                aria-label="Restart call"
+              >
+                <RotateCcw className="size-4" />
+                <span className="hidden sm:inline">Restart</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={endCall}
+                disabled={endingPhase !== "idle"}
+                className="px-6 rounded-2xl h-9"
+              >
+                {endingPhase === "report" ? (
+                  <>
+                    <Loader2 className="animate-spin mr-1 size-3" />
+                    Generating...
+                  </>
+                ) : endingPhase === "saving" ? (
+                  <>
+                    <Loader2 className="animate-spin mr-1 size-3" />
+                    Saving...
+                  </>
+                ) : (
+                  "End Call"
+                )}
+              </Button>
+            </>
           ) : (
             <Button
               size="sm"

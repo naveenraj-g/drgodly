@@ -54,8 +54,8 @@ interface DataTableViewOptionsProps<TData>
 // ---------------------------------------------------------------------------
 
 /**
- * Renders a "View" button opening a Command popover with a searchable list
- * of all columns that support hiding or pinning.
+ * Renders a "Columns" button opening a Command popover with a searchable
+ * list of all columns that support hiding or pinning.
  *
  * Visibility: a checkmark shows whether the column is currently visible;
  * clicking the row toggles visibility (only for hideable columns).
@@ -101,7 +101,7 @@ export function DataTableViewOptions<TData>({
           disabled={disabled}
         >
           <Settings2 className="text-muted-foreground" />
-          View
+          Columns
         </Button>
       </PopoverTrigger>
 

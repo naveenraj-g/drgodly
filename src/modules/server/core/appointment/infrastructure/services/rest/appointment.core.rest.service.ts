@@ -117,7 +117,7 @@ export class AppointmentCoreRestService {
    * userId is injected from the drgodly session, not derived from the fhir-gql JWT.
    *
    * @param userId - drgodly user ID to filter by.
-   * @param query - Optional additional filters (status, start_from, start_to, limit, offset).
+   * @param query - Optional additional filters (status, start_from, start_to, practitioner_search, sort, limit, offset).
    * @returns Paginated appointment list for the given user.
    */
   async getMe(
@@ -132,9 +132,11 @@ export class AppointmentCoreRestService {
       context: { operationId, userId },
     });
     try {
-      const res = await this.client.get<unknown>("/", {
-        params: { user_id: userId, ...query },
-      });
+      // fhir-gql's query param is named `_sort` (FHIR search convention) —
+      // translate on the wire, keep the TS-side field name plain `sort`.
+      const { sort, ...rest } = query;
+      const params = { user_id: userId, ...rest, ...(sort ? { _sort: sort } : {}) };
+      const res = await this.client.get<unknown>("/", { params });
       const data = await PaginatedAppointmentResponseSchema.parseAsync(res.data);
       logOperation("success", {
         name: "AppointmentCoreRestService.getMe",
@@ -158,7 +160,7 @@ export class AppointmentCoreRestService {
   /**
    * GET /appointments/ — paginated list with optional cross-tenant filters.
    *
-   * @param query - Filters (status, patient_id, start_from, start_to, user_id, org_id, limit, offset).
+   * @param query - Filters (status, patient_id, start_from, start_to, user_id, org_id, sort, limit, offset).
    * @returns Paginated appointment list.
    */
   async list(query?: TListAppointmentsQuery): Promise<TPaginatedAppointmentResponse> {
@@ -170,7 +172,11 @@ export class AppointmentCoreRestService {
       context: { operationId },
     });
     try {
-      const res = await this.client.get<unknown>("/", { params: query });
+      // fhir-gql's query param is named `_sort` (FHIR search convention) —
+      // translate on the wire, keep the TS-side field name plain `sort`.
+      const { sort, ...rest } = query ?? {};
+      const params = { ...rest, ...(sort ? { _sort: sort } : {}) };
+      const res = await this.client.get<unknown>("/", { params });
       const data = await PaginatedAppointmentResponseSchema.parseAsync(res.data);
       logOperation("success", {
         name: "AppointmentCoreRestService.list",

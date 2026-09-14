@@ -14,13 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OAuthPkceButton } from "@/modules/client/auth/components/OAuthPkceButton";
 import { ThemeSwitcher } from "@/theme/ThemeSwitcher";
-import LocaleSwitcher from "@/modules/client/shared/components/LocaleSwitcher";
 import { NavUser } from "@/modules/client/shared/components/NavUser";
 import { Link, useRouter } from "@/i18n/navigation";
 import { motion } from "framer-motion";
-import { Activity } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AuthResponse } from "@/modules/server/auth/types";
+import { AppLogo } from "@/modules/client/shared/components/AppLogo";
 
 /**
  * Top navigation bar for the marketing landing page.
@@ -65,9 +64,7 @@ export default function RootNavbar({
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 text-primary">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <Activity className="w-5 h-5" />
-            </div>
+            <AppLogo size={32} className="w-8 h-8" />
             <span className="text-2xl font-bold text-foreground tracking-tight">
               DrGodly
             </span>
@@ -109,7 +106,6 @@ export default function RootNavbar({
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <LocaleSwitcher />
             <ThemeSwitcher />
             {!user ? (
               <>

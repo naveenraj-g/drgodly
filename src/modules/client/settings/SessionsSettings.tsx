@@ -112,7 +112,7 @@ export default function SessionsSettings({ currentToken }: { currentToken: strin
             <ShieldAlert className="size-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Active Sessions</h1>
+            <h1 className="text-2xl font-semibold text-foreground">Active Sessions</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               Devices currently signed in to your account.
             </p>

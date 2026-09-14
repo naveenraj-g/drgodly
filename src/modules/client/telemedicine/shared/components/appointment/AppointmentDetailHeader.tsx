@@ -147,7 +147,7 @@ export function AppointmentDetailHeader({
 
       {/* Title row */}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">Appointment Details</h1>
+        <h1 className="text-2xl font-semibold">Appointment Details</h1>
         <Badge variant="outline" className={statusClass}>
           {statusLabel}
         </Badge>
@@ -185,7 +185,7 @@ export function AppointmentDetailHeader({
         {perspective === "patient" && doctorName && (
           <span className="flex items-center gap-1.5">
             <Stethoscope className="size-3.5 shrink-0" />
-            Dr. {doctorName}
+            {doctorName}
           </span>
         )}
         {perspective === "doctor" && patientName && (
