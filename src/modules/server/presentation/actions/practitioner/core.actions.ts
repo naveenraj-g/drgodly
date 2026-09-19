@@ -56,6 +56,7 @@ import {
 } from "@/modules/server/core/practitioner/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure, adminProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /**
  * Atomically creates a Practitioner with sub-resources in a single request.
@@ -65,14 +66,27 @@ import { authenticatedProcedure, adminProcedure } from "../procedures";
 export const createPractitionerFullAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePractitionerFullActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreatePractitionerFullAction }) => {
-    return await runWithTransport<TCreatePractitionerFullControllerOutput>(
-      async () => {
-        const data = await createPractitionerFullController(input.payload);
-        return { result: data, transport: input.transportOptions };
-      },
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreatePractitionerFullAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreatePractitionerFullControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await createPractitionerFullController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        },
+      );
+    },
+  );
 
 /**
  * Atomically updates a Practitioner's scalar fields and sub-resource arrays
@@ -95,27 +109,53 @@ export const updatePractitionerFullAction = authenticatedProcedure
 export const createPractitionerAction = adminProcedure
   .createServerAction()
   .input(CreatePractitionerActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreatePractitionerAction }) => {
-    return await runWithTransport<TCreatePractitionerControllerOutput>(
-      async () => {
-        const data = await createPractitionerController(input.payload);
-        return { result: data, transport: input.transportOptions };
-      },
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreatePractitionerAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreatePractitionerControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await createPractitionerController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        },
+      );
+    },
+  );
 
 /** Lists Practitioners with optional server-side filters and pagination. */
 export const listPractitionersAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionersActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListPractitionersAction }) => {
-    return await runWithTransport<TListPractitionersControllerOutput>(
-      async () => {
-        const data = await listPractitionersController(input.payload);
-        return { result: data };
-      },
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListPractitionersAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListPractitionersControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await listPractitionersController(enrichedPayload);
+          return { result: data };
+        },
+      );
+    },
+  );
 
 /**
  * Fetches the Practitioner record linked to the currently authenticated user.

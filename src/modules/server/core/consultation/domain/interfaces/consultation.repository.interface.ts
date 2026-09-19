@@ -14,6 +14,7 @@ import type {
   TCreateConsultation,
   TCompleteConsultation,
   TSaveClinicalData,
+  TSaveClinicalDraft,
   TAbandonConsultation,
   TListConsultationsQuery,
 } from "@/modules/entities/schemas/consultation";
@@ -51,6 +52,16 @@ export interface IConsultationRepository {
    * @throws NotFoundError if no consultation exists for this appointment.
    */
   saveClinicalData(dto: TSaveClinicalData): Promise<TConsultationResponse>;
+
+  /**
+   * Autosaves the review page's in-progress working copy, independent of the
+   * confirmed data saveClinicalData writes. Never touches published_at.
+   *
+   * @param dto - fhir_appointment_id, the draft slice(s) to write, or `clear: true`.
+   * @returns The updated Consultation record.
+   * @throws NotFoundError if no consultation exists for this appointment.
+   */
+  saveClinicalDraft(dto: TSaveClinicalDraft): Promise<TConsultationResponse>;
 
   /**
    * Marks a consultation as ABANDONED (participant left without completing).

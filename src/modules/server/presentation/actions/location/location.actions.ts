@@ -13,6 +13,7 @@
 
 "use server";
 
+import type { AuthResponse } from "@/modules/server/auth/types";
 import {
   CreateLocationActionSchema,
   DeleteLocationActionSchema,
@@ -44,27 +45,55 @@ import { adminProcedure } from "../procedures";
 export const createLocationAction = adminProcedure
   .createServerAction()
   .input(CreateLocationActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateLocationAction }) => {
-    return await runWithTransport<TCreateLocationControllerOutput>(
-      async () => {
-        const data = await createLocationController(input.payload);
-        return { result: data, transport: input.transportOptions };
-      }
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateLocationAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateLocationControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying
+          // a different org_id. org_id is required here; "" falls through to the
+          // schema's own min(1) validation if the session has no active org.
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? "",
+          };
+          const data = await createLocationController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        }
+      );
+    }
+  );
 
 /** Lists locations with optional server-side filters and pagination. */
 export const listLocationsAction = adminProcedure
   .createServerAction()
   .input(ListLocationsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListLocationsAction }) => {
-    return await runWithTransport<TListLocationsControllerOutput>(
-      async () => {
-        const data = await listLocationsController(input.payload);
-        return { result: data };
-      }
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListLocationsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListLocationsControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await listLocationsController(enrichedPayload);
+          return { result: data };
+        }
+      );
+    }
+  );
 
 /** Fetches a single location by its numeric ID. */
 export const getLocationByIdAction = adminProcedure

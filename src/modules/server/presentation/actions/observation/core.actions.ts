@@ -36,28 +36,55 @@ import {
 } from "@/modules/server/core/observation/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates an Observation (status required; value[x] fields optional). */
 export const createObservationAction = authenticatedProcedure
   .createServerAction()
   .input(CreateObservationActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateObservationAction }) => {
-    return await runWithTransport<TCreateObservationControllerOutput>(async () => {
-      const data = await createObservationController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateObservationAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateObservationControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createObservationController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists Observations with optional filters (status, patient_id, effective_from/to, etc.). */
 export const listObservationsAction = authenticatedProcedure
   .createServerAction()
   .input(ListObservationsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListObservationsAction }) => {
-    return await runWithTransport<TListObservationsControllerOutput>(async () => {
-      const data = await listObservationsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListObservationsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListObservationsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listObservationsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single Observation by numeric ID. */
 export const getObservationByIdAction = authenticatedProcedure

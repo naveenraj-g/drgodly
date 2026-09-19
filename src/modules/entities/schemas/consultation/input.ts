@@ -7,6 +7,7 @@
  *   - CreateConsultationValidationSchema   — provision room on booking
  *   - CompleteConsultationValidationSchema — write reports on end-call
  *   - SaveClinicalDataValidationSchema     — write extracted FHIR resources
+ *   - SaveClinicalDraftValidationSchema    — autosave the review page's working copy
  *   - AbandonConsultationValidationSchema  — mark as abandoned
  *   - GetConsultationByFhirAppointmentIdValidationSchema — lookup
  */
@@ -97,6 +98,38 @@ export const SaveClinicalDataValidationSchema = z.object({
   published_by: z.string().optional(),
 });
 export type TSaveClinicalData = z.infer<typeof SaveClinicalDataValidationSchema>;
+
+// ── Save clinical draft (autosave) ────────────────────────────────────────────
+
+/**
+ * Payload for autosaving the review page's in-progress working copy.
+ *
+ * Written every few seconds while the doctor types on the post-consultation
+ * review page — never touches published_at/published_by or the confirmed
+ * columns SaveClinicalDataValidationSchema writes to, so an autosave can
+ * never silently overwrite data that's already been approved and pushed to
+ * the EMR. "Confirm & Save" clears the draft (via `clear: true`) once it has
+ * republished the same data through SaveClinicalDataValidationSchema instead.
+ *
+ * Every field is optional so a caller can update just the slice it owns —
+ * omitted fields leave the existing draft value untouched.
+ */
+export const SaveClinicalDraftValidationSchema = z.object({
+  fhir_appointment_id: z.number().int().positive(),
+  soap_note: SoapNoteSchema.optional(),
+  conditions: z.array(z.unknown()).optional(),
+  observations: z.array(z.unknown()).optional(),
+  medication_requests: z.array(z.unknown()).optional(),
+  service_requests: z.array(z.unknown()).optional(),
+  /**
+   * When true, clears draft_updated_at (the draft's only presence signal)
+   * instead of writing the fields above. Sent once, right after a successful
+   * Confirm & Save, so a page refresh doesn't rehydrate a draft that's now
+   * identical to what was just published.
+   */
+  clear: z.boolean().optional(),
+});
+export type TSaveClinicalDraft = z.infer<typeof SaveClinicalDraftValidationSchema>;
 
 // ── Abandon ───────────────────────────────────────────────────────────────────
 

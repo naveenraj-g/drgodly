@@ -41,8 +41,9 @@ import { authenticatedProcedure } from "../procedures";
 
 /**
  * Creates a new IN_PROGRESS AI consultation session.
- * The session userId is injected server-side — the client cannot supply a
- * different userId to start a consultation on behalf of another user.
+ * The session userId and org_id are injected server-side — the client cannot
+ * supply a different userId to start a consultation on behalf of another
+ * user, or a different org_id to attribute the record to another tenant.
  */
 export const createAiConsultationAction = authenticatedProcedure
   .createServerAction()
@@ -55,10 +56,11 @@ export const createAiConsultationAction = authenticatedProcedure
       input: TCreateAiConsultationAction;
       ctx: { session: AuthResponse };
     }): Promise<TCreateAiConsultationControllerOutput> => {
-      // Inject userId from session — client supplies only mode + optional fields
+      // Inject userId/org_id from session — client supplies only mode + optional fields
       const enrichedPayload = {
         ...input.payload,
         userId: ctx.session.session.userId,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
       };
       return createAiConsultationController(enrichedPayload);
     },

@@ -36,28 +36,55 @@ import {
 } from "@/modules/server/core/service-request/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a ServiceRequest (status + intent required). */
 export const createServiceRequestAction = authenticatedProcedure
   .createServerAction()
   .input(CreateServiceRequestActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateServiceRequestAction }) => {
-    return await runWithTransport<TCreateServiceRequestControllerOutput>(async () => {
-      const data = await createServiceRequestController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateServiceRequestAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateServiceRequestControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createServiceRequestController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists ServiceRequests with optional filters (status, patient_id, authored_from/to, etc.). */
 export const listServiceRequestsAction = authenticatedProcedure
   .createServerAction()
   .input(ListServiceRequestsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListServiceRequestsAction }) => {
-    return await runWithTransport<TListServiceRequestsControllerOutput>(async () => {
-      const data = await listServiceRequestsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListServiceRequestsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListServiceRequestsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listServiceRequestsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single ServiceRequest by numeric ID. */
 export const getServiceRequestByIdAction = authenticatedProcedure

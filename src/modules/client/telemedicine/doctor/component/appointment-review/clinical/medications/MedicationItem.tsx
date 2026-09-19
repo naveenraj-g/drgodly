@@ -5,8 +5,12 @@
  *
  * Shows AI badge, terminology combobox (RxNorm), the full dosage grid
  * (dose / route / frequency / duration), status / intent / priority / course-of-therapy
- * selects, clinical indication, patient instructions, dispense details
- * (refills + quantity + unit), substitution toggle, and a free-text note.
+ * selects, clinical indication, patient instructions, substitution toggle,
+ * and a free-text note.
+ *
+ * Dispense details (refills/quantity/unit) are intentionally not shown here —
+ * UI-only removal; the underlying fields remain on MedicationFormItem/the
+ * backend schema, which stays nullable.
  *
  * Fields marked "CREATE only" can only be set when creating a new record. Once a
  * FHIR resource has a fhirId, those child-array fields are immutable.
@@ -24,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
 import { TerminologyCombobox } from "../../shared/TerminologyCombobox";
 import { ConceptSelect } from "../../shared/ConceptSelect";
+import { SyncStatusBadge } from "../../shared/SyncStatusBadge";
 import {
   TERMINOLOGY_SYSTEM_URL,
   MEDICATION_REQUEST_STATUS,
@@ -40,19 +45,26 @@ interface MedicationItemProps {
   onChange: (item: MedicationFormItem) => void;
   /** Called when the doctor removes this item. */
   onRemove: () => void;
+  /** "synced"/"draft" relative to the EMR, or undefined before the first confirm. */
+  syncStatus?: "synced" | "draft";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
  * Card-based editor for a single FHIR MedicationRequest.
- * Covers dosage, clinical intent, dispense details, and substitution.
+ * Covers dosage, clinical intent, and substitution.
  *
  * @param item - Medication form item (AI-suggested + optional doctor edits).
  * @param onChange - Setter receiving the full updated item.
  * @param onRemove - Called when the doctor clicks the delete button.
  */
-export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps) {
+export function MedicationItem({
+  item,
+  onChange,
+  onRemove,
+  syncStatus,
+}: MedicationItemProps) {
   const system =
     TERMINOLOGY_SYSTEM_URL[item.terminologySystem] ?? item.terminologySystem;
 
@@ -70,6 +82,7 @@ export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps
             <Badge variant="outline" className="text-xs shrink-0 font-mono">
               {item.terminologySystem}
             </Badge>
+            <SyncStatusBadge status={syncStatus} />
           </div>
           <Button
             type="button"
@@ -221,53 +234,6 @@ export function MedicationItem({ item, onChange, onRemove }: MedicationItemProps
             className="text-sm resize-none"
             rows={2}
           />
-        </div>
-
-        {/* Dispense details — Refills / Quantity / Unit */}
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Dispense</Label>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground/70">Refills</p>
-              <Input
-                type="number"
-                min={0}
-                value={item.dispenseRepeatsAllowed ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    ...item,
-                    dispenseRepeatsAllowed: e.target.value
-                      ? parseInt(e.target.value, 10)
-                      : undefined,
-                  })
-                }
-                placeholder="0"
-                className="text-sm h-9"
-              />
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground/70">Qty</p>
-              <Input
-                value={item.dispenseQuantityValue ?? ""}
-                onChange={(e) =>
-                  onChange({ ...item, dispenseQuantityValue: e.target.value || undefined })
-                }
-                placeholder="e.g. 30"
-                className="text-sm h-9"
-              />
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground/70">Unit</p>
-              <Input
-                value={item.dispenseQuantityUnit ?? ""}
-                onChange={(e) =>
-                  onChange({ ...item, dispenseQuantityUnit: e.target.value || undefined })
-                }
-                placeholder="tablets"
-                className="text-sm h-9"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Substitution allowed */}

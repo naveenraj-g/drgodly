@@ -46,28 +46,55 @@ import {
 } from "@/modules/server/core/practitioner-role/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure, adminProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a PractitionerRole with all inline child arrays in a single request. Admin-only. */
 export const createPractitionerRoleAction = adminProcedure
   .createServerAction()
   .input(CreatePractitionerRoleActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreatePractitionerRoleAction }) => {
-    return await runWithTransport<TCreatePractitionerRoleControllerOutput>(async () => {
-      const data = await createPractitionerRoleController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreatePractitionerRoleAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreatePractitionerRoleControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createPractitionerRoleController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists PractitionerRoles with optional server-side filters and pagination. */
 export const listPractitionerRolesAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerRolesActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListPractitionerRolesAction }) => {
-    return await runWithTransport<TListPractitionerRolesControllerOutput>(async () => {
-      const data = await listPractitionerRolesController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListPractitionerRolesAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListPractitionerRolesControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listPractitionerRolesController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /**
  * Lists PractitionerRoles enriched with Practitioner detail for booking UIs.
@@ -76,12 +103,25 @@ export const listPractitionerRolesAction = authenticatedProcedure
 export const listPractitionerRolesForBookingAction = authenticatedProcedure
   .createServerAction()
   .input(ListPractitionerRolesForBookingActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListPractitionerRolesForBookingAction }) => {
-    return await runWithTransport<TListPractitionerRolesForBookingControllerOutput>(async () => {
-      const data = await listPractitionerRolesForBookingController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListPractitionerRolesForBookingAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListPractitionerRolesForBookingControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listPractitionerRolesForBookingController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single PractitionerRole by numeric ID. No current consumer outside admin; admin-only. */
 export const getPractitionerRoleByIdAction = adminProcedure

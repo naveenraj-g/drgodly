@@ -41,7 +41,7 @@ import { listPractitionerRolesAction } from "@/modules/server/presentation/actio
 import { getParticipantName } from "@/modules/server/presentation/helpers/doctorPatients";
 import { ClinicalWorkspace } from "@/modules/client/telemedicine/doctor/component/clinical-records/ClinicalWorkspace";
 import { VisitOverview } from "@/modules/client/telemedicine/doctor/component/clinical-records/VisitOverview";
-import { BackButton } from "@/modules/client/telemedicine/doctor/component/clinical-records/BackButton";
+import { BackButton } from "@/modules/client/telemedicine/shared/components/BackButton";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 import {
   buildOrgLetterhead,
@@ -162,7 +162,7 @@ export default async function ClinicalWorkspacePage({
    */
   if (encounterId == null) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-4">
+      <div className="w-full space-y-4">
         <BackButton />
         <VisitOverview
           appointment={appointment}
@@ -209,7 +209,7 @@ export default async function ClinicalWorkspacePage({
     : null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 w-full">
+    <div className="w-full space-y-4">
       <BackButton />
 
       <ClinicalWorkspace

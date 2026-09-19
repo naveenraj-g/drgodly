@@ -51,17 +51,31 @@ import {
 } from "@/modules/server/core/slot/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure, adminProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a Slot with all inline child arrays (schedule + status required). Admin-only. */
 export const createSlotAction = adminProcedure
   .createServerAction()
   .input(CreateSlotActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateSlotAction }) => {
-    return await runWithTransport<TCreateSlotControllerOutput>(async () => {
-      const data = await createSlotController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateSlotAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateSlotControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createSlotController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /**
  * Lists Slots with optional server-side filters (status, schedule_id, practitioner_role_id, etc.).
@@ -70,12 +84,25 @@ export const createSlotAction = adminProcedure
 export const listSlotsAction = authenticatedProcedure
   .createServerAction()
   .input(ListSlotsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListSlotsAction }) => {
-    return await runWithTransport<TListSlotsControllerOutput>(async () => {
-      const data = await listSlotsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListSlotsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListSlotsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listSlotsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single Slot by numeric ID. No current consumer, left open (read-only). */
 export const getSlotByIdAction = authenticatedProcedure
@@ -122,9 +149,22 @@ export const deleteSlotAction = adminProcedure
 export const generateSlotsAction = adminProcedure
   .createServerAction()
   .input(GenerateSlotsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TGenerateSlotsAction }) => {
-    return await runWithTransport<TGenerateSlotsControllerOutput>(async () => {
-      const data = await generateSlotsController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TGenerateSlotsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TGenerateSlotsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await generateSlotsController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );

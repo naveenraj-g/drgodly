@@ -40,10 +40,12 @@ export interface IEmrChatRepository {
   /**
    * Load a session with all its messages and the active workflow state (if any).
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID — the session must belong
+   *                 to this user, or it is treated as not found.
    * @returns Full session data.
-   * @throws NotFoundError if the session does not exist.
+   * @throws NotFoundError if the session does not exist or belongs to another user.
    */
-  getSession(id: string): Promise<TEmrChatSessionFull>;
+  getSession(id: string, userId: string): Promise<TEmrChatSessionFull>;
 
   /**
    * List the most recent sessions for a user, ordered by updatedAt desc.
@@ -55,31 +57,39 @@ export interface IEmrChatRepository {
   /**
    * Update the session title (auto-generated or user-renamed).
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID — must own the session.
    * @param title - New title string.
+   * @throws NotFoundError if the session does not exist or belongs to another user.
    */
-  updateSessionTitle(id: string, title: string): Promise<void>;
+  updateSessionTitle(id: string, userId: string, title: string): Promise<void>;
 
   /**
    * Toggle the pinned flag on a session.
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID — must own the session.
    * @param pinned - True to pin, false to unpin.
+   * @throws NotFoundError if the session does not exist or belongs to another user.
    */
-  pinSession(id: string, pinned: boolean): Promise<void>;
+  pinSession(id: string, userId: string, pinned: boolean): Promise<void>;
 
   /**
    * Archive a session (soft delete — not visible in sidebar but data kept).
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID — must own the session.
+   * @throws NotFoundError if the session does not exist or belongs to another user.
    */
-  deleteSession(id: string): Promise<void>;
+  deleteSession(id: string, userId: string): Promise<void>;
 
   // ── Messages ──────────────────────────────────────────────────────────────
 
   /**
    * Append a message to a session and bump the session's updatedAt timestamp.
    * @param dto - sessionId, role, content, type, optional metadata.
+   * @param userId - Calling user's Better Auth ID — must own the target session.
    * @returns The created message.
+   * @throws NotFoundError if the session does not exist or belongs to another user.
    */
-  addMessage(dto: TAddEmrChatMessage): Promise<TEmrChatMessage>;
+  addMessage(dto: TAddEmrChatMessage, userId: string): Promise<TEmrChatMessage>;
 
   // ── Workflow States ───────────────────────────────────────────────────────
 

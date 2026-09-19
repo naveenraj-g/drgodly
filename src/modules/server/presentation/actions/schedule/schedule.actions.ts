@@ -39,17 +39,31 @@ import {
 } from "@/modules/server/core/schedule/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { adminProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a new schedule. Accepts transportOptions for post-create revalidation. */
 export const createScheduleAction = adminProcedure
   .createServerAction()
   .input(CreateScheduleActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateScheduleAction }) => {
-    return await runWithTransport<TCreateScheduleControllerOutput>(async () => {
-      const data = await createScheduleController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateScheduleAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateScheduleControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createScheduleController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists schedules with optional server-side filters and pagination. */
 export const listSchedulesAction = adminProcedure

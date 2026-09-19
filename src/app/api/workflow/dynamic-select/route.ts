@@ -20,6 +20,7 @@
  */
 
 import { getAuthToken } from "@/modules/server/auth/jwt-token";
+import { getServerSession } from "@/modules/server/auth/get-session";
 import { resolveUrl } from "../_lib";
 
 /** FHIR base URL used for SSRF validation. Mirrors what resolveUrl injects. */
@@ -51,6 +52,13 @@ function resolvePath(obj: unknown, path: string): unknown {
  * @returns JSON { items: unknown[] } or an error response.
  */
 export async function POST(req: Request) {
+  // Require an authenticated session — needed both to gate the proxy and to
+  // re-pin org_id below.
+  const authSession = await getServerSession();
+  if (!authSession?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: {
     url?: string;
     params?: Record<string, string>;
@@ -63,7 +71,19 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { url, params = {}, responsePath = "" } = body;
+  const { url, params: rawParams = {}, responsePath = "" } = body;
+
+  // Re-pin org_id to the current session when the caller's staticParams
+  // included one — resolvedStaticParams on the client reads org_id from the
+  // workflow's own sessionContext, but this route can't tell a legitimately
+  // resolved value from a forged one, so it always overrides with the
+  // session's own active org rather than trusting whatever arrived.
+  const params = {
+    ...rawParams,
+    ...(authSession.session?.activeOrganizationId
+      ? { org_id: authSession.session.activeOrganizationId }
+      : {}),
+  };
 
   if (!url) {
     return Response.json({ error: "'url' is required" }, { status: 400 });

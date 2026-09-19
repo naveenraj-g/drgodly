@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
 import { TerminologyCombobox } from "../../shared/TerminologyCombobox";
 import { ConceptSelect } from "../../shared/ConceptSelect";
+import { SyncStatusBadge } from "../../shared/SyncStatusBadge";
 import {
   TERMINOLOGY_SYSTEM_URL,
   CONDITION_CLINICAL_STATUS,
@@ -38,6 +39,8 @@ interface ConditionItemProps {
   onChange: (item: ConditionFormItem) => void;
   /** Called when the doctor removes this item. */
   onRemove: () => void;
+  /** "synced"/"draft" relative to the EMR, or undefined before the first confirm. */
+  syncStatus?: "synced" | "draft";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -49,7 +52,12 @@ interface ConditionItemProps {
  * @param onChange - Setter receiving the full updated item.
  * @param onRemove - Called when the doctor clicks the delete button.
  */
-export function ConditionItem({ item, onChange, onRemove }: ConditionItemProps) {
+export function ConditionItem({
+  item,
+  onChange,
+  onRemove,
+  syncStatus,
+}: ConditionItemProps) {
   const system =
     TERMINOLOGY_SYSTEM_URL[item.terminologySystem] ?? item.terminologySystem;
 
@@ -67,6 +75,7 @@ export function ConditionItem({ item, onChange, onRemove }: ConditionItemProps) 
             <Badge variant="outline" className="text-xs shrink-0 font-mono">
               {item.terminologySystem}
             </Badge>
+            <SyncStatusBadge status={syncStatus} />
           </div>
           <Button
             type="button"

@@ -158,6 +158,18 @@ export const ConsultationResponseSchema = z.object({
   published_at: z.coerce.date().nullable(),
   /** Better Auth user ID of the approving doctor. Set with published_at. */
   published_by: z.string().nullable(),
+  /**
+   * Autosaved working copy of the review page, independent of the confirmed
+   * fields above. draft_updated_at null means there is no pending draft —
+   * the other draft_* fields may still hold stale data at that point and
+   * must be ignored unless draft_updated_at is set.
+   */
+  draft_soap_note: SoapNoteSchema.nullable(),
+  draft_service_requests: z.array(z.unknown()).nullable(),
+  draft_medication_requests: z.array(z.unknown()).nullable(),
+  draft_observations: z.array(z.unknown()).nullable(),
+  draft_conditions: z.array(z.unknown()).nullable(),
+  draft_updated_at: z.coerce.date().nullable(),
   created_at: z.coerce.date(),
   updated_at: z.coerce.date(),
 });

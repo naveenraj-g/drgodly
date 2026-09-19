@@ -11,6 +11,7 @@
 
 "use server";
 
+import type { AuthResponse } from "@/modules/server/auth/types";
 import {
   CreatePatientActionSchema,
   CreatePatientFullActionSchema,
@@ -52,14 +53,29 @@ import { authenticatedProcedure } from "../procedures";
 export const createPatientFullAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePatientFullActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreatePatientFullAction }) => {
-    return await runWithTransport<TCreatePatientFullControllerOutput>(
-      async () => {
-        const data = await createPatientFullController(input.payload);
-        return { result: data, transport: input.transportOptions };
-      },
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreatePatientFullAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreatePatientFullControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying
+          // a different org_id. org_id is required here; "" falls through to the
+          // schema's own min(1) validation if the session has no active org.
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? "",
+          };
+          const data = await createPatientFullController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        },
+      );
+    },
+  );
 
 /** Atomically updates a Patient's scalar fields and sub-resource arrays in a single request. */
 export const updatePatientFullAction = authenticatedProcedure
@@ -78,23 +94,55 @@ export const updatePatientFullAction = authenticatedProcedure
 export const createPatientAction = authenticatedProcedure
   .createServerAction()
   .input(CreatePatientActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreatePatientAction }) => {
-    return await runWithTransport<TCreatePatientControllerOutput>(async () => {
-      const data = await createPatientController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreatePatientAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreatePatientControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying
+          // a different org_id. org_id is required here; "" falls through to the
+          // schema's own min(1) validation if the session has no active org.
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? "",
+          };
+          const data = await createPatientController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        },
+      );
+    },
+  );
 
 /** Lists patients with optional server-side filters and pagination. */
 export const listPatientsAction = authenticatedProcedure
   .createServerAction()
   .input(ListPatientsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListPatientsAction }) => {
-    return await runWithTransport<TListPatientsControllerOutput>(async () => {
-      const data = await listPatientsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListPatientsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListPatientsControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await listPatientsController(enrichedPayload);
+          return { result: data };
+        },
+      );
+    },
+  );
 
 /** Fetches the authenticated user's own Patient record. */
 export const getPatientMeAction = authenticatedProcedure

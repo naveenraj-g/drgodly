@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { Markdown } from "@/modules/client/shared/components/Markdown";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -393,8 +394,10 @@ function ChatTurn({
       </div>
       <div
         className={cn(
-          "max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap",
-          isDoctor ? "bg-primary text-primary-foreground" : "bg-muted",
+          "max-w-[85%] rounded-lg px-3 py-2",
+          isDoctor
+            ? "text-sm leading-relaxed whitespace-pre-wrap bg-primary text-primary-foreground"
+            : "bg-muted",
         )}
       >
         {pending ? (
@@ -403,8 +406,16 @@ function ChatTurn({
             <span className="animate-bounce size-1 rounded-full bg-muted-foreground [animation-delay:150ms]" />
             <span className="animate-bounce size-1 rounded-full bg-muted-foreground [animation-delay:300ms]" />
           </span>
-        ) : (
+        ) : isDoctor ? (
+          // The doctor's own typed question stays verbatim — no reason to
+          // reinterpret their input as Markdown.
           message.text
+        ) : (
+          // The agent's answer streams as Markdown — it routinely comes back
+          // with lists/bold for "what's abnormal"-style structured answers;
+          // plain text with no Markdown syntax still renders correctly as an
+          // ordinary paragraph, so this is safe either way.
+          <Markdown content={message.text} className="[&_p]:first:mt-0 [&_p]:last:mb-0" />
         )}
       </div>
     </div>

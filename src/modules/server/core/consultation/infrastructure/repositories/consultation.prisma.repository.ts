@@ -30,6 +30,7 @@ import type {
   TCreateConsultation,
   TCompleteConsultation,
   TSaveClinicalData,
+  TSaveClinicalDraft,
   TAbandonConsultation,
   TListConsultationsQuery,
 } from "@/modules/entities/schemas/consultation";
@@ -78,6 +79,12 @@ function toDto(row: {
   conditions: unknown;
   published_at: Date | null;
   published_by: string | null;
+  draft_soap_note: unknown;
+  draft_service_requests: unknown;
+  draft_medication_requests: unknown;
+  draft_observations: unknown;
+  draft_conditions: unknown;
+  draft_updated_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }): TConsultationResponse {
@@ -106,6 +113,19 @@ function toDto(row: {
        extractions as still awaiting the doctor's review. */
     published_at: row.published_at,
     published_by: row.published_by,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    draft_soap_note: (row.draft_soap_note as any) ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    draft_service_requests: (row.draft_service_requests as any) ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    draft_medication_requests: (row.draft_medication_requests as any) ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    draft_observations: (row.draft_observations as any) ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    draft_conditions: (row.draft_conditions as any) ?? null,
+    /* The only presence signal for a pending draft — the draft_* fields above
+       may still hold stale content when this is null and must be ignored. */
+    draft_updated_at: row.draft_updated_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -285,6 +305,74 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
     } catch (err) {
       logOperation("error", {
         name: "ConsultationPrismaRepository.saveClinicalData",
+        startTimeMs,
+        err,
+        context: { operationId, fhirAppointmentId: dto.fhir_appointment_id },
+      });
+      throw new NotFoundError(
+        `Consultation for appointment ${dto.fhir_appointment_id} not found`,
+      );
+    }
+  }
+
+  /**
+   * Autosaves the review page's in-progress working copy into the draft_*
+   * columns, or clears it (draft_updated_at only) after a successful publish.
+   *
+   * Never touches published_at/published_by or the non-draft resource/soap
+   * columns — this and saveClinicalData are intentionally two independent
+   * write paths so an autosave can never clobber already-confirmed data.
+   *
+   * @param dto - fhir_appointment_id plus the draft slice(s) to write, or `clear: true`.
+   * @returns The updated Consultation record.
+   * @throws NotFoundError if no consultation exists for this appointment.
+   */
+  async saveClinicalDraft(dto: TSaveClinicalDraft): Promise<TConsultationResponse> {
+    const startTimeMs = Date.now();
+    const operationId = randomUUID();
+
+    logOperation("start", {
+      name: "ConsultationPrismaRepository.saveClinicalDraft",
+      startTimeMs,
+      context: { operationId, fhirAppointmentId: dto.fhir_appointment_id, clear: !!dto.clear },
+    });
+
+    try {
+      const row = await prisma.consultation.update({
+        where: { fhir_appointment_id: dto.fhir_appointment_id },
+        data: dto.clear
+          ? {
+              /* Leaves the stale draft_* JSON in place — harmless, since every
+                 reader treats draft_updated_at as the sole presence signal. */
+              draft_updated_at: null,
+            }
+          : {
+              draft_soap_note: dto.soap_note ? pj(dto.soap_note) : undefined,
+              draft_service_requests: dto.service_requests
+                ? pj(dto.service_requests)
+                : undefined,
+              draft_medication_requests: dto.medication_requests
+                ? pj(dto.medication_requests)
+                : undefined,
+              draft_observations: dto.observations ? pj(dto.observations) : undefined,
+              draft_conditions: dto.conditions ? pj(dto.conditions) : undefined,
+              draft_updated_at: new Date(),
+            },
+      });
+
+      const result = toDto(row);
+
+      logOperation("success", {
+        name: "ConsultationPrismaRepository.saveClinicalDraft",
+        startTimeMs,
+        data: { id: result.id },
+        context: { operationId },
+      });
+
+      return result;
+    } catch (err) {
+      logOperation("error", {
+        name: "ConsultationPrismaRepository.saveClinicalDraft",
         startTimeMs,
         err,
         context: { operationId, fhirAppointmentId: dto.fhir_appointment_id },

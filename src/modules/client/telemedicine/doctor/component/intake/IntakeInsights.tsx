@@ -54,6 +54,13 @@ interface IntakeInsightsProps {
    * tab) can opt in so "nothing rendered" doesn't read as still loading.
    */
   emptyState?: React.ReactNode;
+  /**
+   * Fired once the intake fetch settles, reporting whether a linked intake
+   * was found. Lets a parent that renders this alongside other self-fetching
+   * cards (e.g. DoctorDashboard) decide when to show a combined "no data"
+   * fallback instead of leaving an unexplained blank area.
+   */
+  onLoaded?: (hasIntake: boolean) => void;
 }
 
 /** Maps AI risk level strings to Badge colour classes. */
@@ -152,6 +159,7 @@ function ReportSection({ report }: { report: IntakeReport }) {
 export function IntakeInsights({
   fhirAppointmentId,
   emptyState,
+  onLoaded,
 }: IntakeInsightsProps) {
   const [intake, setIntake] = useState<TIntakeResponse | null | undefined>(
     undefined, // undefined = loading, null = not found
@@ -164,8 +172,12 @@ export function IntakeInsights({
         payload: { fhir_appointment_id: fhirAppointmentId },
       });
       setIntake(data ?? null);
+      onLoaded?.(!!data);
     }
     load();
+    // onLoaded is a per-render callback (setState setter or inline fn), not a
+    // dependency — including it would refetch on every parent re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fhirAppointmentId]);
 
   // Loading state
@@ -196,7 +208,7 @@ export function IntakeInsights({
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <FileText className="size-4 text-muted-foreground" />
-          Pre-Appointment Intake
+          AI Intake Summary
           <Badge variant="outline" className="text-[10px] ml-auto">
             {intake.mode === "VOICE" ? "Voice" : "Text"}
           </Badge>

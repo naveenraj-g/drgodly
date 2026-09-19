@@ -42,6 +42,7 @@ import {
   runContextResolver,
   runContextResolvers,
   extractOutputs,
+  buildBaseContext,
 } from "../_lib";
 import { WORKFLOW_REGISTRY } from "../_registry";
 import { getServerSession } from "@/modules/server/auth/get-session";
@@ -123,12 +124,11 @@ export async function POST(req: Request) {
   try {
     const token = await getJWTToken();
     let stepData: Record<string, unknown> = {};
-    // Re-inject fhir_gql_url so $fhir_gql_url resolves in UI schema strings
-    // (e.g. DynamicSelect source.url) via mapDataToUI on the client.
-    let mergedContext = {
-      ...sessionContext,
-      fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
-    };
+    // Re-pin user_id/org_id/fhir_gql_url to the current session on every step
+    // advance — sessionContext is re-sent by the client on each call, so
+    // without this a forged org_id/user_id from an earlier response would
+    // ride along unchecked into this step's context resolvers.
+    let mergedContext = buildBaseContext(sessionContext, authSession);
 
     if (step.context_resolvers?.length) {
       stepData = await runContextResolvers(step.context_resolvers, mergedContext, token);

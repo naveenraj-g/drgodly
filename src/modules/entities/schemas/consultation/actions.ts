@@ -13,6 +13,7 @@ import {
   CreateConsultationValidationSchema,
   CompleteConsultationValidationSchema,
   SaveClinicalDataValidationSchema,
+  SaveClinicalDraftValidationSchema,
   AbandonConsultationValidationSchema,
   GetConsultationByFhirAppointmentIdValidationSchema,
   ListConsultationsValidationSchema,
@@ -38,6 +39,13 @@ export const SaveClinicalDataActionSchema = z.object({
   transportOptions: TransportOptionsSchema.optional(),
 });
 export type TSaveClinicalDataAction = z.infer<typeof SaveClinicalDataActionSchema>;
+
+/** Action schema for autosaving the review page's draft working copy. */
+export const SaveClinicalDraftActionSchema = z.object({
+  payload: SaveClinicalDraftValidationSchema,
+  transportOptions: TransportOptionsSchema.optional(),
+});
+export type TSaveClinicalDraftAction = z.infer<typeof SaveClinicalDraftActionSchema>;
 
 /** Action schema for abandoning a consultation. */
 export const AbandonConsultationActionSchema = z.object({

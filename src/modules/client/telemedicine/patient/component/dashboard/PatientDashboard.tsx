@@ -6,7 +6,7 @@
  * Receives the raw appointment list from the server page (fetched via SSR) and
  * derives all statistics client-side:
  *   - Total / pending / completed / cancelled counts
- *   - Monthly bar chart data (last 6 months)
+ *   - Monthly bar chart data (last 6 months, through next month)
  *   - Up to 5 most-recent appointments for the table
  *
  * No tanstack-query or client-side fetching here — the dashboard is intentionally
@@ -60,10 +60,11 @@ const MONTH_LABELS = [
 ];
 
 /**
- * Builds monthly bar chart data for the last `months` calendar months (inclusive of current).
+ * Builds monthly bar chart data for the last `months` calendar months plus the
+ * upcoming month (so the chart reads through next month, not just up to now).
  *
  * @param appointments - Full appointment list.
- * @param months - Number of months to include (default 6).
+ * @param months - Number of past months to include, current month inclusive (default 6).
  */
 function buildMonthlyData(
   appointments: TAppointmentResponse[],
@@ -72,7 +73,9 @@ function buildMonthlyData(
   const now = new Date();
   const result: AppointmentBarChartData[] = [];
 
-  for (let i = months - 1; i >= 0; i--) {
+  // i runs from months-1 (oldest) down to -1 (next month) so the range ends
+  // one month past the current one instead of stopping at "this month".
+  for (let i = months - 1; i >= -1; i--) {
     const target = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const year = target.getFullYear();
     const month = target.getMonth(); // 0-indexed
@@ -113,7 +116,7 @@ export function PatientDashboard({ userName, appointments }: PatientDashboardPro
     return { total, pending, completed, cancelled };
   }, [appointments]);
 
-  /* ── Monthly trend (last 6 months) ── */
+  /* ── Monthly trend (last 6 months + next month) ── */
   const monthlyData = useMemo(
     () => buildMonthlyData(appointments, 6),
     [appointments],

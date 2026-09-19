@@ -39,19 +39,33 @@ import {
 } from "@/modules/server/core/healthcare-service/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { adminProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a new healthcare service. Accepts transportOptions for post-create revalidation. */
 export const createHealthcareServiceAction = adminProcedure
   .createServerAction()
   .input(CreateHealthcareServiceActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateHealthcareServiceAction }) => {
-    return await runWithTransport<TCreateHealthcareServiceControllerOutput>(
-      async () => {
-        const data = await createHealthcareServiceController(input.payload);
-        return { result: data, transport: input.transportOptions };
-      }
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateHealthcareServiceAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateHealthcareServiceControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await createHealthcareServiceController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        }
+      );
+    }
+  );
 
 /** Lists healthcare services with optional server-side filters and pagination. */
 export const listHealthcareServicesAction = adminProcedure

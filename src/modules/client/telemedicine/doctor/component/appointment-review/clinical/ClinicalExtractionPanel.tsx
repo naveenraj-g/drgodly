@@ -44,6 +44,13 @@ interface ClinicalExtractionPanelProps {
   onObservationsChange: (items: ObservationFormItem[]) => void;
   onMedicationsChange: (items: MedicationFormItem[]) => void;
   onServiceRequestsChange: (items: ServiceRequestFormItem[]) => void;
+  /** Per-item EMR sync status — undefined for every item before the first confirm. */
+  getConditionSyncStatus?: (item: ConditionFormItem) => "synced" | "draft" | undefined;
+  getObservationSyncStatus?: (item: ObservationFormItem) => "synced" | "draft" | undefined;
+  getMedicationSyncStatus?: (item: MedicationFormItem) => "synced" | "draft" | undefined;
+  getServiceRequestSyncStatus?: (
+    item: ServiceRequestFormItem,
+  ) => "synced" | "draft" | undefined;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -65,6 +72,10 @@ export function ClinicalExtractionPanel({
   onObservationsChange,
   onMedicationsChange,
   onServiceRequestsChange,
+  getConditionSyncStatus,
+  getObservationSyncStatus,
+  getMedicationSyncStatus,
+  getServiceRequestSyncStatus,
 }: ClinicalExtractionPanelProps) {
   return (
     <Tabs defaultValue="conditions" className="flex flex-col h-full">
@@ -111,21 +122,34 @@ export function ClinicalExtractionPanel({
           across this feature. */}
       <div className="flex-1 min-h-0 mt-3">
         <TabsContent value="conditions" className="h-full m-0 overflow-y-auto pr-1">
-          <ConditionList items={conditions} onChange={onConditionsChange} />
+          <ConditionList
+            items={conditions}
+            onChange={onConditionsChange}
+            getSyncStatus={getConditionSyncStatus}
+          />
         </TabsContent>
 
         <TabsContent value="observations" className="h-full m-0 overflow-y-auto pr-1">
-          <ObservationList items={observations} onChange={onObservationsChange} />
+          <ObservationList
+            items={observations}
+            onChange={onObservationsChange}
+            getSyncStatus={getObservationSyncStatus}
+          />
         </TabsContent>
 
         <TabsContent value="medications" className="h-full m-0 overflow-y-auto pr-1">
-          <MedicationList items={medications} onChange={onMedicationsChange} />
+          <MedicationList
+            items={medications}
+            onChange={onMedicationsChange}
+            getSyncStatus={getMedicationSyncStatus}
+          />
         </TabsContent>
 
         <TabsContent value="orders" className="h-full m-0 overflow-y-auto pr-1">
           <ServiceRequestList
             items={serviceRequests}
             onChange={onServiceRequestsChange}
+            getSyncStatus={getServiceRequestSyncStatus}
           />
         </TabsContent>
       </div>

@@ -10,10 +10,13 @@
 import { deleteSessionUseCase } from "../../application/usecases/deleteSession.usecase";
 
 /**
- * Archives a session by ID.
+ * Archives a session by ID. Scoped to userId — a session owned by another
+ * user cannot be archived.
  *
  * @param id - Session UUID.
+ * @param userId - Calling user's Better Auth ID.
+ * @throws NotFoundError if not found or owned by another user.
  */
-export async function deleteSessionController(id: string): Promise<void> {
-  await deleteSessionUseCase(id);
+export async function deleteSessionController(id: string, userId: string): Promise<void> {
+  await deleteSessionUseCase(id, userId);
 }

@@ -27,9 +27,37 @@ import type {
 } from "@/types/workflow";
 import { getAuthToken } from "@/modules/server/auth/jwt-token";
 import { GRAPHQL_DOCUMENTS } from "@/modules/client/ai-hub/schemas/graphql";
+import type { getServerSession } from "@/modules/server/auth/get-session";
 
 // Re-export under the name used throughout the workflow routes.
 export { getAuthToken as getJWTToken };
+
+/**
+ * Builds the merged session context seeded with identity values and the FHIR
+ * base URL so workflow steps can interpolate them without asking the user.
+ *
+ * user_id/org_id are spread in AFTER the caller-supplied base so a client
+ * cannot override its own identity or tenant by including those keys in the
+ * sessionContext it re-sends on step/submit calls — every /api/workflow
+ * route re-derives them from the authenticated session on every request.
+ *
+ * @param base - Caller-supplied sessionContext from the request body.
+ * @param authSession - Authenticated Better Auth session.
+ * @returns Merged context object with identity fields pinned to the session.
+ */
+export function buildBaseContext(
+  base: Record<string, unknown>,
+  authSession: NonNullable<Awaited<ReturnType<typeof getServerSession>>>,
+): Record<string, unknown> {
+  return {
+    ...base,
+    ...(authSession.user?.id ? { user_id: authSession.user.id } : {}),
+    ...(authSession.session?.activeOrganizationId
+      ? { org_id: authSession.session.activeOrganizationId }
+      : {}),
+    fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
+  };
+}
 
 // Single GraphQL client for the whole workflow engine — fhir-gql mounts its
 // GraphQL endpoint at server root (e.g. http://localhost:8005/graphql),

@@ -36,28 +36,55 @@ import {
 } from "@/modules/server/core/condition/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a Condition (all fields optional per FHIR spec). */
 export const createConditionAction = authenticatedProcedure
   .createServerAction()
   .input(CreateConditionActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateConditionAction }) => {
-    return await runWithTransport<TCreateConditionControllerOutput>(async () => {
-      const data = await createConditionController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateConditionAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateConditionControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createConditionController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists Conditions with optional filters (clinical_status, patient_id, recorded_from/to, etc.). */
 export const listConditionsAction = authenticatedProcedure
   .createServerAction()
   .input(ListConditionsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListConditionsAction }) => {
-    return await runWithTransport<TListConditionsControllerOutput>(async () => {
-      const data = await listConditionsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListConditionsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListConditionsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listConditionsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single Condition by numeric ID. */
 export const getConditionByIdAction = authenticatedProcedure

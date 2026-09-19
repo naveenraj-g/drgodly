@@ -38,6 +38,7 @@ import { useRouter } from "@/i18n/navigation";
 import { completeConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import { updateAppointmentAction } from "@/modules/server/presentation/actions/appointment/core.actions";
 import { createEncounterAction } from "@/modules/server/presentation/actions/encounter/core.actions";
+import { IntakeReportDialog } from "../intake/IntakeReportDialog";
 
 // ── AudioWorklet processor source (inline Blob — no public/ file required) ────
 
@@ -659,6 +660,8 @@ export function InPersonConsultation({
               {detectedLang.toUpperCase()}
             </span>
           )}
+
+          <IntakeReportDialog fhirAppointmentId={fhirAppointmentId} />
 
           {/* Session controls */}
           {sessionStatus === "idle" && (

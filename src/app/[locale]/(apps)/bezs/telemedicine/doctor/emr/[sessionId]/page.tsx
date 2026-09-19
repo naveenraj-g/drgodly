@@ -7,8 +7,9 @@
  * from the database server-side and passes it to EMRChatContainer as
  * `initialSession` so the client renders with no loading flash.
  *
- * Security: verifies the session belongs to the authenticated user.
- * Returns 404 for unknown sessions or sessions owned by other users.
+ * Security: getSessionController itself scopes the lookup to the calling
+ * user (throws NotFoundError for another user's session), so a forged
+ * sessionId in the URL cannot leak another user's data.
  */
 
 import { notFound } from "next/navigation";
@@ -39,13 +40,8 @@ export default async function DoctorEMRSessionPage({
 
   let initialSession;
   try {
-    initialSession = await getSessionController(sessionId);
+    initialSession = await getSessionController(sessionId, userId);
   } catch {
-    notFound();
-  }
-
-  // Prevent practitioners from viewing other users' sessions.
-  if (initialSession.userId !== userId) {
     notFound();
   }
 

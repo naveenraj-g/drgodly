@@ -36,28 +36,55 @@ import {
 } from "@/modules/server/core/medication-request/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates a MedicationRequest (status + intent required). */
 export const createMedicationRequestAction = authenticatedProcedure
   .createServerAction()
   .input(CreateMedicationRequestActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateMedicationRequestAction }) => {
-    return await runWithTransport<TCreateMedicationRequestControllerOutput>(async () => {
-      const data = await createMedicationRequestController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateMedicationRequestAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateMedicationRequestControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createMedicationRequestController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists MedicationRequests with optional filters (status, patient_id, authored_from/to, etc.). */
 export const listMedicationRequestsAction = authenticatedProcedure
   .createServerAction()
   .input(ListMedicationRequestsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListMedicationRequestsAction }) => {
-    return await runWithTransport<TListMedicationRequestsControllerOutput>(async () => {
-      const data = await listMedicationRequestsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListMedicationRequestsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListMedicationRequestsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listMedicationRequestsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single MedicationRequest by numeric ID. */
 export const getMedicationRequestByIdAction = authenticatedProcedure

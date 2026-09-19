@@ -4,81 +4,70 @@
  * Layer: client / telemedicine / doctor / component / dashboard
  *
  * Two-panel layout:
- *   Left  (280px sticky) — TodayAppointmentList: appointments for the
- *                            selected date range (defaults to today); click to select.
+ *   Left  (280px sticky) — TodayAppointmentList: today's appointments only
+ *                            (no date-range picker — see DASHBOARD_APPOINTMENT_STATUS/
+ *                            SORT below), filterable by patient name via the
+ *                            search input; click one to select.
  *   Right (flex-1)       — Detail cards for the selected appointment:
  *                            IntakeInsights (if pre-appointment intake exists)
- *                            ConsultationInsights (if completed consultation exists)
- *                            TreatmentEngine (if assessment_plan data exists)
+ *                            VitalsInsights (vitals trend charts — currently
+ *                              sample data, see that file's header)
  *
- * When the doctor clicks an appointment in the left panel, the dashboard
- * lazy-fetches intake and consultation data for that appointment ID via server
- * actions (called from the client via useEffect + useTransition).
+ *                          Deliberately just these two — no TreatmentEngine/
+ *                          ConsultationInsights/"no clinical data" fallback
+ *                          card here; the dashboard only ever lists
+ *                          pending/booked appointments (see
+ *                          DASHBOARD_APPOINTMENT_STATUS below) and this panel
+ *                          is meant to stay a quick pre-visit glance, not the
+ *                          full clinical record (that's Clinical Records).
+ *
+ * When the doctor clicks an appointment in the left panel, IntakeInsights
+ * self-fetches that appointment's linked intake (see that component).
  *
  * The appointment list itself starts from the server-fetched "today" data
  * (`initialAppointments`/`todayLabel`, still computed server-side in page.tsx
- * so the default view is SSR'd with no client fetch on first paint). Changing
- * the date range via AppointmentDateRangeFilter re-fetches client-side
- * through the same listAppointmentsAction the server page uses. Filtering
- * (status=pending,booked) and ordering (sort=date, ascending) are both
- * applied server-side on every fetch — see DASHBOARD_APPOINTMENT_STATUS /
- * DASHBOARD_APPOINTMENT_SORT below — so no client-side array filter or sort
- * runs on this list.
+ * so the default view is SSR'd with no client fetch on first paint), then
+ * gets re-fetched client-side once on mount (see the timezone-correction
+ * effect below) and again after any Confirm/Reschedule/Cancel mutation —
+ * always for "today", through the same listAppointmentsAction the server
+ * page uses. Filtering (status=pending,booked) and ordering (sort=date,
+ * ascending) are both applied server-side on every fetch — see
+ * DASHBOARD_APPOINTMENT_STATUS / DASHBOARD_APPOINTMENT_SORT below. The
+ * patient-name search box filters that already-sorted list client-side
+ * (plain substring match on display name), so results stay time-ordered.
  *
  * Mirrors drgodly-mvp Dashboard.tsx in overall UX and card grid layout.
  */
 
 "use client";
 
-import { useCallback, useState, useEffect, useRef, useTransition } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CalendarClock,
   CalendarDays,
-  CheckCircle2,
-  ClipboardList,
-  Eye,
-  History,
   Loader2,
-  MoreHorizontal,
   MousePointerClick,
+  Search,
   Stethoscope,
   Video,
-  XCircle,
 } from "lucide-react";
 import { endOfDay, startOfDay } from "date-fns";
-import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { TodayAppointmentList } from "./TodayAppointmentList";
 import { DoctorAssistant } from "./DoctorAssistant";
-import { ConsultationInsights } from "./ConsultationInsights";
-import { TreatmentEngine } from "./TreatmentEngine";
-import {
-  AppointmentDateRangeFilter,
-  formatRangeLabel,
-  isTodayRange,
-} from "./AppointmentDateRangeFilter";
+import { AppointmentDetailActions } from "./AppointmentDetailActions";
 import { PreviousAppointmentDialog } from "./PreviousAppointmentDialog";
 import { IntakeInsights } from "../intake/IntakeInsights";
-import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
+import { VitalsInsights } from "./VitalsInsights";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
-import {
-  useDoctorStore,
-  doctorStore,
-} from "@/modules/client/telemedicine/doctor/stores/doctor.store";
+import { useDoctorStore } from "@/modules/client/telemedicine/doctor/stores/doctor.store";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
 } from "@/modules/entities/schemas/appointment";
-import type { TConsultationResponse } from "@/modules/entities/schemas/consultation";
 
 /** Maximum appointments to fetch per date-range query (matches page.tsx's initial SSR fetch). */
 export const DASHBOARD_APPOINTMENTS_LIMIT = 50;
@@ -98,18 +87,16 @@ export const DASHBOARD_APPOINTMENT_SORT = "date";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DoctorDashboardProps {
-  /** Initial appointments (today, server-fetched) — seeds local state; superseded once the range changes. */
+  /** Initial today's appointments (server-fetched) — seeds local state; refetched client-side too (see file header). */
   appointments: TAppointmentResponse[];
   /** Doctor display name for the welcome heading. */
   doctorName: string;
-  /** Today's date formatted for display — shown as-is while the range stays "today". */
+  /** Today's date formatted for display. */
   todayLabel: string;
-  /** FHIR Practitioner id, needed to re-scope the appointment fetch when the date range changes. */
+  /** FHIR Practitioner id, used to scope the client-side "today" refetches. */
   practitionerId: number;
   /** Localised base href for appointment detail/action pages (e.g. /en/…/doctor/appointments). */
   viewHref: string;
-  /** Localised base href for Clinical Records (e.g. /en/…/doctor/clinical-records). */
-  clinicalRecordsHref: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -117,12 +104,11 @@ interface DoctorDashboardProps {
 /**
  * Doctor portal dashboard — appointment list + selected appointment detail cards.
  *
- * @param appointments - Today's appointment list from the server page (initial/default range).
+ * @param appointments - Today's appointment list from the server page (initial state).
  * @param doctorName - Practitioner display name.
  * @param todayLabel - Formatted date string for the header.
- * @param practitionerId - FHIR Practitioner id, used to re-scope client-side range refetches.
+ * @param practitionerId - FHIR Practitioner id, used to scope client-side "today" refetches.
  * @param viewHref - Localised base href for appointment detail/action pages.
- * @param clinicalRecordsHref - Localised base href for Clinical Records.
  */
 export function DoctorDashboard({
   appointments: initialAppointments,
@@ -130,69 +116,58 @@ export function DoctorDashboard({
   todayLabel,
   practitionerId,
   viewHref,
-  clinicalRecordsHref,
 }: DoctorDashboardProps) {
   const router = useRouter();
   // Status filter and ordering are applied server-side (page.tsx's SSR fetch
   // sends the same status/sort params) — no client-side filter/sort here.
   const [appointments, setAppointments] =
     useState<TAppointmentResponse[]>(initialAppointments);
-  const [dateRange, setDateRange] = useState<DateRange>(() => ({
-    from: new Date(),
-    to: new Date(),
-  }));
+  /** Client-side filter on the already-sorted "today" list — see the search input below. */
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(
     initialAppointments[0]?.id ?? null,
   );
   const [isPreviousVisitOpen, setIsPreviousVisitOpen] = useState(false);
-  const [consultation, setConsultation] = useState<
-    TConsultationResponse | null | undefined
-  >(undefined); // undefined = loading / not yet fetched
-  const [isPending, startTransition] = useTransition();
   const [isAppointmentsPending, startAppointmentsTransition] = useTransition();
-
-  /* ── Fetch consultation whenever selection changes ── */
-  useEffect(() => {
-    if (selectedId === null) {
-      setConsultation(null);
-      return;
-    }
-
-    setConsultation(undefined); // trigger loading state
-
-    startTransition(async () => {
-      const [data] = await getConsultationByFhirAppointmentIdAction({
-        payload: { fhir_appointment_id: selectedId },
-      });
-      setConsultation(data ?? null);
-    });
-  }, [selectedId]);
+  // Whether the selected appointment has a linked pre-appointment intake —
+  // reported by IntakeInsights (which self-fetches) via onLoaded. undefined
+  // while loading. Drives whether VitalsInsights should span both grid
+  // columns: IntakeInsights renders null once it settles on "no intake", at
+  // which point VitalsInsights would otherwise sit alone in one half of the
+  // row with a blank gap next to it.
+  const [hasIntake, setHasIntake] = useState<boolean | undefined>(undefined);
+  // Resets hasIntake the moment selectedId changes, during render rather
+  // than in an effect — an effect here would fire one render late, letting
+  // the previous appointment's stale "no data" verdict flash before the new
+  // one's IntakeInsights fetch even starts.
+  const [trackedSelectedId, setTrackedSelectedId] = useState(selectedId);
+  if (selectedId !== trackedSelectedId) {
+    setTrackedSelectedId(selectedId);
+    setHasIntake(undefined);
+  }
 
   /**
-   * Fetches appointments for a range and applies the result to state.
-   * Shared by the explicit date-range picker and the mount-time timezone
-   * correction below — mirrors page.tsx's initial SSR fetch (same action,
-   * same start_from/start_to window mechanism), just triggered client-side.
+   * Fetches today's appointments and applies the result to state. Shared by
+   * the mount-time timezone correction and the post-mutation refetch below —
+   * mirrors page.tsx's initial SSR fetch (same action, same
+   * start_from/start_to window mechanism), just triggered client-side and
+   * always scoped to "today" (this dashboard has no date-range picker).
    *
-   * @param range - Range to fetch (both ends set).
-   * @param options.resetSelection - True for a user-driven range change, so
-   *   stale detail cards don't linger while the new list loads. False for
-   *   the mount-time correction, which keeps the current selection if it's
-   *   still present in the corrected list rather than flashing it away.
+   * @param options.resetSelection - True to clear the current selection
+   *   before the new list loads. False keeps the current selection if it's
+   *   still present in the refetched list rather than flashing it away.
    */
-  const fetchAppointments = useCallback(
-    (range: DateRange, options: { resetSelection: boolean }) => {
-      if (!range.from || !range.to) return;
-      const from = range.from;
-      const to = range.to;
+  const fetchTodayAppointments = useCallback(
+    (options: { resetSelection: boolean }) => {
+      const today = new Date();
       if (options.resetSelection) setSelectedId(null);
 
       startAppointmentsTransition(async () => {
         const [data, err] = await listAppointmentsAction({
           payload: {
             practitioner_id: practitionerId,
-            start_from: startOfDay(from).toISOString(),
-            start_to: endOfDay(to).toISOString(),
+            start_from: startOfDay(today).toISOString(),
+            start_to: endOfDay(today).toISOString(),
             status: DASHBOARD_APPOINTMENT_STATUS,
             sort: DASHBOARD_APPOINTMENT_SORT,
             limit: DASHBOARD_APPOINTMENTS_LIMIT,
@@ -201,7 +176,7 @@ export function DoctorDashboard({
         });
 
         if (err) {
-          toast.error("Failed to load appointments for that date range.");
+          toast.error("Failed to load today's appointments.");
           return;
         }
 
@@ -218,30 +193,15 @@ export function DoctorDashboard({
     [practitionerId],
   );
 
-  /**
-   * Refetches the appointment list for a newly picked date range.
-   *
-   * @param range - The newly selected range (both ends set).
-   */
-  const handleRangeChange = useCallback(
-    (range: DateRange) => {
-      if (!range.from || !range.to) return;
-      setDateRange(range);
-      fetchAppointments(range, { resetSelection: true });
-    },
-    [fetchAppointments],
-  );
-
   /*
    * page.tsx computes "today" using the server process's local time
    * (setHours on a plain Date), which can differ from the doctor's browser
    * timezone — the server has no way to know it. Re-run the same fetch once
-   * on mount using the browser's real "today" (dateRange's initial state,
-   * computed client-side) so the SSR-seeded list and the picker's own
-   * "Today" preset never silently disagree.
+   * on mount using the browser's real "today" so the SSR-seeded list and
+   * this client's own notion of "today" never silently disagree.
    */
   useEffect(() => {
-    fetchAppointments(dateRange, { resetSelection: false });
+    fetchTodayAppointments({ resetSelection: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -257,19 +217,21 @@ export function DoctorDashboard({
   const wasDoctorModalOpenRef = useRef(false);
   useEffect(() => {
     if (wasDoctorModalOpenRef.current && !isDoctorModalOpen) {
-      fetchAppointments(dateRange, { resetSelection: false });
+      fetchTodayAppointments({ resetSelection: false });
     }
     wasDoctorModalOpenRef.current = isDoctorModalOpen;
-  }, [isDoctorModalOpen, fetchAppointments, dateRange]);
+  }, [isDoctorModalOpen, fetchTodayAppointments]);
 
-  const isCurrentRangeToday = isTodayRange(dateRange);
-  const rangeLabel = isCurrentRangeToday
-    ? todayLabel
-    : formatRangeLabel(dateRange);
+  /** Client-side substring match on patient display name — server list is
+   *  already sorted (DASHBOARD_APPOINTMENT_SORT), so filtering preserves order. */
+  const filteredAppointments = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return appointments;
+    return appointments.filter((appointment) =>
+      getPatientName(appointment).toLowerCase().includes(query),
+    );
+  }, [appointments, searchQuery]);
 
-  const assessmentPlan = consultation?.full_report?.assessment_plan as
-    | Record<string, unknown>
-    | undefined;
   const selectedAppointment =
     appointments.find((appointment) => appointment.id === selectedId) ?? null;
 
@@ -285,22 +247,28 @@ export function DoctorDashboard({
     !!selectedAppointment?.slot?.length;
 
   return (
-    <div className="flex flex-col gap-0 h-full">
+    // h-[calc(100dvh-132px)] rather than h-full: the (apps) layout's `main`
+    // wrapper doesn't actually propagate a bounded height down to us (h-full
+    // there would resolve to nothing), so a fixed-height panel with its own
+    // internal scrollbar — the schedule list below — needs a real viewport-
+    // relative height here instead. Same 132px offset (navbar + breadcrumb +
+    // page padding) already used by AppointmentReview.tsx and the
+    // consultation/intake screens for exactly this reason.
+    <div className="flex flex-col gap-0 h-[calc(100dvh-132px)]">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-1 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-4">
         <div>
           <h1 className="text-2xl font-semibold">
-            Good {getGreeting()}, {doctorName.split(" ")[0]}
+            Good {getGreeting()}, {doctorName}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{rangeLabel}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{todayLabel}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4" />
             <span>
               <strong className="text-foreground">{appointments.length}</strong>{" "}
-              appointment{appointments.length !== 1 ? "s" : ""}{" "}
-              {isCurrentRangeToday ? "today" : "in range"}
+              appointment{appointments.length !== 1 ? "s" : ""} today
             </span>
           </div>
         </div>
@@ -308,45 +276,56 @@ export function DoctorDashboard({
 
       <Separator className="mb-4" />
 
-      {/* ── Two-panel body ── */}
-      <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
-        {/* ── Left: appointment list ── */}
-        <div className="w-[272px] shrink-0 border rounded-xl overflow-hidden bg-card flex flex-col">
-          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b shrink-0">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Schedule
-            </p>
-            <div className="flex items-center gap-1.5">
-              {isAppointmentsPending && (
-                <Loader2 className="size-3 animate-spin text-muted-foreground" />
-              )}
-              <AppointmentDateRangeFilter
-                value={dateRange}
-                onChange={handleRangeChange}
+      {/* ── Two-panel body ──
+          Side-by-side at lg (1024px) and up (fixed-width schedule list next
+          to the flexible detail panel — not an even split, the schedule is
+          just a list of narrow cards); below that they stack into a single
+          column. This dashboard also gets squeezed further whenever the app
+          sidebar is open (see AppointmentDetailActions' own compact
+          breakpoints for the same reason). */}
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 overflow-hidden">
+        {/* ── Left: appointment list — fixed height while stacked (mobile)
+            so it doesn't claim the whole viewport above the detail panel;
+            fixed width and full available height once side-by-side. ── */}
+        <div className="h-85 lg:h-auto w-full lg:w-68 shrink-0 border rounded-xl overflow-hidden bg-card flex flex-col">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b shrink-0">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search patient name…"
+                className="h-8 pl-8 text-xs"
               />
             </div>
+            {isAppointmentsPending && (
+              <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
+            )}
           </div>
           <div className="flex-1 min-h-0">
             <TodayAppointmentList
-              appointments={appointments}
+              appointments={filteredAppointments}
               selectedId={selectedId}
               onSelect={setSelectedId}
               emptyStateTitle={
-                isCurrentRangeToday
-                  ? "No appointments today"
-                  : "No appointments in this range"
+                searchQuery.trim() ? "No matching patients" : "No appointments today"
               }
               emptyStateDescription={
-                isCurrentRangeToday
-                  ? "Your schedule is clear for today."
-                  : "Try a different date range."
+                searchQuery.trim()
+                  ? "Try a different name."
+                  : "Your schedule is clear for today."
               }
             />
           </div>
         </div>
 
-        {/* ── Right: detail cards ── */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* ── Right: detail cards ──
+            @container: the card grid below reacts to THIS panel's own
+            width, not the viewport's — it shares the viewport with the
+            schedule list and the app's own nav sidebar, so a viewport-based
+            breakpoint (e.g. xl:) could be satisfied while this panel itself
+            is still nowhere near wide enough for two columns. */}
+        <div className="flex-1 min-h-0 overflow-y-auto @container">
           {selectedId === null ? (
             <EmptySelection />
           ) : (
@@ -360,33 +339,6 @@ export function DoctorDashboard({
                   {selectedAppointment && getPatientName(selectedAppointment)}
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1.5"
-                    onClick={() =>
-                      selectedAppointment &&
-                      router.push(`${viewHref}/${selectedAppointment.id}`)
-                    }
-                  >
-                    <Eye className="size-3.5" />
-                    View
-                  </Button>
-                  {selectedAppointment?.subject_id != null && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5"
-                      onClick={() =>
-                        router.push(
-                          `${clinicalRecordsHref}/${selectedAppointment.subject_id}/${selectedAppointment.id}`,
-                        )
-                      }
-                    >
-                      <ClipboardList className="size-3.5" />
-                      Clinical Records
-                    </Button>
-                  )}
                   {isSelectedBooked && (
                     <Button
                       size="sm"
@@ -418,107 +370,30 @@ export function DoctorDashboard({
                       In-Person
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => setIsPreviousVisitOpen(true)}
-                  >
-                    <History className="size-3.5" />
-                    View previous visit
-                  </Button>
-
-                  {/* Review / Confirm / Reschedule / Cancel — same three-dot
-                      grouping as the appointments table's row actions. */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        aria-label="Open appointment actions"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem
-                        className="gap-2 text-sm"
-                        onClick={() =>
-                          selectedAppointment &&
-                          router.push(
-                            `${viewHref}/${selectedAppointment.id}/review`,
-                          )
-                        }
-                      >
-                        <ClipboardList className="size-3.5 text-muted-foreground" />
-                        Review
-                      </DropdownMenuItem>
-                      {canConfirm && (
-                        <DropdownMenuItem
-                          className="gap-2 text-sm"
-                          onClick={() =>
-                            selectedAppointment &&
-                            doctorStore.getState().onOpen({
-                              type: "confirmAppointment",
-                              data: { appointment: selectedAppointment },
-                            })
-                          }
-                        >
-                          <CheckCircle2 className="size-3.5 text-muted-foreground" />
-                          Confirm
-                        </DropdownMenuItem>
-                      )}
-                      {canReschedule && (
-                        <DropdownMenuItem
-                          className="gap-2 text-sm"
-                          onClick={() =>
-                            selectedAppointment &&
-                            doctorStore.getState().onOpen({
-                              type: "rescheduleAppointment",
-                              data: { appointment: selectedAppointment },
-                            })
-                          }
-                        >
-                          <CalendarClock className="size-3.5 text-muted-foreground" />
-                          Reschedule
-                        </DropdownMenuItem>
-                      )}
-                      {canCancel && (
-                        <DropdownMenuItem
-                          className="gap-2 text-sm text-destructive focus:bg-destructive/10 focus:text-destructive"
-                          onClick={() =>
-                            selectedAppointment &&
-                            doctorStore.getState().onOpen({
-                              type: "cancelAppointment",
-                              data: { appointment: selectedAppointment },
-                            })
-                          }
-                        >
-                          <XCircle className="size-3.5 text-destructive" />
-                          Cancel
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <AppointmentDetailActions
+                    selectedAppointment={selectedAppointment ?? null}
+                    canConfirm={canConfirm}
+                    canReschedule={canReschedule}
+                    canCancel={canCancel}
+                    onViewPreviousVisit={() => setIsPreviousVisitOpen(true)}
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pb-4">
-                {/* Intake insights — self-fetching component */}
-                <IntakeInsights fhirAppointmentId={selectedId} />
-
-                {/* Consultation insights */}
-                {isPending || consultation === undefined ? (
-                  <ConsultationLoadingCard />
-                ) : consultation ? (
-                  <>
-                    <ConsultationInsights consultation={consultation} />
-                    {assessmentPlan && (
-                      <TreatmentEngine assessmentPlan={assessmentPlan} />
-                    )}
-                  </>
-                ) : null}
+              {/* Side by side once this panel itself (not the viewport —
+                  see the @container note above) is wide enough for both to
+                  read comfortably; stacked below that. */}
+              <div className="grid grid-cols-1 @3xl:grid-cols-2 gap-4 pb-4">
+                <IntakeInsights
+                  fhirAppointmentId={selectedId}
+                  onLoaded={setHasIntake}
+                />
+                {/* Spans both columns once IntakeInsights has settled on
+                    "no intake" (renders null) — otherwise this would sit
+                    alone in one half of the row with a blank gap beside it. */}
+                <div className={hasIntake === false ? "@3xl:col-span-2" : undefined}>
+                  <VitalsInsights />
+                </div>
               </div>
             </>
           )}
@@ -550,16 +425,6 @@ function EmptySelection() {
           Click a patient from the schedule to view clinical details.
         </p>
       </div>
-    </div>
-  );
-}
-
-/** Skeleton loading state while consultation is being fetched. */
-function ConsultationLoadingCard() {
-  return (
-    <div className="border rounded-xl p-6 flex items-center justify-center gap-2 text-muted-foreground text-sm bg-card">
-      <Loader2 className="size-4 animate-spin" />
-      Loading consultation data…
     </div>
   );
 }

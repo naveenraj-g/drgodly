@@ -48,34 +48,13 @@ import {
   runContextResolver,
   runContextResolvers,
   extractOutputs,
+  buildBaseContext,
 } from "./_lib";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { checkWorkflowPermission } from "@/modules/server/shared/auth/checkWorkflowPermission";
 import { WORKFLOW_REGISTRY, WORKFLOW_ENTRIES } from "./_registry";
 
 const AGENT_API_URL = process.env.AGENT_API_URL!;
-
-/**
- * Builds the merged session context seeded with identity values and the FHIR
- * base URL so workflow steps can interpolate them without asking the user.
- *
- * @param base - Caller-supplied sessionContext from the request body.
- * @param authSession - Authenticated Better Auth session.
- * @returns Merged context object ready for step data resolution.
- */
-function buildBaseContext(
-  base: Record<string, unknown>,
-  authSession: NonNullable<Awaited<ReturnType<typeof getServerSession>>>,
-): Record<string, unknown> {
-  return {
-    ...base,
-    ...(authSession.user?.id ? { user_id: authSession.user.id } : {}),
-    ...(authSession.session?.activeOrganizationId
-      ? { org_id: authSession.session.activeOrganizationId }
-      : {}),
-    fhir_gql_url: (process.env.FHIR_GQL_URL ?? "").replace(/\/$/, ""),
-  };
-}
 
 /**
  * Starts a new workflow session.

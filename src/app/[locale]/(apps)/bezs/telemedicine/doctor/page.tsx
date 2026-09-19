@@ -30,31 +30,11 @@ import {
   DoctorDashboard,
 } from "@/modules/client/telemedicine/doctor/component/dashboard/DoctorDashboard";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
+import { getPractitionerDisplayName } from "@/modules/client/telemedicine/shared/components/clinical/practitionerFormat";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
 } from "@/modules/entities/schemas/appointment";
-
-/**
- * Derives the practitioner's display name from the FHIR Practitioner resource.
- * Prefers the text field of the first name entry, then constructs from given + family.
- *
- * @param name - Array of HumanName objects from TPractitionerResponse.name.
- * @returns Display name string, or "Doctor" as fallback.
- */
-function getPractitionerDisplayName(
-  name?: Array<{
-    text?: string | null;
-    family?: string | null;
-    given?: string[] | null;
-  }> | null,
-): string {
-  if (!name || name.length === 0) return "Doctor";
-  const first = name[0];
-  if (first.text) return first.text;
-  const parts = [...(first.given ?? []), first.family ?? ""].filter(Boolean);
-  return parts.join(" ") || "Doctor";
-}
 
 /**
  * Doctor dashboard page.
@@ -69,11 +49,6 @@ export default async function DoctorPage() {
     redirect({ href: "/login", locale });
     return null;
   }
-
-  console.log({
-    orgId: session.session.activeOrganizationId,
-    userId: session.user.id,
-  });
 
   // Redirects to /doctor/settings/profile if no FHIR Practitioner record
   const practitioner = await requirePractitionerProfile();
@@ -119,7 +94,6 @@ export default async function DoctorPage() {
         todayLabel={todayLabel}
         practitionerId={practitioner.id}
         viewHref={`${base}/appointments`}
-        clinicalRecordsHref={`${base}/clinical-records`}
       />
 
       {/* Modal singletons — controlled by doctor Zustand store. Needed here

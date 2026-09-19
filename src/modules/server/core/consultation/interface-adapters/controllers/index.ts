@@ -25,6 +25,11 @@ export {
 } from "./saveClinicalData.controller";
 
 export {
+  saveClinicalDraftController,
+  type TSaveClinicalDraftControllerOutput,
+} from "./saveClinicalDraft.controller";
+
+export {
   abandonConsultationController,
   type TAbandonConsultationControllerOutput,
 } from "./abandonConsultation.controller";

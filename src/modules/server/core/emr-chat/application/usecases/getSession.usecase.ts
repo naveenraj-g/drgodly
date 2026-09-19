@@ -12,12 +12,17 @@ import type { TEmrChatSessionFull } from "@/modules/entities/schemas/emr-chat";
 
 /**
  * Retrieves a session by ID including messages and active workflow.
+ * Scoped to userId — a session owned by another user is treated as not found.
  *
  * @param id - Session UUID.
+ * @param userId - Calling user's Better Auth ID.
  * @returns Full session data.
- * @throws NotFoundError if session does not exist.
+ * @throws NotFoundError if session does not exist or belongs to another user.
  */
-export async function getSessionUseCase(id: string): Promise<TEmrChatSessionFull> {
+export async function getSessionUseCase(
+  id: string,
+  userId: string,
+): Promise<TEmrChatSessionFull> {
   const service = getInjection("IEmrChatRepository");
-  return service.getSession(id);
+  return service.getSession(id, userId);
 }

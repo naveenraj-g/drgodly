@@ -21,6 +21,8 @@ interface ServiceRequestListProps {
   items: ServiceRequestFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onChange: (items: ServiceRequestFormItem[]) => void;
+  /** Returns this item's EMR sync status, or undefined before the first confirm. */
+  getSyncStatus?: (item: ServiceRequestFormItem) => "synced" | "draft" | undefined;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -42,7 +44,11 @@ function emptyServiceRequest(): ServiceRequestFormItem {
  * @param items - Controlled service request array.
  * @param onChange - Parent setter receiving the full updated array.
  */
-export function ServiceRequestList({ items, onChange }: ServiceRequestListProps) {
+export function ServiceRequestList({
+  items,
+  onChange,
+  getSyncStatus,
+}: ServiceRequestListProps) {
   const update = (index: number, item: ServiceRequestFormItem) => {
     const next = [...items];
     next[index] = item;
@@ -66,6 +72,7 @@ export function ServiceRequestList({ items, onChange }: ServiceRequestListProps)
           item={item}
           onChange={(updated) => update(i, updated)}
           onRemove={() => remove(i)}
+          syncStatus={getSyncStatus?.(item)}
         />
       ))}
       <Button

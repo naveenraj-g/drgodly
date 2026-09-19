@@ -32,6 +32,7 @@ import {
 } from "@/modules/client/telemedicine/shared/components/online-consultation/TranscriptionPanel";
 import { ConsultationNotes } from "./ConsultationNotes";
 import { Suggestion } from "./Suggestion";
+import { IntakeReportDialog } from "../intake/IntakeReportDialog";
 import { completeConsultationAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import { createEncounterAction } from "@/modules/server/presentation/actions/encounter/core.actions";
 import { updateAppointmentAction } from "@/modules/server/presentation/actions/appointment/core.actions";
@@ -381,6 +382,8 @@ export function DoctorConsult({
               )}
               {showTranscript ? "Hide Transcript" : "Show Transcript"}
             </Button>
+
+            <IntakeReportDialog fhirAppointmentId={fhirAppointmentId} />
 
             <Button
               size="sm"

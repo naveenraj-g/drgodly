@@ -32,6 +32,7 @@ import { listPractitionerRolesAction } from "@/modules/server/presentation/actio
 import { listIntakesAction } from "@/modules/server/presentation/actions/intake";
 import { listConsultationsAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import { DashboardOverview } from "@/modules/client/telemedicine/doctor/component/dashboard-overview/DashboardOverview";
+import { getPractitionerDisplayName } from "@/modules/client/telemedicine/shared/components/clinical/practitionerFormat";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
@@ -46,26 +47,6 @@ const APPOINTMENTS_LIMIT = 200;
 const ORG_ACTIVITY_LIMIT = 200;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Derives the practitioner's display name from the FHIR Practitioner resource.
- *
- * @param name - Array of HumanName objects from TPractitionerResponse.name.
- * @returns Display name string, or "Doctor" as fallback.
- */
-function getPractitionerDisplayName(
-  name?: Array<{
-    text?: string | null;
-    family?: string | null;
-    given?: string[] | null;
-  }> | null,
-): string {
-  if (!name || name.length === 0) return "Doctor";
-  const first = name[0];
-  if (first.text) return first.text;
-  const parts = [...(first.given ?? []), first.family ?? ""].filter(Boolean);
-  return parts.join(" ") || "Doctor";
-}
 
 /**
  * Counts records per status code from a list of `{ status: string }` rows.

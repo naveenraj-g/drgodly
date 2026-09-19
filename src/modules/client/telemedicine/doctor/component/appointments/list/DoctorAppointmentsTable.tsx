@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { endOfDay } from "date-fns";
 import {
-  DataTable,
+  DataTableWithViews,
   DataTableToolbar,
   useServerDataTable,
   useDebouncedValue,
@@ -37,7 +37,11 @@ import {
   doctorAppointmentKeys,
   fetchDoctorAppointments,
 } from "./appointmentQueries";
-import { createDoctorAppointmentColumns } from "./DoctorAppointmentColumns";
+import {
+  createDoctorAppointmentColumns,
+  type DoctorAppointmentColumnCallbacks,
+} from "./DoctorAppointmentColumns";
+import { DoctorAppointmentCard } from "./DoctorAppointmentCard";
 import { AppointmentDetailPanel } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailPanel";
 import { doctorStore } from "@/modules/client/telemedicine/doctor/stores/doctor.store";
 
@@ -101,41 +105,46 @@ export function DoctorAppointmentsTable({
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
 
+  // ── Row action callbacks (memo-stable, shared by table cells and grid cards) ──
+  const callbacks: DoctorAppointmentColumnCallbacks = useMemo(
+    () => ({
+      onView: (row) => router.push(`${viewHref}/${row.id}`),
+      onConfirm: (row) =>
+        doctorStore.getState().onOpen({
+          type: "confirmAppointment",
+          data: { appointment: row },
+        }),
+      onCancel: (row) =>
+        doctorStore.getState().onOpen({
+          type: "cancelAppointment",
+          data: { appointment: row },
+        }),
+      onReschedule: (row) =>
+        doctorStore.getState().onOpen({
+          type: "rescheduleAppointment",
+          data: { appointment: row },
+        }),
+      // Navigates to the virtual consultation room for this appointment.
+      // The page reads ?appointmentId to fetch the LiveKit room_id.
+      onConsult: (row) =>
+        router.push(`${viewHref}/online-consultation?appointmentId=${row.id}`),
+      // Navigates to the in-person diarization recording screen for this appointment.
+      onInPersonConsult: (row) =>
+        router.push(`${viewHref}/inperson-consultation?appointmentId=${row.id}`),
+      // Navigates to the post-consultation review page for this appointment.
+      onReview: (row) => router.push(`${viewHref}/${row.id}/review`),
+      // Navigates to Clinical Records for this appointment's patient — same
+      // deep-link shape as the Dashboard's own "Clinical Records" button.
+      onClinicalRecords: (row) =>
+        router.push(`${clinicalRecordsHref}/${row.subject_id}/${row.id}`),
+    }),
+    [router, viewHref, clinicalRecordsHref],
+  );
+
   // ── Column definitions (memo-stable) ────────────────────────────────────────
   const columns = useMemo(
-    () =>
-      createDoctorAppointmentColumns({
-        onView: (row) => router.push(`${viewHref}/${row.id}`),
-        onConfirm: (row) =>
-          doctorStore.getState().onOpen({
-            type: "confirmAppointment",
-            data: { appointment: row },
-          }),
-        onCancel: (row) =>
-          doctorStore.getState().onOpen({
-            type: "cancelAppointment",
-            data: { appointment: row },
-          }),
-        onReschedule: (row) =>
-          doctorStore.getState().onOpen({
-            type: "rescheduleAppointment",
-            data: { appointment: row },
-          }),
-        // Navigates to the virtual consultation room for this appointment.
-        // The page reads ?appointmentId to fetch the LiveKit room_id.
-        onConsult: (row) =>
-          router.push(`${viewHref}/online-consultation?appointmentId=${row.id}`),
-        // Navigates to the in-person diarization recording screen for this appointment.
-        onInPersonConsult: (row) =>
-          router.push(`${viewHref}/inperson-consultation?appointmentId=${row.id}`),
-        // Navigates to the post-consultation review page for this appointment.
-        onReview: (row) => router.push(`${viewHref}/${row.id}/review`),
-        // Navigates to Clinical Records for this appointment's patient — same
-        // deep-link shape as the Dashboard's own "Clinical Records" button.
-        onClinicalRecords: (row) =>
-          router.push(`${clinicalRecordsHref}/${row.subject_id}/${row.id}`),
-      }),
-    [router, viewHref, clinicalRecordsHref],
+    () => createDoctorAppointmentColumns(callbacks),
+    [callbacks],
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
@@ -289,14 +298,15 @@ export function DoctorAppointmentsTable({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <DataTable
+    <DataTableWithViews
       table={table}
       loading={isFetching}
+      toolbar={<DataTableToolbar table={table} />}
       renderSubComponent={(row) => (
         <AppointmentDetailPanel row={row} perspective="doctor" />
       )}
-    >
-      <DataTableToolbar table={table} />
-    </DataTable>
+      renderCard={(row) => <DoctorAppointmentCard row={row} callbacks={callbacks} />}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    />
   );
 }

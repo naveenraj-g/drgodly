@@ -150,6 +150,26 @@ model Consultation {
   /** Better Auth user ID of the doctor who approved. Set with published_at. */
   published_by        String?
 
+  /**
+   * Autosaved working copy of the review-page state, written every few
+   * seconds while the doctor types — independent of the published_at
+   * snapshot above so an in-progress edit never overwrites what's already
+   * confirmed to the EMR before the doctor re-confirms.
+   *
+   * draft_updated_at is the only presence signal: null means there is no
+   * pending draft (either nothing has been typed yet, or the last draft was
+   * cleared after a successful Confirm & Save). The four draft_* arrays and
+   * draft_soap_note mirror the shape of the matching non-draft columns, but
+   * hold the doctor's *unconfirmed* edits, which may be for an encounter
+   * that already has some or all of its data live in FHIR.
+   */
+  draft_soap_note           Json?
+  draft_service_requests    Json?
+  draft_medication_requests Json?
+  draft_observations        Json?
+  draft_conditions          Json?
+  draft_updated_at          DateTime?
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

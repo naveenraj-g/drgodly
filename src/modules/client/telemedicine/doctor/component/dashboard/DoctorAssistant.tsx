@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Markdown } from "@/modules/client/shared/components/Markdown";
 import {
   Sheet,
   SheetContent,
@@ -859,8 +860,12 @@ export function DoctorAssistant({ selectedAppointment }: Props) {
                 if (msg.role === "assistant")
                   return (
                     <div key={msg.key} className="flex justify-start">
-                      <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
-                        {msg.content}
+                      <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-foreground">
+                        {/* Markdown, not plain text — the agent's replies can (and
+                            often do) come back with lists/bold/headings; plain
+                            text with no Markdown syntax still renders correctly
+                            as an ordinary paragraph, so this is safe either way. */}
+                        <Markdown content={msg.content} className="[&_p]:first:mt-0 [&_p]:last:mb-0" />
                       </div>
                     </div>
                   );
@@ -894,8 +899,15 @@ export function DoctorAssistant({ selectedAppointment }: Props) {
 
               {isStreaming && (
                 <div className="flex justify-start">
-                  <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap">
-                    {liveText || (
+                  <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5">
+                    {liveText ? (
+                      // Same Markdown treatment as a finished assistant bubble —
+                      // rendering progressively as tokens stream in can briefly
+                      // show unbalanced syntax (e.g. an unclosed **) until the
+                      // closing token arrives, same tradeoff most streaming AI
+                      // chat UIs accept for formatted output.
+                      <Markdown content={liveText} className="[&_p]:first:mt-0 [&_p]:last:mb-0" />
+                    ) : (
                       <span className="inline-flex gap-0.5 items-center">
                         <span className="animate-bounce size-1 rounded-full bg-muted-foreground [animation-delay:0ms]" />
                         <span className="animate-bounce size-1 rounded-full bg-muted-foreground [animation-delay:150ms]" />

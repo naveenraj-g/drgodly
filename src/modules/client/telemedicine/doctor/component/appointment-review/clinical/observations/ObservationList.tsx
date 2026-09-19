@@ -21,6 +21,8 @@ interface ObservationListProps {
   items: ObservationFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onChange: (items: ObservationFormItem[]) => void;
+  /** Returns this item's EMR sync status, or undefined before the first confirm. */
+  getSyncStatus?: (item: ObservationFormItem) => "synced" | "draft" | undefined;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@ function emptyObservation(): ObservationFormItem {
  * @param items - Controlled observation array.
  * @param onChange - Parent setter receiving the full updated array.
  */
-export function ObservationList({ items, onChange }: ObservationListProps) {
+export function ObservationList({ items, onChange, getSyncStatus }: ObservationListProps) {
   const update = (index: number, item: ObservationFormItem) => {
     const next = [...items];
     next[index] = item;
@@ -68,6 +70,7 @@ export function ObservationList({ items, onChange }: ObservationListProps) {
           item={item}
           onChange={(updated) => update(i, updated)}
           onRemove={() => remove(i)}
+          syncStatus={getSyncStatus?.(item)}
         />
       ))}
       <Button

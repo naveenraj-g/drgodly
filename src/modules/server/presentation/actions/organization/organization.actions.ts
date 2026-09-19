@@ -53,27 +53,53 @@ import { adminProcedure, authenticatedProcedure } from "../procedures";
 export const registerOrganizationAction = adminProcedure
   .createServerAction()
   .input(RegisterOrgActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TRegisterOrgAction }) => {
-    return await runWithTransport<TRegisterOrganizationControllerOutput>(
-      async () => {
-        const data = await registerOrganizationController(input.payload);
-        return { result: data, transport: input.transportOptions };
-      }
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TRegisterOrgAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TRegisterOrganizationControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await registerOrganizationController(enrichedPayload);
+          return { result: data, transport: input.transportOptions };
+        }
+      );
+    }
+  );
 
 /** Lists organizations with optional server-side filters and pagination. */
 export const listOrganizationsAction = adminProcedure
   .createServerAction()
   .input(ListOrgsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListOrgsAction }) => {
-    return await runWithTransport<TListOrganizationsControllerOutput>(
-      async () => {
-        const data = await listOrganizationsController(input.payload);
-        return { result: data };
-      }
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListOrgsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListOrganizationsControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await listOrganizationsController(enrichedPayload);
+          return { result: data };
+        }
+      );
+    }
+  );
 
 /** Fetches a single organization by its numeric ID. */
 export const getOrganizationByIdAction = adminProcedure

@@ -13,8 +13,14 @@
  *   - fhirId absent from the current list       → CREATE (newly added item)
  *   - fhirId loaded at mount but missing now    → DELETE (doctor removed it)
  *
- * All operations for all four resource types run in a single Promise.all, so a
- * publish is one round of parallel writes rather than a sequential cascade.
+ * Every resource type's delete/update/create calls run together in one
+ * Promise.all, and all four resource types run concurrently too — a publish is
+ * one round of parallel writes, not a sequential cascade.
+ *
+ * CREATEs also report back a { localId -> new fhirId } map (createdIds) so the
+ * caller can stamp fhirId onto its own form state without a refetch — needed so
+ * a doctor-added item is recognised as "now in the EMR" immediately after this
+ * resolves, rather than only after the page reloads.
  *
  * Immutability caveat (enforced by fhir-gql, mirrored here): child arrays such
  * as category, note, reference_range and dosage_instruction can only be set at
@@ -94,6 +100,68 @@ export interface PublishClinicalRecordsInput {
   encounterId: number;
 }
 
+/** Maps a form item's local `id` to the fhirId a CREATE call for it returned. */
+export type CreatedIdMap = Map<string, number>;
+
+/** Everything publishClinicalRecords hands back once every write has settled. */
+export interface PublishClinicalRecordsResult {
+  /** The FHIR IDs still present after publishing — reset the load-time snapshot to this. */
+  initialFhirIds: InitialFhirIds;
+  /** New fhirIds assigned to items that were CREATEd this round, keyed by local id. */
+  createdIds: {
+    conditions: CreatedIdMap;
+    observations: CreatedIdMap;
+    medications: CreatedIdMap;
+    serviceRequests: CreatedIdMap;
+  };
+}
+
+// ── Per-resource helper ───────────────────────────────────────────────────────
+
+/**
+ * Runs one resource type's delete/update/create calls in parallel and reports
+ * back which local ids got a new fhirId from a CREATE.
+ *
+ * @param items - Current form items for this resource type.
+ * @param deletedFhirIds - fhirIds present at load but no longer in `items`.
+ * @param buildUpdatePayload - Maps an existing item to its UPDATE payload.
+ * @param buildCreatePayload - Maps a new item to its CREATE payload.
+ * @param remove - Delete action for one fhirId.
+ * @param update - Update action for one item.
+ * @param create - Create action for one item; response must carry `id`.
+ * @returns Map of local `id` -> new fhirId for every item that was CREATEd.
+ */
+async function publishResource<TItem extends { id: string; fhirId?: number }>(
+  items: TItem[],
+  deletedFhirIds: number[],
+  buildUpdatePayload: (item: TItem) => unknown,
+  buildCreatePayload: (item: TItem) => unknown,
+  remove: (payload: { id: number }) => Promise<unknown>,
+  update: (payload: unknown) => Promise<unknown>,
+  create: (payload: unknown) => Promise<[{ id: number } | null, unknown]>,
+): Promise<CreatedIdMap> {
+  const [, , createResults] = await Promise.all([
+    Promise.all(deletedFhirIds.map((id) => remove({ id }))),
+    Promise.all(
+      items.filter((item) => item.fhirId).map((item) => update(buildUpdatePayload(item))),
+    ),
+    Promise.all(
+      items
+        .filter((item) => !item.fhirId)
+        .map(async (item) => {
+          const [data] = await create(buildCreatePayload(item));
+          return [item.id, data?.id] as const;
+        }),
+    ),
+  ]);
+
+  const createdIds: CreatedIdMap = new Map();
+  for (const [localId, fhirId] of createResults) {
+    if (fhirId != null) createdIds.set(localId, fhirId);
+  }
+  return createdIds;
+}
+
 // ── Publish ───────────────────────────────────────────────────────────────────
 
 /**
@@ -101,8 +169,8 @@ export interface PublishClinicalRecordsInput {
  * CREATE / UPDATE / DELETE operations in parallel across all four resource types.
  *
  * @param input - Current form state, load-time FHIR IDs, subject and encounter.
- * @returns The FHIR IDs still present after publishing, so the caller can reset
- *          its load-time snapshot without refetching.
+ * @returns The FHIR IDs still present after publishing (reset the load-time
+ *          snapshot to this) plus a map of newly-CREATEd local ids -> fhirId.
  * @throws Whatever the underlying server actions throw if a write fails — the
  *         caller is responsible for surfacing the error to the doctor.
  */
@@ -114,7 +182,7 @@ export async function publishClinicalRecords({
   initialFhirIds,
   subject,
   encounterId,
-}: PublishClinicalRecordsInput): Promise<InitialFhirIds> {
+}: PublishClinicalRecordsInput): Promise<PublishClinicalRecordsResult> {
   /* ── Compute deletes: IDs loaded at mount that are no longer in the list ── */
   const currentConditionFhirIds = new Set(
     conditions.filter((c) => c.fhirId).map((c) => c.fhirId!),
@@ -145,78 +213,58 @@ export async function publishClinicalRecords({
   /* Subject + encounter every CREATE attaches to. */
   const ctx: ClinicalWriteContext = { subject, encounterId };
 
-  await Promise.all([
-    /* ══ Conditions ══════════════════════════════════════════════════════════ */
-    ...deletedConditionIds.map((id) => deleteConditionAction({ payload: { id } })),
-    ...conditions
-      .filter((c) => c.fhirId)
-      .map((c) => updateConditionAction({ payload: conditionUpdatePayload(c) })),
-    ...conditions
-      .filter((c) => !c.fhirId)
-      .map((c) =>
-        createConditionAction({ payload: conditionCreatePayload(c, ctx) }),
+  const [conditionCreatedIds, observationCreatedIds, medicationCreatedIds, serviceRequestCreatedIds] =
+    await Promise.all([
+      publishResource(
+        conditions,
+        deletedConditionIds,
+        conditionUpdatePayload,
+        (c) => conditionCreatePayload(c, ctx),
+        (p) => deleteConditionAction({ payload: p }),
+        (p) => updateConditionAction({ payload: p as ReturnType<typeof conditionUpdatePayload> }),
+        (p) => createConditionAction({ payload: p as ReturnType<typeof conditionCreatePayload> }),
       ),
+      publishResource(
+        observations,
+        deletedObservationIds,
+        observationUpdatePayload,
+        (o) => observationCreatePayload(o, ctx),
+        (p) => deleteObservationAction({ payload: p }),
+        (p) => updateObservationAction({ payload: p as ReturnType<typeof observationUpdatePayload> }),
+        (p) => createObservationAction({ payload: p as ReturnType<typeof observationCreatePayload> }),
+      ),
+      publishResource(
+        medications,
+        deletedMedicationIds,
+        medicationUpdatePayload,
+        (m) => medicationCreatePayload(m, ctx),
+        (p) => deleteMedicationRequestAction({ payload: p }),
+        (p) => updateMedicationRequestAction({ payload: p as ReturnType<typeof medicationUpdatePayload> }),
+        (p) => createMedicationRequestAction({ payload: p as ReturnType<typeof medicationCreatePayload> }),
+      ),
+      publishResource(
+        serviceRequests,
+        deletedServiceRequestIds,
+        serviceRequestUpdatePayload,
+        (s) => serviceRequestCreatePayload(s, ctx),
+        (p) => deleteServiceRequestAction({ payload: p }),
+        (p) => updateServiceRequestAction({ payload: p as ReturnType<typeof serviceRequestUpdatePayload> }),
+        (p) => createServiceRequestAction({ payload: p as ReturnType<typeof serviceRequestCreatePayload> }),
+      ),
+    ]);
 
-    /* ══ Observations ════════════════════════════════════════════════════════ */
-    ...deletedObservationIds.map((id) =>
-      deleteObservationAction({ payload: { id } }),
-    ),
-    ...observations
-      .filter((o) => o.fhirId)
-      .map((o) =>
-        updateObservationAction({ payload: observationUpdatePayload(o) }),
-      ),
-    ...observations
-      .filter((o) => !o.fhirId)
-      .map((o) =>
-        createObservationAction({ payload: observationCreatePayload(o, ctx) }),
-      ),
-
-    /* ══ Medication requests ══════════════════════════════════════════════════ */
-    ...deletedMedicationIds.map((id) =>
-      deleteMedicationRequestAction({ payload: { id } }),
-    ),
-    ...medications
-      .filter((m) => m.fhirId)
-      .map((m) =>
-        updateMedicationRequestAction({ payload: medicationUpdatePayload(m) }),
-      ),
-    ...medications
-      .filter((m) => !m.fhirId)
-      .map((m) =>
-        createMedicationRequestAction({
-          payload: medicationCreatePayload(m, ctx),
-        }),
-      ),
-
-    /* ══ Service requests ════════════════════════════════════════════════════ */
-    ...deletedServiceRequestIds.map((id) =>
-      deleteServiceRequestAction({ payload: { id } }),
-    ),
-    ...serviceRequests
-      .filter((s) => s.fhirId)
-      .map((s) =>
-        updateServiceRequestAction({ payload: serviceRequestUpdatePayload(s) }),
-      ),
-    ...serviceRequests
-      .filter((s) => !s.fhirId)
-      .map((s) =>
-        createServiceRequestAction({
-          payload: serviceRequestCreatePayload(s, ctx),
-        }),
-      ),
-  ]);
-
-  /*
-   * Return the surviving fhirIds so the caller can reset its load-time snapshot.
-   * Newly CREATEd items are intentionally absent — they have no fhirId in local
-   * state until the caller refetches, and re-publishing without a refetch would
-   * simply create them again (same behaviour as before this was extracted).
-   */
   return {
-    conditions: currentConditionFhirIds,
-    observations: currentObservationFhirIds,
-    medications: currentMedicationFhirIds,
-    serviceRequests: currentServiceRequestFhirIds,
+    initialFhirIds: {
+      conditions: currentConditionFhirIds,
+      observations: currentObservationFhirIds,
+      medications: currentMedicationFhirIds,
+      serviceRequests: currentServiceRequestFhirIds,
+    },
+    createdIds: {
+      conditions: conditionCreatedIds,
+      observations: observationCreatedIds,
+      medications: medicationCreatedIds,
+      serviceRequests: serviceRequestCreatedIds,
+    },
   };
 }

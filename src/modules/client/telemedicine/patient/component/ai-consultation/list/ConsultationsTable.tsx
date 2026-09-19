@@ -15,7 +15,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  DataTable,
+  DataTableWithViews,
   DataTableToolbar,
   useServerDataTable,
 } from "@/modules/client/shared/components/tables";
@@ -28,6 +28,7 @@ import {
   fetchPatientConsultations,
 } from "./consultationQueries";
 import { createConsultationColumns } from "./ConsultationColumns";
+import { ConsultationCard } from "./ConsultationCard";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -76,16 +77,19 @@ export function ConsultationsTable({
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
 
+  // ── Row action callback (shared by table cells and grid cards) ──────────────
+  const onView = useMemo(
+    () => (row: TConsultationListItem) => {
+      /* Navigate to the appointment detail page linked to this consultation. */
+      router.push(`${appointmentViewHref}/${row.fhir_appointment_id}`);
+    },
+    [router, appointmentViewHref],
+  );
+
   // ── Column definitions ───────────────────────────────────────────────────────
   const columns = useMemo(
-    () =>
-      createConsultationColumns({
-        onView: (row) => {
-          /* Navigate to the appointment detail page linked to this consultation. */
-          router.push(`${appointmentViewHref}/${row.fhir_appointment_id}`);
-        },
-      }),
-    [router, appointmentViewHref],
+    () => createConsultationColumns({ onView }),
+    [onView],
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
@@ -143,8 +147,14 @@ export function ConsultationsTable({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <DataTable table={table} loading={isFetching}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <DataTableWithViews
+      table={table}
+      loading={isFetching}
+      toolbar={<DataTableToolbar table={table} />}
+      renderCard={(row) => (
+        <ConsultationCard consultation={row.original} onView={onView} />
+      )}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    />
   );
 }

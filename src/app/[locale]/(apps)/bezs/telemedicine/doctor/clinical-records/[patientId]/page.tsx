@@ -39,7 +39,7 @@ import {
 } from "@/modules/server/presentation/helpers/doctorPatients";
 import { PatientHeaderCard } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientHeaderCard";
 import { PatientAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/clinical-records/PatientAppointmentsTable";
-import { BackButton } from "@/modules/client/telemedicine/doctor/component/clinical-records/BackButton";
+import { BackButton } from "@/modules/client/telemedicine/shared/components/BackButton";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 import type { TPaginatedEncounterResponse } from "@/modules/entities/schemas/encounter";
@@ -138,9 +138,7 @@ export default async function PatientClinicalRecordsPage({
   const nowMs = referenceInstantMs();
 
   return (
-    /* Wider than the other Clinical Records pages so the appointment grid has
-       room for three columns — it caps at 1152px, giving ~370px per card. */
-    <div className="mx-auto w-full max-w-6xl space-y-5">
+    <div className="w-full space-y-5">
       {/* ── Back button ── */}
       <BackButton />
 

@@ -73,6 +73,13 @@ interface DataTableWithViewsProps<TData> {
   loading?: boolean;
   /** Number of skeleton rows shown while loading. Defaults to page size. */
   loadingRowCount?: number;
+  /**
+   * Detail-panel expand pattern, forwarded to DataTable for table view only
+   * (see DataTable's own `renderSubComponent` doc). Grid view has no expand
+   * affordance — a card already shows everything a card can hold, so there's
+   * nothing to expand into.
+   */
+  renderSubComponent?: (row: Row<TData>) => React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +109,7 @@ export function DataTableWithViews<TData>({
   emptyState,
   loading,
   loadingRowCount,
+  renderSubComponent,
 }: DataTableWithViewsProps<TData>) {
   const [view, setView] = React.useState<TableViewMode>(defaultView);
 
@@ -131,6 +139,7 @@ export function DataTableWithViews<TData>({
           emptyState={emptyState}
           loading={loading}
           loadingRowCount={loadingRowCount}
+          renderSubComponent={renderSubComponent}
         />
       ) : (
         <>

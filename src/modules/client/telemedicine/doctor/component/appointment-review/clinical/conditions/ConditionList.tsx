@@ -21,6 +21,8 @@ interface ConditionListProps {
   items: ConditionFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onChange: (items: ConditionFormItem[]) => void;
+  /** Returns this item's EMR sync status, or undefined before the first confirm. */
+  getSyncStatus?: (item: ConditionFormItem) => "synced" | "draft" | undefined;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ function emptyCondition(): ConditionFormItem {
  * @param items - Controlled condition array.
  * @param onChange - Parent setter receiving the full updated array.
  */
-export function ConditionList({ items, onChange }: ConditionListProps) {
+export function ConditionList({ items, onChange, getSyncStatus }: ConditionListProps) {
   const update = (index: number, item: ConditionFormItem) => {
     const next = [...items];
     next[index] = item;
@@ -67,6 +69,7 @@ export function ConditionList({ items, onChange }: ConditionListProps) {
           item={item}
           onChange={(updated) => update(i, updated)}
           onRemove={() => remove(i)}
+          syncStatus={getSyncStatus?.(item)}
         />
       ))}
       <Button

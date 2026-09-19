@@ -18,15 +18,18 @@ function presenter(data: TEmrChatSessionFull) {
 export type TGetSessionControllerOutput = ReturnType<typeof presenter>;
 
 /**
- * Loads a full session by ID.
+ * Loads a full session by ID. Scoped to userId — a session owned by another
+ * user is treated as not found.
  *
  * @param id - Session UUID.
+ * @param userId - Calling user's Better Auth ID.
  * @returns Full session with messages and active workflow.
- * @throws NotFoundError if not found.
+ * @throws NotFoundError if not found or owned by another user.
  */
 export async function getSessionController(
   id: string,
+  userId: string,
 ): Promise<TGetSessionControllerOutput> {
-  const data = await getSessionUseCase(id);
+  const data = await getSessionUseCase(id, userId);
   return presenter(data);
 }

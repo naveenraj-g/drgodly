@@ -51,11 +51,7 @@ export default async function PatientMedicalRecordsPage() {
     (appointmentsPage as TPaginatedAppointmentResponse | null)?.data ?? [];
 
   return (
-    // Wider than a plain reading column — the appointment grid needs room
-    // for three columns (matches the analogous Clinical Records patient-
-    // appointments grid, which settled on the same max-w-6xl for the same
-    // reason: ~370px per card at the 3-column breakpoint).
-    <div className="space-y-6 w-full max-w-6xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Medical Records</h1>
         <p className="text-sm text-muted-foreground">

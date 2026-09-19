@@ -30,26 +30,53 @@ import {
 } from "@/modules/server/core/diagnostic-report/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 export const createDiagnosticReportAction = authenticatedProcedure
   .createServerAction()
   .input(CreateDiagnosticReportActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateDiagnosticReportAction }) => {
-    return await runWithTransport<TCreateDiagnosticReportControllerOutput>(async () => {
-      const data = await createDiagnosticReportController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateDiagnosticReportAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateDiagnosticReportControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createDiagnosticReportController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 export const listDiagnosticReportsAction = authenticatedProcedure
   .createServerAction()
   .input(ListDiagnosticReportsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListDiagnosticReportsAction }) => {
-    return await runWithTransport<TListDiagnosticReportsControllerOutput>(async () => {
-      const data = await listDiagnosticReportsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListDiagnosticReportsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListDiagnosticReportsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listDiagnosticReportsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 export const getDiagnosticReportByIdAction = authenticatedProcedure
   .createServerAction()

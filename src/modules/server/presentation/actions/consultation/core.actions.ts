@@ -15,12 +15,14 @@ import {
   CreateConsultationActionSchema,
   CompleteConsultationActionSchema,
   SaveClinicalDataActionSchema,
+  SaveClinicalDraftActionSchema,
   AbandonConsultationActionSchema,
   GetConsultationByFhirAppointmentIdActionSchema,
   ListConsultationsActionSchema,
   type TCreateConsultationAction,
   type TCompleteConsultationAction,
   type TSaveClinicalDataAction,
+  type TSaveClinicalDraftAction,
   type TAbandonConsultationAction,
   type TGetConsultationByFhirAppointmentIdAction,
   type TListConsultationsAction,
@@ -29,12 +31,14 @@ import {
   createConsultationController,
   completeConsultationController,
   saveClinicalDataController,
+  saveClinicalDraftController,
   abandonConsultationController,
   getConsultationByFhirAppointmentIdController,
   listConsultationsController,
   type TCreateConsultationControllerOutput,
   type TCompleteConsultationControllerOutput,
   type TSaveClinicalDataControllerOutput,
+  type TSaveClinicalDraftControllerOutput,
   type TAbandonConsultationControllerOutput,
   type TGetConsultationByFhirAppointmentIdControllerOutput,
   type TListConsultationsControllerOutput,
@@ -43,8 +47,8 @@ import { authenticatedProcedure } from "../procedures";
 
 /**
  * Provisions a WAITING consultation room immediately after a FHIR appointment
- * is booked. user_id is injected from the session — the client provides only
- * fhir_appointment_id and optional org_id.
+ * is booked. user_id and org_id are injected from the session — the client
+ * provides only fhir_appointment_id.
  */
 export const createConsultationAction = authenticatedProcedure
   .createServerAction()
@@ -57,10 +61,12 @@ export const createConsultationAction = authenticatedProcedure
       input: TCreateConsultationAction;
       ctx: { session: AuthResponse };
     }): Promise<TCreateConsultationControllerOutput> => {
-      // Inject user_id from session — client cannot impersonate another user
+      // Inject user_id/org_id from session — client cannot impersonate another
+      // user or attribute the room to another tenant
       const enrichedPayload = {
         ...input.payload,
         user_id: ctx.session.session.userId,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
       };
       return createConsultationController(enrichedPayload);
     },
@@ -110,6 +116,24 @@ export const saveClinicalDataAction = authenticatedProcedure
   );
 
 /**
+ * Autosaves the review page's in-progress working copy (SOAP note + the four
+ * clinical extraction lists) on a debounce, or clears it with `clear: true`
+ * right after a successful Confirm & Save. Never marks anything published.
+ */
+export const saveClinicalDraftAction = authenticatedProcedure
+  .createServerAction()
+  .input(SaveClinicalDraftActionSchema, { skipInputParsing: true })
+  .handler(
+    async ({
+      input,
+    }: {
+      input: TSaveClinicalDraftAction;
+    }): Promise<TSaveClinicalDraftControllerOutput> => {
+      return saveClinicalDraftController(input.payload);
+    },
+  );
+
+/**
  * Marks the consultation ABANDONED when a participant leaves without
  * completing the session (e.g. browser close, network drop).
  */
@@ -146,7 +170,9 @@ export const getConsultationByFhirAppointmentIdAction = authenticatedProcedure
 /**
  * Returns a paginated list of AI Consultation records.
  * Patient portal passes user_id to scope to own records.
- * Admin/doctor portal can omit user_id to see org-wide records.
+ * Admin/doctor portal can omit user_id to see org-wide records — org_id
+ * itself is injected from the session, so that "org-wide" is always the
+ * caller's own org, never one supplied by the client.
  */
 export const listConsultationsAction = authenticatedProcedure
   .createServerAction()
@@ -154,9 +180,16 @@ export const listConsultationsAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TListConsultationsAction;
+      ctx: { session: AuthResponse };
     }): Promise<TListConsultationsControllerOutput> => {
-      return listConsultationsController(input.payload);
+      // Inject org_id from session — client cannot list another org's consultations
+      const enrichedPayload = {
+        ...input.payload,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
+      };
+      return listConsultationsController(enrichedPayload);
     },
   );

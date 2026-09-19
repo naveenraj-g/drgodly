@@ -23,11 +23,12 @@ import { ChevronRight, UserRound, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DataTable,
+  DataTableWithViews,
   DataTableColumnHeader,
   DataTableToolbar,
   useDataTable,
 } from "@/modules/client/shared/components/tables";
+import { PatientSummaryCard } from "./PatientSummaryCard";
 import type { DoctorPatientSummary } from "./types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -205,8 +206,13 @@ export function PatientListTable({ patients, baseHref }: PatientListTableProps) 
   }
 
   return (
-    <DataTable table={table}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <DataTableWithViews
+      table={table}
+      toolbar={<DataTableToolbar table={table} />}
+      renderCard={(row) => (
+        <PatientSummaryCard patient={row.original} baseHref={baseHref} />
+      )}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    />
   );
 }

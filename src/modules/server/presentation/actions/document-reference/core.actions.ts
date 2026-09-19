@@ -30,16 +30,30 @@ import {
 } from "@/modules/server/core/document-reference/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 export const createDocumentReferenceAction = authenticatedProcedure
   .createServerAction()
   .input(CreateDocumentReferenceActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateDocumentReferenceAction }) => {
-    return await runWithTransport<TCreateDocumentReferenceControllerOutput>(async () => {
-      const data = await createDocumentReferenceController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateDocumentReferenceAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateDocumentReferenceControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createDocumentReferenceController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 export const listDocumentReferencesAction = authenticatedProcedure
   .createServerAction()

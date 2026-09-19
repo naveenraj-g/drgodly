@@ -63,23 +63,49 @@ import { authenticatedProcedure } from "../procedures";
 export const bookAppointmentAction = authenticatedProcedure
   .createServerAction()
   .input(BookAppointmentActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TBookAppointmentAction }) => {
-    return await runWithTransport<TBookAppointmentControllerOutput>(async () => {
-      const data = await bookAppointmentController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TBookAppointmentAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TBookAppointmentControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await bookAppointmentController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Creates a full FHIR Appointment with all optional child arrays. */
 export const createAppointmentAction = authenticatedProcedure
   .createServerAction()
   .input(CreateAppointmentActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateAppointmentAction }) => {
-    return await runWithTransport<TCreateAppointmentControllerOutput>(async () => {
-      const data = await createAppointmentController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateAppointmentAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateAppointmentControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createAppointmentController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /**
  * Lists appointments for the currently authenticated user.
@@ -104,12 +130,25 @@ export const getMyAppointmentsAction = authenticatedProcedure
 export const listAppointmentsAction = authenticatedProcedure
   .createServerAction()
   .input(ListAppointmentsActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListAppointmentsAction }) => {
-    return await runWithTransport<TListAppointmentsControllerOutput>(async () => {
-      const data = await listAppointmentsController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListAppointmentsAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListAppointmentsControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listAppointmentsController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single Appointment by numeric ID. */
 export const getAppointmentByIdAction = authenticatedProcedure

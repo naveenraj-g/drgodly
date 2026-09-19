@@ -61,6 +61,7 @@ import {
   extractOutputs,
   cleanFormData,
   runGraphQLResolverOrAction,
+  buildBaseContext,
 } from "../_lib";
 import { VALIDATION_SCHEMAS } from "@/modules/client/ai-hub/schemas/validation";
 import { WORKFLOW_REGISTRY } from "../_registry";
@@ -89,7 +90,7 @@ export async function POST(req: Request) {
     stepIndex,
     actionName,
     formData,
-    sessionContext = {},
+    sessionContext: rawSessionContext = {},
   }: {
     workflow: WorkflowDefinition;
     stepIndex: number;
@@ -97,6 +98,12 @@ export async function POST(req: Request) {
     formData: Record<string, unknown>;
     sessionContext?: Record<string, unknown>;
   } = await req.json();
+
+  // Re-pin user_id/org_id/fhir_gql_url to the current session before this
+  // context reaches any FHIR call. sessionContext is re-sent by the client
+  // on every submit, so without this a forged org_id/user_id could ride
+  // straight into a Zod-validated create/update payload below.
+  const sessionContext = buildBaseContext(rawSessionContext, authSession);
 
   // Always prefer the server's current workflow definition over the client's
   // snapshot — the client may be replaying a workflow JSON it fetched before

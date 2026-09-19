@@ -49,8 +49,9 @@ import { authenticatedProcedure } from "../procedures";
 
 /**
  * Creates a new IN_PROGRESS intake session.
- * The session userId is injected server-side — the client cannot supply a
- * different userId to start an intake on behalf of another user.
+ * The session userId and org_id are injected server-side — the client cannot
+ * supply a different userId to start an intake on behalf of another user, or
+ * a different org_id to attribute the record to another tenant.
  */
 export const createIntakeAction = authenticatedProcedure
   .createServerAction()
@@ -63,10 +64,11 @@ export const createIntakeAction = authenticatedProcedure
       input: TCreateIntakeAction;
       ctx: { session: AuthResponse };
     }): Promise<TCreateIntakeControllerOutput> => {
-      // Inject userId from session — client supplies only mode + optional fields
+      // Inject userId/org_id from session — client supplies only mode + optional fields
       const enrichedPayload = {
         ...input.payload,
         userId: ctx.session.session.userId,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
       };
       return createIntakeController(enrichedPayload);
     },
@@ -158,7 +160,9 @@ export const getIntakeByFhirAppointmentIdAction = authenticatedProcedure
 /**
  * Returns a paginated list of AI Intake records.
  * Patient portal passes user_id to scope to own records.
- * Admin/doctor portal can omit user_id to see org-wide records.
+ * Admin/doctor portal can omit user_id to see org-wide records — org_id
+ * itself is injected from the session, so that "org-wide" is always the
+ * caller's own org, never one supplied by the client.
  */
 export const listIntakesAction = authenticatedProcedure
   .createServerAction()
@@ -166,9 +170,16 @@ export const listIntakesAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TListIntakesAction;
+      ctx: { session: AuthResponse };
     }): Promise<TListIntakesControllerOutput> => {
-      return listIntakesController(input.payload);
+      // Inject org_id from session — client cannot list another org's intakes
+      const enrichedPayload = {
+        ...input.payload,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
+      };
+      return listIntakesController(enrichedPayload);
     },
   );

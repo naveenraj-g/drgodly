@@ -87,6 +87,13 @@ export function TextIntake({
   const abortRef = useRef<AbortController | null>(null);
   const liveTextRef = useRef("");
   const inputRef = useRef<HTMLInputElement>(null);
+  // Mirrors `messages` synchronously (updated every render, below) so
+  // sendMessage can call endChat() directly the instant a status_end chunk
+  // arrives — endChat reads this ref rather than `messages` so it always
+  // sees the latest list, including a message committed moments earlier in
+  // the same tick, without waiting on React's async state-update/re-render.
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
 
   // Re-focus the input whenever the AI finishes streaming so the patient
   // can type their next message without clicking the field manually.
@@ -98,7 +105,12 @@ export function TextIntake({
   const parseChunkLine = useCallback(
     (
       raw: string,
-    ): { token: string | null; done: boolean; sessionId?: string } => {
+    ): {
+      token: string | null;
+      done: boolean;
+      sessionId?: string;
+      conversationEnded?: boolean;
+    } => {
       const line = raw.startsWith("data:") ? raw.slice(5).trim() : raw.trim();
       if (!line || line === "[DONE]")
         return { token: null, done: line === "[DONE]" };
@@ -117,6 +129,16 @@ export function TextIntake({
         if (type === "agent_end")
           return { token: null, done: true, sessionId: parsed.session_id };
         if (type === "text_complete") return { token: null, done: false };
+        /*
+         * status_end — the agent itself has decided the intake is over
+         * (distinct from agent_end/done/finish below, which only close out
+         * the current streaming turn). Matched on `type` alone — data.status/
+         * data.agent vary by agent and aren't part of the contract, so they're
+         * deliberately ignored. Tells sendMessage to auto-run the same "End
+         * Chat" flow the patient would otherwise trigger manually.
+         */
+        if (type === "status_end")
+          return { token: null, done: true, conversationEnded: true };
         if (["token", "message", "chunk", "stream", "text"].includes(type)) {
           const text =
             data?.content ??
@@ -147,106 +169,147 @@ export function TextIntake({
   );
 
   // ── Send a message and stream the response ────────────────────────────────
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim() || isStreaming) return;
+  // Plain function, not useCallback — it reads messagesRef (mutated during
+  // render, see above) and calls endChat, neither of which React Compiler
+  // can preserve manual memoization around; every other handler in this
+  // file (endChat, cancelStream) is already a plain function for the same
+  // reason, and sendMessage is only ever called locally, never passed to a
+  // memoized child, so there's nothing to gain from wrapping it.
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isStreaming) return;
 
-      const userMsg: ChatMessage = {
-        key: nanoid(),
-        from: "user",
-        content: text,
+    const userMsg: ChatMessage = {
+      key: nanoid(),
+      from: "user",
+      content: text,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setIsStreaming(true);
+    liveTextRef.current = "";
+    setLiveTranscript("");
+    // Set when parseChunkLine reports a status_end chunk anywhere in this
+    // turn's stream — read in the finally block below to auto-run endChat.
+    let conversationEndedThisTurn = false;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // sessionId is null only before the very first response of a brand-new
+    // session — that's the one turn we silently prepend the patient context
+    // to, so the agent has name/age/contact up front instead of asking.
+    const apiMessage =
+      sessionId === null && patientContext
+        ? `${patientContext}\n\n${text}`
+        : text;
+
+    try {
+      const res = await fetch("/api/intake-agent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // sessionId is null on the first message; the agent creates a new session
+        body: JSON.stringify({ message: apiMessage, session_id: sessionId }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) throw new Error(`Agent responded ${res.status}`);
+
+      // Capture the session id from the response header on the first turn
+      const headerSessionId = res.headers.get("X-Session-Id");
+      if (headerSessionId) setSessionId(headerSessionId);
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let leftover = "";
+
+      const appendToken = (token: string) => {
+        liveTextRef.current += token;
+        setLiveTranscript(liveTextRef.current);
       };
-      setMessages((prev) => [...prev, userMsg]);
-      setInput("");
-      setIsStreaming(true);
-      liveTextRef.current = "";
-      setLiveTranscript("");
 
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      // sessionId is null only before the very first response of a brand-new
-      // session — that's the one turn we silently prepend the patient context
-      // to, so the agent has name/age/contact up front instead of asking.
-      const apiMessage =
-        sessionId === null && patientContext
-          ? `${patientContext}\n\n${text}`
-          : text;
-
-      try {
-        const res = await fetch("/api/intake-agent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // sessionId is null on the first message; the agent creates a new session
-          body: JSON.stringify({ message: apiMessage, session_id: sessionId }),
-          signal: controller.signal,
-        });
-
-        if (!res.ok) throw new Error(`Agent responded ${res.status}`);
-
-        // Capture the session id from the response header on the first turn
-        const headerSessionId = res.headers.get("X-Session-Id");
-        if (headerSessionId) setSessionId(headerSessionId);
-
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let leftover = "";
-
-        const appendToken = (token: string) => {
-          liveTextRef.current += token;
-          setLiveTranscript(liveTextRef.current);
-        };
-
-        outer: while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = (leftover + chunk).split("\n");
-          leftover = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const result = parseChunkLine(line);
-            // Also capture session id from the agent_end chunk
-            if (result.sessionId) setSessionId(result.sessionId);
-            if (result.token !== null) appendToken(result.token);
-            if (result.done) break outer;
-          }
-        }
-        if (leftover.trim()) {
-          const result = parseChunkLine(leftover);
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = (leftover + chunk).split("\n");
+        leftover = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const result = parseChunkLine(line);
+          // Also capture session id from the agent_end chunk
           if (result.sessionId) setSessionId(result.sessionId);
           if (result.token !== null) appendToken(result.token);
+          if (result.conversationEnded) conversationEndedThisTurn = true;
+          if (result.done) break outer;
         }
-      } catch (err: unknown) {
-        if ((err as Error).name === "AbortError") {
-          toast.info("Streaming cancelled.");
-        } else {
-          toast.error("Failed to get response. Please try again.");
-        }
-      } finally {
-        // Commit live text to messages
-        const finalText = liveTextRef.current;
-        liveTextRef.current = "";
-        setLiveTranscript("");
-        if (finalText.trim()) {
-          setMessages((prev) => [
-            ...prev,
-            { key: nanoid(), from: "assistant", content: finalText },
-          ]);
-        }
-        setIsStreaming(false);
-        abortRef.current = null;
       }
-    },
-    [isStreaming, sessionId, parseChunkLine, patientContext],
-  );
-
+      if (leftover.trim()) {
+        const result = parseChunkLine(leftover);
+        if (result.sessionId) setSessionId(result.sessionId);
+        if (result.token !== null) appendToken(result.token);
+        if (result.conversationEnded) conversationEndedThisTurn = true;
+      }
+    } catch (err: unknown) {
+      if ((err as Error).name === "AbortError") {
+        toast.info("Streaming cancelled.");
+      } else {
+        toast.error("Failed to get response. Please try again.");
+      }
+    } finally {
+      // Commit live text to messages
+      const finalText = liveTextRef.current;
+      liveTextRef.current = "";
+      setLiveTranscript("");
+      if (finalText.trim()) {
+        const assistantMsg: ChatMessage = {
+          key: nanoid(),
+          from: "assistant",
+          content: finalText,
+        };
+        // Sync messagesRef synchronously, in the same tick — setMessages
+        // alone wouldn't be visible to endChat (below) until the next
+        // render, and endChat reads messagesRef.current specifically so
+        // the real reply is always included in the report/save payloads,
+        // whether endChat runs automatically right here or a moment
+        // later from the doctor's own "End Chat" click.
+        messagesRef.current = [...messagesRef.current, assistantMsg];
+        setMessages((prev) => [...prev, assistantMsg]);
+      }
+      if (conversationEndedThisTurn) {
+        // UI-only — deliberately NOT added to messagesRef, so this notice
+        // never ends up in the report-generation or saved-conversation
+        // payloads endChat builds from messagesRef.current. The manual
+        // "End Chat" button is untouched by any of this — the patient can
+        // still cut the conversation short at any point regardless of
+        // whether the agent ever sends status_end.
+        setMessages((prev) => [
+          ...prev,
+          {
+            key: nanoid(),
+            from: "assistant",
+            content: "The conversation has ended.",
+          },
+        ]);
+        endChat();
+      }
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
+  };
   const cancelStream = () => abortRef.current?.abort();
 
   // ── End chat: generate report → create DB record → save → show modal ────────
+  //
+  // Reads messagesRef rather than `messages` — this can be triggered
+  // automatically from within sendMessage's finally block the instant a
+  // status_end chunk arrives (see there), in the same tick that the last
+  // assistant reply is committed. messagesRef is updated synchronously
+  // alongside that commit, so it's always current when this reads it,
+  // whether triggered automatically or a moment later by the doctor's own
+  // "End Chat" click.
   const endChat = async () => {
     if (isStreaming) cancelStream();
-    if (messages.length === 0) {
+    if (messagesRef.current.length === 0) {
       toast.info("No conversation to save yet.");
       return;
     }
@@ -260,7 +323,7 @@ export function TextIntake({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            conversation: messages.map((m) => {
+            conversation: messagesRef.current.map((m) => {
               const speaker =
                 m.from === "assistant" ? "appointment-intake-agent" : "patient";
               return `${speaker}: ${m.content}`;
@@ -291,7 +354,7 @@ export function TextIntake({
       const [, updateErr] = await updateIntakeAction({
         payload: {
           id: created.id,
-          conversation: messages.map((m) => ({
+          conversation: messagesRef.current.map((m) => ({
             role: m.from === "user" ? "user" : "assistant",
             content: m.content,
           })),

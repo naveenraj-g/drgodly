@@ -21,6 +21,8 @@ interface MedicationListProps {
   items: MedicationFormItem[];
   /** Called with the full updated list on any add/edit/remove. */
   onChange: (items: MedicationFormItem[]) => void;
+  /** Returns this item's EMR sync status, or undefined before the first confirm. */
+  getSyncStatus?: (item: MedicationFormItem) => "synced" | "draft" | undefined;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,7 +48,7 @@ function emptyMedication(): MedicationFormItem {
  * @param items - Controlled medication array.
  * @param onChange - Parent setter receiving the full updated array.
  */
-export function MedicationList({ items, onChange }: MedicationListProps) {
+export function MedicationList({ items, onChange, getSyncStatus }: MedicationListProps) {
   const update = (index: number, item: MedicationFormItem) => {
     const next = [...items];
     next[index] = item;
@@ -70,6 +72,7 @@ export function MedicationList({ items, onChange }: MedicationListProps) {
           item={item}
           onChange={(updated) => update(i, updated)}
           onRemove={() => remove(i)}
+          syncStatus={getSyncStatus?.(item)}
         />
       ))}
       <Button

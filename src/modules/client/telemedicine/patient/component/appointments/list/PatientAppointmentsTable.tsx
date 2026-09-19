@@ -24,7 +24,7 @@ import { endOfDay } from "date-fns";
 import { CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DataTable,
+  DataTableWithViews,
   DataTableToolbar,
   useServerDataTable,
   useDebouncedValue,
@@ -38,7 +38,11 @@ import {
   patientAppointmentKeys,
   fetchMyAppointments,
 } from "./appointmentQueries";
-import { createPatientAppointmentColumns } from "./PatientAppointmentColumns";
+import {
+  createPatientAppointmentColumns,
+  type PatientAppointmentColumnCallbacks,
+} from "./PatientAppointmentColumns";
+import { PatientAppointmentCard } from "./PatientAppointmentCard";
 import { patientStore } from "@/modules/client/telemedicine/patient/stores/patient.store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -93,27 +97,32 @@ export function PatientAppointmentsTable({
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
 
+  // ── Row action callbacks (memo-stable, shared by table cells and grid cards) ──
+  const callbacks: PatientAppointmentColumnCallbacks = useMemo(
+    () => ({
+      onView: (row) => router.push(`${viewHref}/${row.id}`),
+      onCancel: (row) =>
+        patientStore.getState().onOpen({
+          type: "cancelAppointment",
+          data: { appointment: row },
+        }),
+      onReschedule: (row) =>
+        patientStore.getState().onOpen({
+          type: "rescheduleAppointment",
+          data: { appointment: row },
+        }),
+      // Navigates to the virtual consultation room for this appointment.
+      // The page reads ?appointmentId to fetch the LiveKit room_id.
+      onConsult: (row) =>
+        router.push(`${viewHref}/online-consultation?appointmentId=${row.id}`),
+    }),
+    [router, viewHref],
+  );
+
   // ── Column definitions (memo-stable) ────────────────────────────────────────
   const columns = useMemo(
-    () =>
-      createPatientAppointmentColumns({
-        onView: (row) => router.push(`${viewHref}/${row.id}`),
-        onCancel: (row) =>
-          patientStore.getState().onOpen({
-            type: "cancelAppointment",
-            data: { appointment: row },
-          }),
-        onReschedule: (row) =>
-          patientStore.getState().onOpen({
-            type: "rescheduleAppointment",
-            data: { appointment: row },
-          }),
-        // Navigates to the virtual consultation room for this appointment.
-        // The page reads ?appointmentId to fetch the LiveKit room_id.
-        onConsult: (row) =>
-          router.push(`${viewHref}/online-consultation?appointmentId=${row.id}`),
-      }),
-    [router, viewHref],
+    () => createPatientAppointmentColumns(callbacks),
+    [callbacks],
   );
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
@@ -259,23 +268,29 @@ export function PatientAppointmentsTable({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <DataTable table={table} loading={isFetching}>
-      <DataTableToolbar table={table}>
-        {/* Opens the booking method chooser dialog via the patient store */}
-        <Button
-          size="sm"
-          className="ml-auto"
-          onClick={() =>
-            patientStore.getState().onOpen({
-              type: "bookAppointment",
-              data: { bookHref, intakeHref },
-            })
-          }
-        >
-          <CalendarPlus className="size-4 mr-1.5" />
-          Book Appointment
-        </Button>
-      </DataTableToolbar>
-    </DataTable>
+    <DataTableWithViews
+      table={table}
+      loading={isFetching}
+      renderCard={(row) => <PatientAppointmentCard row={row} callbacks={callbacks} />}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      toolbar={
+        <DataTableToolbar table={table}>
+          {/* Opens the booking method chooser dialog via the patient store */}
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() =>
+              patientStore.getState().onOpen({
+                type: "bookAppointment",
+                data: { bookHref, intakeHref },
+              })
+            }
+          >
+            <CalendarPlus className="size-4 mr-1.5" />
+            Book Appointment
+          </Button>
+        </DataTableToolbar>
+      }
+    />
   );
 }

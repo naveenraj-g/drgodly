@@ -137,12 +137,14 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
 
   /**
    * Loads a session with all messages and the active workflow state.
+   * Scoped to userId — a session owned by another user is treated as not found.
    *
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID.
    * @returns Full session DTO.
-   * @throws NotFoundError if not found.
+   * @throws NotFoundError if not found or owned by another user.
    */
-  async getSession(id: string): Promise<TEmrChatSessionFull> {
+  async getSession(id: string, userId: string): Promise<TEmrChatSessionFull> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
 
@@ -153,8 +155,8 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
     });
 
     try {
-      const session = await prisma.emrChatSession.findUnique({
-        where: { id },
+      const session = await prisma.emrChatSession.findFirst({
+        where: { id, userId },
         include: {
           messages: { orderBy: { createdAt: "asc" } },
           workflowStates: {
@@ -297,31 +299,53 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
   }
 
   /**
-   * Updates the session title.
+   * Updates the session title. Scoped to userId via updateMany (rather than
+   * update, which only accepts unique fields in `where`) so a session owned
+   * by another user cannot be renamed — the query simply matches zero rows.
    *
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID.
    * @param title - New title string (auto-generated or user-renamed).
+   * @throws NotFoundError if not found or owned by another user.
    */
-  async updateSessionTitle(id: string, title: string): Promise<void> {
-    await prisma.emrChatSession.update({ where: { id }, data: { title } });
+  async updateSessionTitle(id: string, userId: string, title: string): Promise<void> {
+    const { count } = await prisma.emrChatSession.updateMany({
+      where: { id, userId },
+      data: { title },
+    });
+    if (count === 0) {
+      throw new NotFoundError(`Chat session not found: ${id}`);
+    }
   }
 
   /**
-   * Toggles the pinned flag on a session.
+   * Toggles the pinned flag on a session. Scoped to userId — see
+   * updateSessionTitle for why updateMany is used here.
    *
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID.
    * @param pinned - True to pin, false to unpin.
+   * @throws NotFoundError if not found or owned by another user.
    */
-  async pinSession(id: string, pinned: boolean): Promise<void> {
-    await prisma.emrChatSession.update({ where: { id }, data: { pinned } });
+  async pinSession(id: string, userId: string, pinned: boolean): Promise<void> {
+    const { count } = await prisma.emrChatSession.updateMany({
+      where: { id, userId },
+      data: { pinned },
+    });
+    if (count === 0) {
+      throw new NotFoundError(`Chat session not found: ${id}`);
+    }
   }
 
   /**
    * Archives a session (hides it from the sidebar without deleting data).
+   * Scoped to userId — see updateSessionTitle for why updateMany is used here.
    *
    * @param id - Session UUID.
+   * @param userId - Calling user's Better Auth ID.
+   * @throws NotFoundError if not found or owned by another user.
    */
-  async deleteSession(id: string): Promise<void> {
+  async deleteSession(id: string, userId: string): Promise<void> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
 
@@ -332,10 +356,13 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
     });
 
     try {
-      await prisma.emrChatSession.update({
-        where: { id },
+      const { count } = await prisma.emrChatSession.updateMany({
+        where: { id, userId },
         data: { status: "ARCHIVED" },
       });
+      if (count === 0) {
+        throw new NotFoundError(`Chat session not found: ${id}`);
+      }
 
       logOperation("success", {
         name: "EmrChatPrismaRepository.deleteSession",
@@ -356,12 +383,25 @@ export class EmrChatPrismaRepository implements IEmrChatRepository {
   // ── Messages ────────────────────────────────────────────────────────────────
 
   /**
-   * Appends a message and touches the session's updatedAt.
+   * Appends a message and touches the session's updatedAt. Verifies the
+   * target session belongs to userId before writing — otherwise any
+   * authenticated caller could append messages to another user's session by
+   * guessing its UUID.
    *
    * @param dto - sessionId, role, content, type, metadata.
+   * @param userId - Calling user's Better Auth ID.
    * @returns The created message DTO.
+   * @throws NotFoundError if the session does not exist or belongs to another user.
    */
-  async addMessage(dto: TAddEmrChatMessage): Promise<TEmrChatMessage> {
+  async addMessage(dto: TAddEmrChatMessage, userId: string): Promise<TEmrChatMessage> {
+    const owner = await prisma.emrChatSession.findFirst({
+      where: { id: dto.sessionId, userId },
+      select: { id: true },
+    });
+    if (!owner) {
+      throw new NotFoundError(`Chat session not found: ${dto.sessionId}`);
+    }
+
     const [message] = await prisma.$transaction([
       prisma.emrChatMessage.create({
         data: {

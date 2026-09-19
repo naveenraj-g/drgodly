@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, Sparkles } from "lucide-react";
 import { TerminologyCombobox } from "../../shared/TerminologyCombobox";
 import { ConceptSelect } from "../../shared/ConceptSelect";
+import { SyncStatusBadge } from "../../shared/SyncStatusBadge";
 import {
   TERMINOLOGY_SYSTEM_URL,
   SERVICE_REQUEST_STATUS,
@@ -41,6 +42,8 @@ interface ServiceRequestItemProps {
   onChange: (item: ServiceRequestFormItem) => void;
   /** Called when the doctor removes this item. */
   onRemove: () => void;
+  /** "synced"/"draft" relative to the EMR, or undefined before the first confirm. */
+  syncStatus?: "synced" | "draft";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -56,6 +59,7 @@ export function ServiceRequestItem({
   item,
   onChange,
   onRemove,
+  syncStatus,
 }: ServiceRequestItemProps) {
   const system =
     TERMINOLOGY_SYSTEM_URL[item.terminologySystem] ?? item.terminologySystem;
@@ -74,6 +78,7 @@ export function ServiceRequestItem({
             <Badge variant="outline" className="text-xs shrink-0 font-mono">
               {item.terminologySystem}
             </Badge>
+            <SyncStatusBadge status={syncStatus} />
           </div>
           <Button
             type="button"

@@ -15,7 +15,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  DataTable,
+  DataTableWithViews,
   DataTableToolbar,
   useServerDataTable,
 } from "@/modules/client/shared/components/tables";
@@ -25,6 +25,7 @@ import type {
 } from "@/modules/entities/schemas/intake";
 import { patientIntakeKeys, fetchPatientIntakes } from "./intakeQueries";
 import { createIntakeColumns } from "./IntakeColumns";
+import { IntakeCard } from "./IntakeCard";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -72,20 +73,20 @@ export function IntakesTable({
     Math.ceil((initialData.total ?? 0) / INITIAL_PAGE_SIZE),
   );
 
-  // ── Column definitions ───────────────────────────────────────────────────────
-  const columns = useMemo(
-    () =>
-      createIntakeColumns({
-        onView: (row) => {
-          /* Navigate to the linked appointment detail page if the intake was linked. */
-          if (row.fhir_appointment_id) {
-            router.push(`${appointmentViewHref}/${row.fhir_appointment_id}`);
-          }
-          /* If not linked, there is no standalone intake detail page yet — stay. */
-        },
-      }),
+  // ── Row action callback (shared by table cells and grid cards) ──────────────
+  const onView = useMemo(
+    () => (row: TIntakeResponse) => {
+      /* Navigate to the linked appointment detail page if the intake was linked. */
+      if (row.fhir_appointment_id) {
+        router.push(`${appointmentViewHref}/${row.fhir_appointment_id}`);
+      }
+      /* If not linked, there is no standalone intake detail page yet — stay. */
+    },
     [router, appointmentViewHref],
   );
+
+  // ── Column definitions ───────────────────────────────────────────────────────
+  const columns = useMemo(() => createIntakeColumns({ onView }), [onView]);
 
   // ── TanStack Table ───────────────────────────────────────────────────────────
   const { table, state, resetPage } = useServerDataTable({
@@ -148,8 +149,12 @@ export function IntakesTable({
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <DataTable table={table} loading={isFetching}>
-      <DataTableToolbar table={table} />
-    </DataTable>
+    <DataTableWithViews
+      table={table}
+      loading={isFetching}
+      toolbar={<DataTableToolbar table={table} />}
+      renderCard={(row) => <IntakeCard intake={row.original} onView={onView} />}
+      gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    />
   );
 }

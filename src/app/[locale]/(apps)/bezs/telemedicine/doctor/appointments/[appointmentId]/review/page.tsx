@@ -15,6 +15,9 @@
  *  3. Passes saved FHIR records to AppointmentReview for pre-population.
  *     On revisit the saved records are rehydrated into form state so doctor
  *     edits are preserved across page loads.
+ *  4. Also passes the Consultation's autosaved draft (if any) and its
+ *     last-confirmed SOAP note/published_at, so AppointmentReview can
+ *     rehydrate unconfirmed edits and show per-item "In EMR"/"Draft" badges.
  *
  * On save, AppointmentReview diffs form state against loaded state and applies
  * CREATE / UPDATE / DELETE per resource in parallel.
@@ -31,7 +34,17 @@ import { listConditionsAction } from "@/modules/server/presentation/actions/cond
 import { listObservationsAction } from "@/modules/server/presentation/actions/observation/core.actions";
 import { listMedicationRequestsAction } from "@/modules/server/presentation/actions/medication-request/core.actions";
 import { listServiceRequestsAction } from "@/modules/server/presentation/actions/service-request/core.actions";
-import { AppointmentReview } from "@/modules/client/telemedicine/doctor/component/appointment-review/AppointmentReview";
+import {
+  AppointmentReview,
+  type ReviewDraft,
+} from "@/modules/client/telemedicine/doctor/component/appointment-review/AppointmentReview";
+import type {
+  ConditionFormItem,
+  MedicationFormItem,
+  ObservationFormItem,
+  ServiceRequestFormItem,
+  SoapNote,
+} from "@/modules/client/telemedicine/doctor/component/appointment-review/types";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import type { TPaginatedConditionResponse } from "@/modules/entities/schemas/condition";
@@ -182,6 +195,29 @@ export default async function DoctorAppointmentReviewPage({
     (serviceRequestsPage as TPaginatedServiceRequestResponse | null)?.data ??
     [];
 
+  /*
+   * Autosaved draft from a previous, unconfirmed session — draft_updated_at
+   * is the only presence signal (the draft_* arrays can be stale otherwise).
+   * These are already in *FormItem shape (AppointmentReview writes them
+   * as-is), so no fromFhir conversion is needed here.
+   */
+  const draft: ReviewDraft | null = consultation?.draft_updated_at
+    ? {
+        soapNote: (consultation.draft_soap_note as SoapNote | null) ?? null,
+        conditions:
+          (consultation.draft_conditions as ConditionFormItem[] | null) ?? null,
+        observations:
+          (consultation.draft_observations as ObservationFormItem[] | null) ?? null,
+        medicationRequests:
+          (consultation.draft_medication_requests as MedicationFormItem[] | null) ??
+          null,
+        serviceRequests:
+          (consultation.draft_service_requests as ServiceRequestFormItem[] | null) ??
+          null,
+        updatedAt: consultation.draft_updated_at.toISOString(),
+      }
+    : null;
+
   return (
     <AppointmentReview
       fhirAppointmentId={numericId}
@@ -196,6 +232,9 @@ export default async function DoctorAppointmentReviewPage({
       savedObservations={savedObservations}
       savedMedications={savedMedications}
       savedServiceRequests={savedServiceRequests}
+      publishedAt={consultation?.published_at?.toISOString() ?? null}
+      publishedSoapNote={(consultation?.soap_note as SoapNote | null) ?? null}
+      draft={draft}
     />
   );
 }

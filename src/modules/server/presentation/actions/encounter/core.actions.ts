@@ -38,28 +38,55 @@ import {
 import type { TEncounterResponse } from "@/modules/entities/schemas/encounter";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
+import type { AuthResponse } from "@/modules/server/auth/types";
 
 /** Creates an Encounter with all optional child arrays (status is required). */
 export const createEncounterAction = authenticatedProcedure
   .createServerAction()
   .input(CreateEncounterActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TCreateEncounterAction }) => {
-    return await runWithTransport<TCreateEncounterControllerOutput>(async () => {
-      const data = await createEncounterController(input.payload);
-      return { result: data, transport: input.transportOptions };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TCreateEncounterAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TCreateEncounterControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await createEncounterController(enrichedPayload);
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );
 
 /** Lists Encounters with optional server-side filters (status, patient_id, appointment_id, date range, etc.). */
 export const listEncountersAction = authenticatedProcedure
   .createServerAction()
   .input(ListEncountersActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListEncountersAction }) => {
-    return await runWithTransport<TListEncountersControllerOutput>(async () => {
-      const data = await listEncountersController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListEncountersAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListEncountersControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listEncountersController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single Encounter by numeric ID. */
 export const getEncounterByIdAction = authenticatedProcedure
