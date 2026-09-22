@@ -13,6 +13,7 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import {
   DataTableColumnHeader,
   DataTableRowActions,
@@ -101,11 +102,7 @@ export const INTAKE_MODE_OPTIONS = [
  */
 function formatDate(d: Date | null | undefined): string {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDisplayDate(d);
 }
 
 // ── Column factory ────────────────────────────────────────────────────────────

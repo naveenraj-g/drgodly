@@ -11,6 +11,7 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
+import { formatDisplayDayMonth, formatDisplayTime } from "@/modules/shared/helper";
 import {
   DataTableColumnHeader,
   DataTableRowActions,
@@ -241,21 +242,12 @@ export function createAppointmentDemoColumns({
           <div>
             <div className="text-sm font-medium tabular-nums">
               {start
-                ? new Date(start).toLocaleString(undefined, {
-                    month: "short",
-                    day: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })
+                ? `${formatDisplayDayMonth(start)}, ${formatDisplayTime(start)}`
                 : "—"}
             </div>
             {end && (
               <div className="text-xs text-muted-foreground tabular-nums">
-                –{" "}
-                {new Date(end).toLocaleTimeString(undefined, {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                – {formatDisplayTime(end)}
               </div>
             )}
           </div>

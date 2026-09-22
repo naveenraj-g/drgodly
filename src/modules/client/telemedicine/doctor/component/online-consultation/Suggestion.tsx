@@ -7,6 +7,14 @@
  * Calls POST /api/suggestion with the recent conversation window + any
  * doctor notes and renders the returned question list.
  *
+ * Initial context: on mount, self-fetches the patient's pre-appointment AI
+ * intake report (same getIntakeByFhirAppointmentIdAction + safeParseReport
+ * pattern as IntakeInsights/IntakeReportDialog) and prepends a condensed
+ * summary as the first line of every request, so the agent's suggestions can
+ * build on what the patient already reported rather than starting cold.
+ * Fetched once, not re-fetched per suggestion — the intake doesn't change
+ * mid-call. Silently omitted if there's no linked intake or the fetch fails.
+ *
  * Deduplication: a context hash prevents re-firing for unchanged input.
  * Cancellation: AbortController cancels the in-flight request if a new one
  * triggers before the previous resolves.
@@ -18,6 +26,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TranscriptLine } from "@/modules/client/telemedicine/shared/components/online-consultation/TranscriptionPanel";
+import { getIntakeByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/intake";
+import {
+  safeParseReport,
+  type IntakeReport,
+} from "@/modules/client/telemedicine/doctor/component/clinical-records/intakeReport";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +75,31 @@ function hash(str: string): string {
   return String(h);
 }
 
+/**
+ * Condenses a parsed intake report into a single context line for the agent.
+ * Mirrors the fields IntakeInsights shows the doctor, kept short since this
+ * rides along on every suggestion request, not just the first.
+ *
+ * @param report - Parsed intake report, or null if none/unparseable.
+ * @returns A single "INTAKE REPORT: ..." line, or "" if the report has nothing usable.
+ */
+function summarizeIntakeReport(report: IntakeReport | null): string {
+  if (!report) return "";
+  const parts: string[] = [];
+  if (report.risk_level) parts.push(`risk=${report.risk_level}`);
+  if (report.clinical_overview) parts.push(report.clinical_overview.trim());
+  const conditions = (report.differential_diagnosis ?? [])
+    .map((d) => d.condition)
+    .filter((c): c is string => !!c);
+  if (conditions.length) {
+    parts.push(`possible: ${conditions.join(", ")}`);
+  }
+  if (report.red_flags?.length) {
+    parts.push(`red flags: ${report.red_flags.join(", ")}`);
+  }
+  return parts.length ? `INTAKE REPORT: ${parts.join(" | ")}` : "";
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SuggestionProps {
@@ -69,6 +107,11 @@ interface SuggestionProps {
   transcripts: TranscriptLine[];
   /** Doctor's free-text notes — appended to the conversation context. */
   notes?: string;
+  /**
+   * FHIR Appointment.id — used to self-fetch the linked pre-appointment
+   * intake report (if any) so it can be sent as initial agent context.
+   */
+  fhirAppointmentId: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -79,16 +122,45 @@ interface SuggestionProps {
  *
  * @param transcripts - Live transcript array from DoctorConsult.
  * @param notes - Current doctor notes — included in the agent context.
+ * @param fhirAppointmentId - FHIR Appointment.id for the linked intake report lookup.
  */
-export function Suggestion({ transcripts, notes = "" }: SuggestionProps) {
+export function Suggestion({
+  transcripts,
+  notes = "",
+  fhirAppointmentId,
+}: SuggestionProps) {
   const [questions, setQuestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<string[][]>([]);
+  /** Condensed intake report line, fetched once on mount — "" if none/unavailable. */
+  const [intakeContext, setIntakeContext] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
   const lastCtxHashRef = useRef("");
   const lastFireAtRef = useRef(0);
   const patientTurnCountRef = useRef(0);
+
+  // Self-fetch the linked intake report once on mount — same pattern as
+  // IntakeInsights/IntakeReportDialog. Silently no-ops if there's none.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [data] = await getIntakeByFhirAppointmentIdAction({
+          payload: { fhir_appointment_id: fhirAppointmentId },
+        });
+        if (cancelled || !data) return;
+        const summary = summarizeIntakeReport(safeParseReport(data.report));
+        if (summary) setIntakeContext(summary);
+      } catch {
+        // Non-fatal — suggestions still work without intake context
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [fhirAppointmentId]);
 
   // Build the conversation array sent to the agent (memo-stable, no re-renders on unrelated state)
   const { conversation, lastRole, lastText } = useMemo(() => {
@@ -96,6 +168,10 @@ export function Suggestion({ transcripts, notes = "" }: SuggestionProps) {
     const lines = recent.map(
       (t) => `${roleFromName(t.name)}: ${t.text.trim()}`,
     );
+    // Initial context first, so the agent has it before any transcript turns.
+    if (intakeContext) {
+      lines.unshift(intakeContext);
+    }
     if (notes?.trim()) {
       lines.push(`DOCTOR NOTES: ${notes.trim()}`);
     }
@@ -105,7 +181,7 @@ export function Suggestion({ transcripts, notes = "" }: SuggestionProps) {
       lastRole: last ? roleFromName(last.name) : undefined,
       lastText: last?.text?.trim() ?? "",
     };
-  }, [transcripts, notes]);
+  }, [transcripts, notes, intakeContext]);
 
   /**
    * Fires the suggestion request if the context has changed and cooldown has elapsed.

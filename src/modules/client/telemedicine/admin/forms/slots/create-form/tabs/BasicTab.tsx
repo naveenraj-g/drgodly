@@ -36,12 +36,14 @@ import {
 import { ReferenceSelect } from "@/modules/client/shared/components/ReferenceSelect";
 import { SLOT_STATUS_OPTIONS } from "../../../../components/slots/SlotsTableColumn";
 import { searchScheduleOptions } from "../../../../queries/schedule.queries";
+import { useAdminStore } from "../../../../stores/admin.store";
 import type { TCreateSlotFormSchema } from "@/modules/entities/schemas/slot";
 
 /** Renders the Basic tab content — no props needed, reads form via useFormContext. */
 export function BasicTab() {
   const form = useFormContext<TCreateSlotFormSchema>();
   const schedule = useWatch({ control: form.control, name: "schedule" });
+  const orgId = useAdminStore((s) => s.data?.orgId ?? null);
 
   /** Decomposes the selected appointmentType CodeableConcept into its flat scalar fields. */
   function handleAppointmentTypeChange(value: string | TCodeableConcept | null) {
@@ -63,8 +65,8 @@ export function BasicTab() {
               const id = schedule ? Number(schedule.split("/")[1]) : undefined;
               return (
                 <ReferenceSelect
-                  fetchOptions={searchScheduleOptions}
-                  queryKey={["schedules", "picker"]}
+                  fetchOptions={(q) => searchScheduleOptions(q, orgId)}
+                  queryKey={["schedules", "picker", orgId]}
                   value={id ? { id, label: form.getValues("schedule_display") ?? "" } : null}
                   onChange={(opt) => {
                     field.onChange(opt ? `Schedule/${opt.id}` : "");

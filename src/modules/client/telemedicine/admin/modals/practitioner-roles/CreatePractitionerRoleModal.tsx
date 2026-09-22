@@ -9,8 +9,9 @@
  * reads from FormProvider via useFormContext() and renders field layout only.
  *
  * handleSubmit responsibilities:
- *  - user_id/org_id are optional for PractitionerRole (matches Organization/
- *    Schedule's pattern) — stamped from the session when present.
+ *  - org_id is optional for PractitionerRole (matches Organization/Schedule's
+ *    pattern) — stamped from the session when present. No user_id — the
+ *    server action doesn't need it.
  *  - Split each contact's names[].given/prefix/suffix (comma string) → string[].
  *  - Wrap each contact's address_line (single string) → [string].
  *  - Split each availability's available_times[].days_of_week (comma string) → string[].
@@ -97,7 +98,6 @@ export function CreatePractitionerRoleModal() {
   async function handleSubmit(values: TCreatePractitionerRoleFormSchema) {
     await execute({
       payload: {
-        user_id: data?.userId,
         org_id: data?.orgId,
         practitioner: values.practitioner,
         practitioner_display: values.practitioner_display,

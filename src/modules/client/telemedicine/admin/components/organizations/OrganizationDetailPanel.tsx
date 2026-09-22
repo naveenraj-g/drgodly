@@ -8,6 +8,7 @@
  * expanded. Sections: Overview, Types, Contact Points, Addresses, Contacts, Aliases.
  */
 
+import { formatDisplayDateTime } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TOrgResponse } from "@/modules/entities/schemas/organization";
@@ -225,5 +226,5 @@ function Section({
 /** Formats an ISO-8601 string to a localized date-time or returns undefined. */
 function formatDate(iso?: string): string | undefined {
   if (!iso) return undefined;
-  return new Date(iso).toLocaleString();
+  return formatDisplayDateTime(iso);
 }

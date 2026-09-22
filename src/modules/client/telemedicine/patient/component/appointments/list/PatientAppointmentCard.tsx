@@ -10,6 +10,7 @@
 "use client";
 
 import type { Row } from "@tanstack/react-table";
+import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 import {
   CalendarClock,
   CalendarDays,
@@ -54,19 +55,12 @@ const STATUS_CLASS: Record<string, string> = {
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDisplayDate(iso);
 }
 
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDisplayTime(iso);
 }
 
 function getDoctorName(participants: TAppointmentResponse["participant"]): string {

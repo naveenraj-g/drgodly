@@ -20,9 +20,17 @@
  *     - assistant_text → commits the settled AI response, clears live state.
  *     - audio          → strips optional WAV header, decodes PCM @ 24 kHz,
  *                        schedules gapless playback via a linear scheduler.
+ *     - status         → agent-reported phase (greeting/ready/thinking),
+ *                        independent of the connection lifecycle — drives the
+ *                        header status label/dot and the mic-pulse indicator
+ *                        while the call is otherwise just "connected". A
+ *                        status of "status_end" is the agent's own signal
+ *                        that the conversation is over — auto-runs the same
+ *                        End Call flow described in step 3, matched purely on
+ *                        data.status (mirrors TextIntake's status_end).
  *     - error          → toast.
  *
- *  3. Patient clicks "End Call":
+ *  3. Patient clicks "End Call" (or the agent sends status_end above):
  *     a. Stops mic and WS cleanly.
  *     b. Generates clinical report via POST /api/assessment-plan-agent
  *        (non-fatal — intake saves even without it).
@@ -101,12 +109,21 @@ interface VoiceIntakeTestProps {
   patientContext?: string;
 }
 
-/** Connection/activity status driving header indicator and button label. */
-type ConnectionStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "speaking";
+/** Call lifecycle status — drives Start/End Call button and mic pipeline. */
+type ConnectionStatus = "disconnected" | "connecting" | "connected";
+
+/**
+ * Agent-reported phase within an active call — drives the header status
+ * label/dot and mic-pulse indicator. Independent of ConnectionStatus: the
+ * call stays "connected" throughout, while this cycles through the agent's
+ * actual turn-taking state.
+ *   idle      — connected, no status message received yet
+ *   greeting  — agent is speaking its opening line
+ *   ready     — greeting done, agent is listening
+ *   thinking  — agent is processing what the patient just said
+ *   speaking  — agent is streaming a spoken response (text/text_delta arriving)
+ */
+type AgentPhase = "idle" | "greeting" | "ready" | "thinking" | "speaking";
 
 /** Ending-phase steps (mirrors TextIntake endingPhase). */
 type EndingPhase = "idle" | "report" | "saving";
@@ -196,6 +213,7 @@ export function VoiceIntakeTest({
   patientContext,
 }: VoiceIntakeTestProps) {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
+  const [agentPhase, setAgentPhase] = useState<AgentPhase>("idle");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [liveRole, setLiveRole] = useState<"user" | "assistant" | null>(null);
@@ -280,7 +298,7 @@ export function VoiceIntakeTest({
     pendingAssistantTextRef.current = "";
     setLiveTranscript("");
     setLiveRole(null);
-    setStatus("connected");
+    setAgentPhase("ready");
     addMessage({ key: nanoid(), from: "assistant", content: text });
   }, [addMessage]);
 
@@ -324,6 +342,7 @@ export function VoiceIntakeTest({
     flushPendingAssistantText();
     teardown();
     setStatus("disconnected");
+    setAgentPhase("idle");
     setLiveTranscript("");
     setLiveRole(null);
     setIsMuted(false);
@@ -413,6 +432,7 @@ export function VoiceIntakeTest({
     setLiveRole(null);
     setIsMuted(false);
     setStatus("connecting");
+    setAgentPhase("idle");
 
     try {
       // 1. Get auth token + WS URL from the server-side proxy endpoint.
@@ -506,6 +526,8 @@ export function VoiceIntakeTest({
             text?: string;
             audio?: string;
             message?: string;
+            /** "status" — agent-reported phase: "greeting" | "ready" | "thinking". */
+            status?: string;
           };
           console.log({ data });
 
@@ -515,6 +537,40 @@ export function VoiceIntakeTest({
             text: data.text?.slice(0, 100), // truncate long text
             hasAudio: !!data.audio,
           });
+
+          if (data.type === "status" && data.status) {
+            console.log("[VoiceIntakeTest] status:", data.status);
+            if (data.status === "greeting") {
+              setAgentPhase("greeting");
+            } else if (data.status === "ready") {
+              setAgentPhase("ready");
+            } else if (data.status === "thinking") {
+              setAgentPhase("thinking");
+            } else if (data.status === "end") {
+              /*
+               * Agent-side signal that the conversation has ended — mirrors
+               * TextIntake's status_end handling: matched on data.status
+               * alone, auto-runs the same "End Call" flow the patient would
+               * otherwise trigger manually via the button.
+               */
+              flushPendingUserTranscript();
+              flushPendingAssistantText();
+              // UI-only notice — added via setMessages directly (not
+              // addMessage) so it never reaches messagesRef and therefore
+              // never pollutes the saved conversation/report payload in endCall.
+              setMessages((prev) => [
+                ...prev,
+                {
+                  key: nanoid(),
+                  from: "assistant",
+                  content: "The conversation has ended.",
+                },
+              ]);
+              void endCall();
+            }
+            // Unrecognized status values are logged above but otherwise
+            // ignored — no UI state to fall back to without a label for them.
+          }
 
           if (data.type === "transcript" && data.text !== undefined) {
             // New user turn starting — commit any in-flight agent text first
@@ -537,7 +593,7 @@ export function VoiceIntakeTest({
             pendingAssistantTextRef.current += data.text;
             setLiveTranscript(pendingAssistantTextRef.current);
             setLiveRole("assistant");
-            setStatus("speaking");
+            setAgentPhase("speaking");
           }
 
           if (data.type === "text_delta" && data.text) {
@@ -547,7 +603,7 @@ export function VoiceIntakeTest({
             pendingAssistantTextRef.current += data.text;
             setLiveTranscript(pendingAssistantTextRef.current);
             setLiveRole("assistant");
-            setStatus("speaking");
+            setAgentPhase("speaking");
           }
 
           if (data.type === "assistant_text" && data.text) {
@@ -562,7 +618,7 @@ export function VoiceIntakeTest({
             });
             setLiveTranscript("");
             setLiveRole(null);
-            setStatus("connected");
+            setAgentPhase("ready");
           }
 
           if (data.type === "audio" && data.audio && data.audio.trim()) {
@@ -605,9 +661,8 @@ export function VoiceIntakeTest({
           "reason:",
           event.reason,
         );
-        setStatus((prev) =>
-          prev === "connected" || prev === "speaking" ? "disconnected" : prev,
-        );
+        setStatus((prev) => (prev === "connected" ? "disconnected" : prev));
+        setAgentPhase("idle");
         setLiveTranscript("");
         setLiveRole(null);
       };
@@ -624,6 +679,7 @@ export function VoiceIntakeTest({
     flushPendingAssistantText,
     teardown,
     patientContext,
+    endCall,
   ]);
 
   // ── Mic mute toggle ───────────────────────────────────────────────────────────
@@ -652,6 +708,7 @@ export function VoiceIntakeTest({
   const restartCall = useCallback(() => {
     teardown();
     setStatus("disconnected");
+    setAgentPhase("idle");
     setLiveTranscript("");
     setLiveRole(null);
     setIsMuted(false);
@@ -661,7 +718,7 @@ export function VoiceIntakeTest({
 
   // ── Derived UI values ─────────────────────────────────────────────────────────
 
-  const isConnected = status === "connected" || status === "speaking";
+  const isConnected = status === "connected";
   const isConnecting = status === "connecting";
   const isBusy = isConnecting || endingPhase !== "idle";
 
@@ -670,14 +727,23 @@ export function VoiceIntakeTest({
       ? "Offline"
       : status === "connecting"
         ? "Connecting..."
-        : status === "speaking"
-          ? "Speaking..."
-          : "Online";
+        : agentPhase === "greeting"
+          ? "Speaking greeting..."
+          : agentPhase === "thinking"
+            ? "Thinking..."
+            : agentPhase === "speaking"
+              ? "Speaking..."
+              : agentPhase === "ready"
+                ? "Ready — you can speak"
+                : "Online";
 
   const statusDotClass =
     status === "disconnected"
       ? "bg-muted-foreground"
-      : status === "connecting" || status === "speaking"
+      : status === "connecting" ||
+          agentPhase === "greeting" ||
+          agentPhase === "thinking" ||
+          agentPhase === "speaking"
         ? "bg-amber-400 animate-pulse"
         : "bg-emerald-500";
 
@@ -712,7 +778,7 @@ export function VoiceIntakeTest({
 
         {/* ── Call controls ── */}
         <div className="flex gap-2 items-center justify-center">
-          {isConnected ? (
+          {isConnected || endingPhase !== "idle" ? (
             <>
               <Button
                 size="sm"

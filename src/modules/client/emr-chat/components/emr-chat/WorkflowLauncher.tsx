@@ -24,7 +24,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { PermittedWorkflow } from "@/app/api/workflow/permitted/route";
-import { usePermittedWorkflows } from "../../queries/workflow.queries";
+import {
+  usePermittedWorkflows,
+  type WorkflowTypeFilter,
+} from "../../queries/workflow.queries";
 
 interface WorkflowLauncherProps {
   /**
@@ -35,6 +38,12 @@ interface WorkflowLauncherProps {
    * @param workflowName - Human-readable name shown as the trigger message in chat.
    */
   onTriggerWorkflow: (workflowId: string, workflowName: string) => void;
+  /**
+   * Restricts the grid to one launcher surface — "chat" (default, general
+   * EMR chat pages) or "analysis" (read-only dashboard pages like Patient
+   * Chart Review). Forwarded to GET /api/workflow/permitted?type=.
+   */
+  workflowType?: WorkflowTypeFilter;
 }
 
 /**
@@ -42,8 +51,9 @@ interface WorkflowLauncherProps {
  * can launch with a single click, bypassing the AI agent.
  *
  * @param props.onTriggerWorkflow - Callback fired when the user selects a card.
+ * @param props.workflowType      - Optional launcher-surface filter.
  */
-export function WorkflowLauncher({ onTriggerWorkflow }: WorkflowLauncherProps) {
+export function WorkflowLauncher({ onTriggerWorkflow, workflowType }: WorkflowLauncherProps) {
   const [search, setSearch] = useState("");
 
   // Permission-filtered workflow list — cached for 5 minutes by TanStack Query.
@@ -51,7 +61,7 @@ export function WorkflowLauncher({ onTriggerWorkflow }: WorkflowLauncherProps) {
     data: workflows = [],
     isLoading: loading,
     error,
-  } = usePermittedWorkflows();
+  } = usePermittedWorkflows(workflowType);
 
   // Client-side filter across name, description, and tags.
   const filtered = useMemo(() => {

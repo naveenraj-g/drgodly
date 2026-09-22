@@ -40,12 +40,11 @@ export const healthcareServiceKeys = {
  * the paginated response. Throws on error so TanStack Query can handle
  * retries and error state.
  *
- * Unlike Location, HealthcareService's list endpoint has a real `name`
- * filter (matches Organization's contract) — but no `org_id` filter exists
- * server-side, so `orgId` is only used as a cache-key discriminator here,
- * not forwarded to the action payload.
+ * HealthcareService's list endpoint has both a real `name` filter (matches
+ * Organization's contract) and, now, a real `org_id` filter — results are
+ * server-side tenant-scoped.
  *
- * @param params - Pagination params forwarded to the list action.
+ * @param params - Pagination + tenant filter forwarded to the list action.
  * @returns The paginated healthcare service response.
  * @throws Error with the server action's error message on failure.
  */
@@ -58,6 +57,7 @@ export async function fetchHealthcareServices(params: {
     payload: {
       limit: params.pageSize,
       offset: params.pageIndex * params.pageSize,
+      org_id: params.orgId ?? undefined,
     },
   });
 
@@ -67,23 +67,25 @@ export async function fetchHealthcareServices(params: {
 
 /**
  * Searches healthcare services by name for the ReferenceSelect picker.
- * fhir-gql's ListHealthcareServicesValidationSchema has a real server-side
- * `name` filter, so this searches live rather than fetching the full list.
- * There is no org_id filter on this endpoint — results are NOT tenant-scoped,
- * the same pre-existing gap the healthcare services list screen has.
+ * fhir-gql's ListHealthcareServicesValidationSchema has both a real
+ * server-side `name` filter and an org_id filter, so this searches live,
+ * server-side tenant-scoped, rather than fetching the full list.
  *
  * @param query - Search text; empty string returns the first page.
+ * @param orgId - Active organization ID to scope results to the current tenant.
  * @returns Up to 50 matching healthcare services as {id, label} options.
  * @throws Error with the server action's error message on failure.
  */
 export async function searchHealthcareServiceOptions(
   query: string,
+  orgId: string | null,
 ): Promise<TReferenceOption[]> {
   const [data, err] = await listHealthcareServicesAction({
     payload: {
       name: query || undefined,
       limit: 50,
       offset: 0,
+      org_id: orgId ?? undefined,
     },
   });
 

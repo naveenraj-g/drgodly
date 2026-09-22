@@ -32,6 +32,7 @@ import record_procedure from "@/modules/client/ai-hub/workflows/clinical/record_
 import record_questionnaire_response from "@/modules/client/ai-hub/workflows/clinical/record_questionnaire_response.json";
 import record_specimen from "@/modules/client/ai-hub/workflows/clinical/record_specimen.json";
 import record_vitals from "@/modules/client/ai-hub/workflows/clinical/record_vitals.json";
+import patient_chart_review from "@/modules/client/ai-hub/workflows/clinical/patient_chart_review.json";
 // ── Coverage ──────────────────────────────────────────────────────────────────
 import create_coverage from "@/modules/client/ai-hub/workflows/coverage/create_coverage.json";
 // ── Encounter ─────────────────────────────────────────────────────────────────
@@ -91,17 +92,21 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
     category: "Clinical",
     workflow: add_consultation_extractions as unknown as WorkflowDefinition,
   },
-  {
-    category: "Patient",
-    workflow: create_patient as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Patient",
-    workflow: admin_create_patient as unknown as WorkflowDefinition,
-  },
+  // {
+  //   category: "Patient",
+  //   workflow: create_patient as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Patient",
+  //   workflow: admin_create_patient as unknown as WorkflowDefinition,
+  // },
   {
     category: "Results",
     workflow: upload_patient_report as unknown as WorkflowDefinition,
+  },
+  {
+    category: "Clinical",
+    workflow: patient_chart_review as unknown as WorkflowDefinition,
   },
   // {
   //   category: "Appointment",
@@ -183,46 +188,46 @@ export const WORKFLOW_ENTRIES: WorkflowEntry[] = [
   //   category: "Billing",
   //   workflow: create_billing_cycle as unknown as WorkflowDefinition,
   // },
-  {
-    category: "Organization",
-    workflow: create_organization as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Location",
-    workflow: create_location as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Practitioner",
-    workflow: create_practitioner as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Practitioner",
-    workflow: admin_create_practitioner as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Practitioner",
-    workflow: create_practitioner_role as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Practitioner",
-    workflow: upload_practitioner_photo as unknown as WorkflowDefinition,
-  },
+  // {
+  //   category: "Organization",
+  //   workflow: create_organization as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Location",
+  //   workflow: create_location as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Practitioner",
+  //   workflow: create_practitioner as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Practitioner",
+  //   workflow: admin_create_practitioner as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Practitioner",
+  //   workflow: create_practitioner_role as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Practitioner",
+  //   workflow: upload_practitioner_photo as unknown as WorkflowDefinition,
+  // },
   // {
   //   category: "Related Person",
   //   workflow: create_related_person as unknown as WorkflowDefinition,
   // },
-  {
-    category: "Healthcare Service",
-    workflow: create_healthcare_service as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Schedule",
-    workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
-  },
-  {
-    category: "Schedule",
-    workflow: generate_slots as unknown as WorkflowDefinition,
-  },
+  // {
+  //   category: "Healthcare Service",
+  //   workflow: create_healthcare_service as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Schedule",
+  //   workflow: create_schedule_with_slots as unknown as WorkflowDefinition,
+  // },
+  // {
+  //   category: "Schedule",
+  //   workflow: generate_slots as unknown as WorkflowDefinition,
+  // },
   // {
   //   category: "Vitals",
   //   workflow: view_vitals_dashboard as unknown as WorkflowDefinition,

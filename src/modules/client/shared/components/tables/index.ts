@@ -59,7 +59,13 @@ export { useDebouncedCallback } from "./hooks/use-debounced-callback";
 export { useDebouncedValue } from "./hooks/use-debounced-value";
 
 // Utilities
-export { getColumnPinningStyle, formatDate } from "./utils";
+export {
+  getColumnPinningStyle,
+  formatDate,
+  rangeFilterFn,
+  dateFilterFn,
+  dateRangeFilterFn,
+} from "./utils";
 
 // Export
 export {

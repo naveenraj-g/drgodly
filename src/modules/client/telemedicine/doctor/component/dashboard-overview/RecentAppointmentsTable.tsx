@@ -11,6 +11,7 @@
 
 "use client";
 
+import { formatDisplayDayMonth, formatDisplayTime } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -83,12 +84,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
  * @returns Human-readable date/time, e.g. "Jun 15, 9:30 AM".
  */
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return `${formatDisplayDayMonth(iso)}, ${formatDisplayTime(iso)}`;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

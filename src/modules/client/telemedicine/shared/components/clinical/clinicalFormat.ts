@@ -11,6 +11,9 @@
  * Formatting only, no data access, so this is safe to import anywhere.
  */
 
+import { formatInTimeZone } from "date-fns-tz";
+import { APP_TIMEZONE, formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
+
 /** Rendered in place of a date that is absent or unparseable. */
 const PLACEHOLDER = "—";
 
@@ -23,11 +26,7 @@ const PLACEHOLDER = "—";
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return PLACEHOLDER;
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDisplayDate(iso);
   } catch {
     return PLACEHOLDER;
   }
@@ -42,11 +41,7 @@ export function formatDate(iso: string | null | undefined): string {
 export function formatTime(iso: string | null | undefined): string | null {
   if (!iso) return null;
   try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    return formatDisplayTime(iso);
   } catch {
     return null;
   }
@@ -74,7 +69,7 @@ export function formatDateTime(iso: string | null | undefined): string {
 export function formatWeekday(iso: string | null | undefined): string {
   if (!iso) return "";
   try {
-    return new Date(iso).toLocaleDateString(undefined, { weekday: "long" });
+    return formatInTimeZone(new Date(iso), APP_TIMEZONE, "EEEE");
   } catch {
     return "";
   }

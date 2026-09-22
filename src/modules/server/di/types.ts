@@ -20,6 +20,7 @@ import { IConditionService } from "../core/condition/domain/interfaces/condition
 import { IDiagnosticReportService } from "../core/diagnostic-report/domain/interfaces/diagnostic-report.service.interface";
 import { IDocumentReferenceService } from "../core/document-reference/domain/interfaces/document-reference.service.interface";
 import { IStagingMedicalRecordsService } from "../core/staging-medical-record/domain/interfaces/staging-medical-record.service.interface";
+import { IVitalsService } from "../core/vitals/domain/interfaces/vitals.service.interface";
 
 export const DI_SYMBOLS = {
   IPatientsService: Symbol.for("IPatientsService"),
@@ -44,6 +45,7 @@ export const DI_SYMBOLS = {
   IDiagnosticReportService: Symbol.for("IDiagnosticReportService"),
   IDocumentReferenceService: Symbol.for("IDocumentReferenceService"),
   IStagingMedicalRecordsService: Symbol.for("IStagingMedicalRecordsService"),
+  IVitalsService: Symbol.for("IVitalsService"),
 };
 
 export interface DI_RETURN_TYPES {
@@ -69,4 +71,5 @@ export interface DI_RETURN_TYPES {
   IDiagnosticReportService: IDiagnosticReportService;
   IDocumentReferenceService: IDocumentReferenceService;
   IStagingMedicalRecordsService: IStagingMedicalRecordsService;
+  IVitalsService: IVitalsService;
 }

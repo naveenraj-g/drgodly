@@ -28,8 +28,9 @@ export interface ISlotsTableProps {
   orgId: string | null;
   /**
    * Authenticated user's ID from the session (Better Auth `user.id`).
-   * Forwarded to the create/generate modals so it can be stamped on newly
-   * created resources as `user_id`.
+   * No longer consumed by the create/generate modals — the server actions
+   * don't need a user_id. Kept on this type for now; callers may still
+   * populate it.
    */
   userId: string | null;
 }

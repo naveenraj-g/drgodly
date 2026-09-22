@@ -14,7 +14,14 @@
  * DoctorAppointmentsTable — see that file's fetchDoctorAppointments.
  */
 
-import { addDays, endOfDay, endOfMonth, startOfDay, startOfMonth } from "date-fns";
+import { addDays } from "date-fns";
+import {
+  startOfDayIST,
+  endOfDayIST,
+  startOfMonthIST,
+  endOfMonthIST,
+  formatApiDate,
+} from "@/modules/shared/helper";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
@@ -129,8 +136,8 @@ async function countPendingNotes(fulfilledAppointmentIds: number[]): Promise<num
  */
 function buildTabPayload(params: DemoTabQueryParams) {
   const now = new Date();
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
+  const todayStart = startOfDayIST(now);
+  const todayEnd = endOfDayIST(now);
 
   const common = {
     practitioner_id: params.practitionerId,
@@ -274,8 +281,8 @@ export async function fetchDemoCalendarMonth({
     payload: {
       practitioner_id: practitionerId,
       ...(orgId ? { org_id: orgId } : {}),
-      start_from: startOfMonth(now).toISOString(),
-      start_to: endOfMonth(now).toISOString(),
+      start_from: startOfMonthIST(now).toISOString(),
+      start_to: endOfMonthIST(now).toISOString(),
       limit: 200,
       offset: 0,
       sort: "date",
@@ -290,7 +297,7 @@ export async function fetchDemoCalendarMonth({
   // De-dupe by calendar day — several appointments can share a date.
   const seen = new Set<string>();
   return dates.filter((d) => {
-    const key = d.toDateString();
+    const key = formatApiDate(d);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

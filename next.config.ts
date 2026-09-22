@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     // thrown from within an already-matched (apps) page, which
     // (apps)/not-found.tsx handles fine on its own, navbar included).
     globalNotFound: true,
+    serverComponentsHmrCache: false,
   },
   // Lets the client detect when it's talking to a server from a different
   // build (e.g. after a production redeploy) and force a hard navigation
@@ -27,7 +28,7 @@ const nextConfig: NextConfig = {
   // docker-build.sh for how this is set at build time.
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   webpack: (config, { dev }) => {
-    // Onlu disable source maps in development
+    // Only disable source maps in development
     if (dev) {
       config.devtool = false;
     }

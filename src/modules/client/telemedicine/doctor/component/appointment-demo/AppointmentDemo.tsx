@@ -19,7 +19,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { formatDisplayDateLong } from "@/modules/shared/helper";
 import {
   CalendarIcon,
   CalendarClock,
@@ -262,7 +262,7 @@ export function AppointmentDemo({
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <CalendarIcon className="size-3.5" />
-                  {format(pickerDate, "EEE, MMM d, yyyy")}
+                  {formatDisplayDateLong(pickerDate)}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">

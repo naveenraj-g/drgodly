@@ -87,7 +87,6 @@ export function CreateSlotModal() {
   async function handleSubmit(values: TCreateSlotFormSchema) {
     await execute({
       payload: {
-        user_id: data?.userId,
         org_id: data?.orgId,
         schedule: values.schedule,
         schedule_display: values.schedule_display,

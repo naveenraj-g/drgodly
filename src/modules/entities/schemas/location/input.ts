@@ -11,9 +11,10 @@
  *  - Create array field names are PLURAL (identifiers, aliases, types, telecoms,
  *    endpoints) unlike Organization's singular names.
  *  - `aliases` is a plain string[], not an array of `{ value }` objects.
- *  - `user_id` / `org_id` are REQUIRED on create (fhir-gql does not stamp them
- *    from the session for Location) — the modal must guard against missing
- *    session values before submit.
+ *  - `org_id` is REQUIRED on create (fhir-gql does not stamp it from the
+ *    session for Location) — the modal must guard against a missing session
+ *    org before submit. `user_id` is optional and unused — no server action
+ *    on this resource needs it.
  *  - `name` is optional (Organization's `name` is required).
  *  - `address` is a single flat set of `address_*` scalar fields, not an array.
  *  - Self-reference field is `part_of` (underscore), not `partof`.
@@ -94,13 +95,13 @@ export type TLocationEndpointInput = z.infer<typeof LocationEndpointInputSchema>
 
 /**
  * Full schema for creating a Location.
- * Mirrors fhir-gql's LocationCreateSchema — user_id and org_id are required
- * (fhir-gql does not infer them from the JWT for this resource); all other
- * fields are optional.
+ * Mirrors fhir-gql's LocationCreateSchema — org_id is required (fhir-gql
+ * does not infer it from the JWT for this resource); user_id is optional and
+ * unused — no server action on this resource needs it; all other fields are
+ * optional.
  */
 export const CreateLocationValidationSchema = z.object({
-  /** Better Auth user ID — required by fhir-gql for tenant scoping. */
-  user_id: z.string().min(1, "User is required"),
+  user_id: z.string().optional(),
   /** Better Auth active organization ID — required by fhir-gql for tenant scoping. */
   org_id: z.string().min(1, "Organization is required"),
 

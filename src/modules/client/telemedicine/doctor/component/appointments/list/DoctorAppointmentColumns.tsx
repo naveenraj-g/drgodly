@@ -19,6 +19,7 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
+import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 import {
   DataTableColumnHeader,
   DataTableExpandButton,
@@ -58,26 +59,19 @@ export const APPOINTMENT_STATUS_OPTIONS = [
  */
 function formatDate(isoString: string | null | undefined): string {
   if (!isoString) return "—";
-  return new Date(isoString).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDisplayDate(isoString);
 }
 
 /**
  * Formats an ISO 8601 datetime string as a localised time string.
- * Slots are stored in UTC; browser converts to local time automatically.
+ * Slots are stored in UTC; formatted here pinned to IST.
  *
  * @param isoString - UTC datetime from the FHIR API, or nullish.
- * @returns Human-readable local time string or "—".
+ * @returns Human-readable IST time string or "—".
  */
 function formatTime(isoString: string | null | undefined): string {
   if (!isoString) return "—";
-  return new Date(isoString).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDisplayTime(isoString);
 }
 
 /** @private Maps a FHIR status code to a display label. */

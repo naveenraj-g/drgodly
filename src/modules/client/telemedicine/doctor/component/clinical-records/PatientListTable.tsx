@@ -16,6 +16,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ChevronRight, UserRound, Users } from "lucide-react";
@@ -42,11 +43,7 @@ import type { DoctorPatientSummary } from "./types";
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDisplayDate(iso);
   } catch {
     return "—";
   }

@@ -25,6 +25,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { formatApiDate, formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 import { Clock, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -64,11 +65,7 @@ import type { TPractitionerRoleResponse } from "@/modules/entities/schemas/pract
  */
 function getSlotTime(slot: TSlotResponse): string {
   if (!slot.start) return "";
-  return new Date(slot.start).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatDisplayTime(slot.start);
 }
 
 /**
@@ -224,7 +221,7 @@ export function RescheduleAppointmentModal() {
     const s = new Set<string>();
     calendarDates.forEach((d) => {
       if (allowedDays.has(WEEKDAY_CODES[d.getDay()])) {
-        s.add(d.toISOString().slice(0, 10));
+        s.add(formatApiDate(d));
       }
     });
     return s;
@@ -234,8 +231,10 @@ export function RescheduleAppointmentModal() {
   // One day at a time, not a 30-day range — a single day's slots never come
   // close to the API's 200-row page cap the way a whole month's can, so this
   // can't silently truncate the calendar the way the old eager range-fetch did.
+  // Uses formatApiDate (IST-pinned local date components), not
+  // `toISOString()` — see BookAppointment.tsx's isDayDisabled for why that matters.
   const selectedDateStr = useMemo(
-    () => selectedDate?.toISOString().slice(0, 10) ?? null,
+    () => (selectedDate ? formatApiDate(selectedDate) : null),
     [selectedDate],
   );
 
@@ -352,7 +351,7 @@ export function RescheduleAppointmentModal() {
             {/* Date Scroller */}
             <div>
               <h3 className="font-semibold text-muted-foreground text-sm mb-4">
-                Available Dates{selectedDate ? ` (${selectedDate.toDateString()})` : ""}
+                Available Dates{selectedDate ? ` (${formatDisplayDate(selectedDate)})` : ""}
               </h3>
               <DateScroller
                 dates={calendarDates}

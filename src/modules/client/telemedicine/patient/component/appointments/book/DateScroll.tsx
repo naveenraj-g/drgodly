@@ -17,6 +17,10 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  formatApiDate,
+  formatDisplayDayMonth,
+} from "@/modules/shared/helper";
 
 /** Props for the DateScroller component. */
 interface DateScrollerProps {
@@ -55,7 +59,7 @@ export function DateScroller({
   useEffect(() => {
     if (!trackRef.current || !selectedDate) return;
     const idx = dates.findIndex(
-      (d) => d.toDateString() === selectedDate.toDateString(),
+      (d) => formatApiDate(d) === formatApiDate(selectedDate),
     );
     if (idx === -1) return;
     const el = trackRef.current.querySelector<HTMLButtonElement>(
@@ -117,14 +121,19 @@ export function DateScroller({
       >
         <div className="flex gap-2">
           {dates.map((date, idx) => {
-            const isoDate = date.toISOString().slice(0, 10); // "2026-06-15"
+            // IST-pinned local date components, not toISOString() — that
+            // converts to UTC first and silently shifts the date in
+            // positive-UTC-offset timezones. See BookAppointment.tsx's
+            // isDayDisabled.
+            const isoDate = formatApiDate(date); // "2026-06-15"
             const isDisabled = availableDates
               ? !availableDates.has(isoDate)
               : false;
             const isSelected =
               !isDisabled &&
-              selectedDate?.toDateString() === date.toDateString();
-            const isToday = new Date().toDateString() === date.toDateString();
+              selectedDate != null &&
+              formatApiDate(selectedDate) === isoDate;
+            const isToday = formatApiDate(new Date()) === isoDate;
 
             return (
               <Button
@@ -157,10 +166,7 @@ export function DateScroller({
                     : date.toLocaleDateString("en-US", { weekday: "short" })}
                 </span>
                 <span className="text-base sm:text-lg font-medium">
-                  {date.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {formatDisplayDayMonth(date)}
                 </span>
                 {isDisabled && (
                   <span className="text-[9px] text-muted-foreground">

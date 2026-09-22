@@ -20,6 +20,7 @@ import {
   type DocExportMeta,
 } from "../exportDocument";
 import type { MedicationFormItem } from "../../appointment-review/types";
+import { formatDisplayDateTime } from "@/modules/shared/helper";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ function signatureLines(meta: DocExportMeta): string[] {
   const credentials = [prac?.qualifications, prac?.specialty].filter(Boolean).join(" · ");
   if (credentials) out.push(credentials);
   if (prac?.regNo) out.push(`Reg No: ${prac.regNo}`);
-  out.push(`Generated on ${new Date().toLocaleString()}`);
+  out.push(`Generated on ${formatDisplayDateTime(new Date())}`);
   return out;
 }
 
@@ -238,7 +239,7 @@ export function prescriptionToWordHtml(
     <p style="margin:0;font-style:italic;">${escapeHtml(meta.doctorName)}</p>
     ${[prac?.qualifications, prac?.specialty].filter(Boolean).length ? `<p style="margin:0;font-size:9pt;color:#666;">${escapeHtml([prac?.qualifications, prac?.specialty].filter(Boolean).join(" · "))}</p>` : ""}
     ${prac?.regNo ? `<p style="margin:0;font-size:9pt;color:#666;">Reg No: ${escapeHtml(prac.regNo)}</p>` : ""}
-    <p style="margin:0;font-size:8pt;color:#999;">Generated on ${escapeHtml(new Date().toLocaleString())}</p>
+    <p style="margin:0;font-size:8pt;color:#999;">Generated on ${escapeHtml(formatDisplayDateTime(new Date()))}</p>
   </div>
 </body>
 </html>`;
@@ -376,7 +377,7 @@ export async function buildPrescriptionPdf(
     cursor.y += 4;
   }
   doc.setTextColor(150);
-  doc.text(`Generated on ${new Date().toLocaleString()}`, sigX, cursor.y, {
+  doc.text(`Generated on ${formatDisplayDateTime(new Date())}`, sigX, cursor.y, {
     align: "right",
   });
   doc.setTextColor(17);

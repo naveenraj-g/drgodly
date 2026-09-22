@@ -22,6 +22,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { toZonedTime } from "date-fns-tz";
+import { APP_TIMEZONE, nowIST } from "@/modules/shared/helper";
 import {
   CalendarClock,
   CalendarDays,
@@ -105,7 +107,7 @@ function buildMonthlyData(
   appointments: TAppointmentResponse[],
   months = 6,
 ): AppointmentTrendPoint[] {
-  const now = new Date();
+  const now = nowIST();
   const result: AppointmentTrendPoint[] = [];
 
   for (let i = months - 1; i >= 0; i--) {
@@ -115,7 +117,7 @@ function buildMonthlyData(
 
     const inMonth = appointments.filter((a) => {
       if (!a.start) return false;
-      const d = new Date(a.start);
+      const d = toZonedTime(new Date(a.start), APP_TIMEZONE);
       return d.getFullYear() === year && d.getMonth() === month;
     });
 
@@ -129,10 +131,10 @@ function buildMonthlyData(
   return result;
 }
 
-/** True when an ISO datetime falls on today's calendar date (local time). */
+/** True when an ISO datetime falls on today's calendar date (IST). */
 function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const now = new Date();
+  const d = toZonedTime(new Date(iso), APP_TIMEZONE);
+  const now = nowIST();
   return (
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
@@ -140,10 +142,10 @@ function isToday(iso: string): boolean {
   );
 }
 
-/** True when an ISO datetime falls within the current calendar week (Sun–Sat). */
+/** True when an ISO datetime falls within the current calendar week (Sun–Sat, IST). */
 function isThisWeek(iso: string): boolean {
-  const d = new Date(iso);
-  const now = new Date();
+  const d = toZonedTime(new Date(iso), APP_TIMEZONE);
+  const now = nowIST();
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);

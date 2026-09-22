@@ -92,7 +92,6 @@ export function GenerateSlotsModal() {
   async function handleSubmit(values: TGenerateSlotsFormSchema) {
     await execute({
       payload: {
-        user_id: data?.userId,
         org_id: data?.orgId,
         schedule_id: values.schedule_id,
         generation_start: values.generation_start,

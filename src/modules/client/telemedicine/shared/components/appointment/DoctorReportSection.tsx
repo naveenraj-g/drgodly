@@ -16,6 +16,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -236,11 +237,7 @@ function SoapNoteView({ soap }: { soap: SoapNote }) {
 function fmtDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDisplayDate(iso);
   } catch {
     return null;
   }

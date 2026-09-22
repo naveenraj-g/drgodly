@@ -37,6 +37,8 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, useTransition } from "react";
 import { toast } from "sonner";
+import { useRouter } from "@/i18n/navigation";
+import { formatDisplayTime } from "@/modules/shared/helper";
 import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
@@ -325,6 +327,8 @@ export function AppointmentReview({
   publishedSoapNote = null,
   draft = null,
 }: AppointmentReviewProps) {
+  const router = useRouter();
+
   const rawReport =
     fullReport && typeof fullReport === "object"
       ? (fullReport as Partial<StagingReport>)
@@ -457,6 +461,12 @@ export function AppointmentReview({
   /* Skip the very first autosave-effect run — it fires on mount with the
      just-seeded state, which is already persisted (or doesn't need to be). */
   const skippedFirstAutosave = useRef(false);
+  /* Set for the duration of handleConfirm. The merge-created-ids state update
+     it makes would otherwise re-arm the debounced autosave below, racing its
+     own explicit post-publish draft sync with stale/incomplete pre-merge
+     data. Suppressing the effect while this is true removes that race
+     instead of trying to win it. */
+  const isConfirmingRef = useRef(false);
 
   /*
    * Track the FHIR IDs that were present at page load.
@@ -573,6 +583,7 @@ export function AppointmentReview({
       skippedFirstAutosave.current = true;
       return;
     }
+    if (isConfirmingRef.current) return;
     debouncedSaveDraft();
   }, [soap, conditions, observations, medications, serviceRequests, debouncedSaveDraft]);
 
@@ -632,11 +643,11 @@ export function AppointmentReview({
    * Note tab showing the raw AI draft rather than what was actually approved.
    * The four lists go with it so staging reflects the approved set too.
    *
-   * Finally clears the autosaved draft: it's now identical to what was just
-   * published, so keeping it around would only risk a stale draft outliving
-   * a record it once described correctly.
+   * Finally syncs the autosaved draft to this exact published state (rather
+   * than clearing it) — see the draft-sync block below for why.
    */
   const handleConfirm = () => {
+    isConfirmingRef.current = true;
     startTransition(async () => {
       try {
         /* Diff current state against what was loaded and write to FHIR. */
@@ -712,26 +723,49 @@ export function AppointmentReview({
           serviceRequests: nextServiceRequests,
         });
 
-        /* The draft now matches what's published — clear it so a refresh
-           doesn't rehydrate stale draft content. Best-effort: a failure here
-           just leaves a harmless, already-superseded draft behind. */
+        /* Sync the draft to this exact published state instead of clearing
+           it. `clear: true` only nulls draft_updated_at and leaves the old
+           draft_* JSON in place (see ConsultationPrismaRepository.
+           saveClinicalDraft) — harmless on its own, but the debounced
+           autosave effect above can still be mid-flight from the
+           merge-created-ids state update just made, and would otherwise
+           race the clear and resurrect draft_updated_at with a stale,
+           pre-merge/pre-edit snapshot on top of it. Writing the real
+           published content as the draft instead means whichever write
+           lands last is still correct, so the race no longer matters. */
         try {
-          const [, clearErr] = await saveClinicalDraftAction({
-            payload: { fhir_appointment_id: fhirAppointmentId, clear: true },
+          const [, syncErr] = await saveClinicalDraftAction({
+            payload: {
+              fhir_appointment_id: fhirAppointmentId,
+              soap_note: soap,
+              conditions: nextConditions,
+              observations: nextObservations,
+              medication_requests: nextMedications,
+              service_requests: nextServiceRequests,
+            },
           });
-          if (clearErr) {
-            console.error("[AppointmentReview] draft clear failed:", clearErr);
+          if (syncErr) {
+            console.error("[AppointmentReview] draft sync failed:", syncErr);
           }
-        } catch (clearErr) {
-          console.error("[AppointmentReview] draft clear failed:", clearErr);
+        } catch (syncErr) {
+          console.error("[AppointmentReview] draft sync failed:", syncErr);
         }
-        setLastDraftSavedAt(null);
-        setDraftSaveState("idle");
+        setLastDraftSavedAt(new Date());
+        setDraftSaveState("saved");
 
         toast.success("Clinical records saved to patient medical history.");
+
+        /* Land the doctor on the dedicated clinical-records workspace for
+           this patient/appointment — the natural next stop after confirming,
+           since that page is where the just-published entries actually live. */
+        router.push(
+          `/bezs/telemedicine/doctor/clinical-records/${patientId}/${fhirAppointmentId}`,
+        );
       } catch (err) {
         console.error("[AppointmentReview] save failed:", err);
         toast.error("Failed to save some records. Please try again.");
+      } finally {
+        isConfirmingRef.current = false;
       }
     });
   };
@@ -793,10 +827,7 @@ export function AppointmentReview({
               <>
                 <CloudCheck className="h-3 w-3 text-emerald-600" />
                 Draft saved{" "}
-                {lastDraftSavedAt.toLocaleTimeString([], {
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {formatDisplayTime(lastDraftSavedAt)}
               </>
             )}
             {draftSaveState === "error" && (

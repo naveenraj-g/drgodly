@@ -155,7 +155,7 @@ export function DateTimePicker({
         >
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           <span className="truncate">
-            {date ? format(date, "PPP") + (time ? ` ${time}` : "") : placeholder}
+            {date ? format(date, "dd-MM-yyyy") + (time ? ` ${time}` : "") : placeholder}
           </span>
 
           {/* Clear affordance — only meaningful once a value is set */}

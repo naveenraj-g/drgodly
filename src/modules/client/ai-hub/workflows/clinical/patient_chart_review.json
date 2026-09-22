@@ -1,0 +1,180 @@
+{
+  "id": "patient_chart_review",
+  "name": "Patient Chart Review",
+  "description": "Doctor selects one of their attended patients, then sees a full analytics dashboard of that patient's vitals, conditions, medications, observations, and visit history.",
+  "version": "1.0.0",
+  "workflow_type": "analysis",
+  "tags": ["clinical", "dashboard", "analytics", "charts", "doctor", "patient"],
+  "required_permissions": [
+    "patient:read",
+    "appointment:read",
+    "condition:read",
+    "observation:read",
+    "medication_request:read",
+    "vitals:read"
+  ],
+  "llm_hints": {
+    "intent_examples": [
+      "Show patient chart review",
+      "Open patient analytics dashboard",
+      "Review a patient's chart",
+      "Show me this patient's history",
+      "View patient clinical overview"
+    ],
+    "when_to_use": [
+      "Doctor wants a consolidated analytics view of a patient they have attended",
+      "Doctor wants to see trends across a patient's vitals, conditions, medications, and visits"
+    ],
+    "when_not_to_use": [
+      "Doctor wants to add or edit clinical data (use the appointment review page instead)",
+      "Patient wants to view their own records (use the patient medical records page instead)"
+    ],
+    "required_context": []
+  },
+  "execution": {
+    "mode": "deterministic",
+    "orchestrator": "nextjs",
+    "audit_enabled": false
+  },
+  "introduction": "I'll pull up the patient chart review. First, select a patient you've attended.",
+  "completion": {
+    "message": "Patient chart review closed.",
+    "action": "dismiss"
+  },
+  "workflow_steps": [
+    {
+      "sequence_number": 1,
+      "id": "resolve_current_practitioner",
+      "name": "Resolve Practitioner",
+      "step_type": "context",
+      "description": "Silently fetches the current doctor's Practitioner record to extract practitioner_id for use in subsequent steps.",
+      "context_resolver": {
+        "tool_name": "get_my_practitioner_profile",
+        "url": "$fhir_gql_url/practitioners/me",
+        "method": "GET",
+        "timeout_ms": 5000
+      },
+      "context": {
+        "inputs": {},
+        "outputs": {
+          "practitioner_id": {
+            "type": "integer",
+            "resource": "Practitioner",
+            "field": "id"
+          }
+        }
+      }
+    },
+    {
+      "sequence_number": 2,
+      "id": "select_patient",
+      "name": "Select Patient",
+      "step_type": "form",
+      "description": "Search the doctor's own attended-patient roster (derived from their appointments) and pick one to review.",
+      "context": {
+        "inputs": {
+          "practitioner_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {
+          "patient_id": {
+            "type": "integer",
+            "resource": "Patient",
+            "field": "id"
+          }
+        }
+      },
+      "context_resolvers": [
+        {
+          "description": "Loads every appointment for this practitioner (tenant-scoped) so the patient roster can be derived client-side.",
+          "context_key": "doctor_appointments",
+          "tool_name": "list_practitioner_appointments",
+          "url": "$fhir_gql_url/appointments/?practitioner_id=$practitioner_id&org_id=$org_id&limit=200",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
+      "ui": {
+        "schema": "select_patient_chart_review_form",
+        "mode": "create",
+        "prefill": false,
+        "editable": true
+      },
+      "actions": [
+        {
+          "type": "http",
+          "purpose": "confirm_patient_selection",
+          "tool_name": "confirm_patient_selection",
+          "url": "$fhir_gql_url/patients/$patient_id?org_id=$org_id",
+          "method": "GET",
+          "validation_schema": "admin_select_patient_schema",
+          "retryable": false,
+          "timeout_ms": 8000
+        }
+      ]
+    },
+    {
+      "sequence_number": 3,
+      "id": "patient_chart_review_dashboard",
+      "name": "Patient Chart Review",
+      "step_type": "view",
+      "description": "Shows the selected patient's full chart at a glance — key numbers, trend charts, and tables covering their vitals, conditions, medications, observations, orders, and visit history.",
+      "context": {
+        "inputs": {
+          "patient_id": { "type": "integer", "source": "workflow" },
+          "practitioner_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {}
+      },
+      "context_resolvers": [
+        {
+          "context_key": "vitals",
+          "tool_name": "list_patient_vitals",
+          "url": "$fhir_gql_url/vitals/?patient_id=$patient_id&org_id=$org_id&limit=90&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        },
+        {
+          "context_key": "conditions",
+          "tool_name": "list_patient_conditions",
+          "url": "$fhir_gql_url/conditions/?patient_id=$patient_id&org_id=$org_id&limit=100&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        },
+        {
+          "context_key": "observations",
+          "tool_name": "list_patient_observations",
+          "url": "$fhir_gql_url/observations/?patient_id=$patient_id&org_id=$org_id&limit=100&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        },
+        {
+          "context_key": "medication_requests",
+          "tool_name": "list_patient_medication_requests",
+          "url": "$fhir_gql_url/medication-requests/?patient_id=$patient_id&org_id=$org_id&limit=100&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        },
+        {
+          "context_key": "service_requests",
+          "tool_name": "list_patient_service_requests",
+          "url": "$fhir_gql_url/service-requests/?patient_id=$patient_id&org_id=$org_id&limit=100&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        },
+        {
+          "context_key": "appointments",
+          "tool_name": "list_patient_appointment_history",
+          "url": "$fhir_gql_url/appointments/?patient_id=$patient_id&practitioner_id=$practitioner_id&org_id=$org_id&limit=100&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
+      "ui": {
+        "schema": "patient_chart_review_dashboard",
+        "mode": "view",
+        "prefill": false,
+        "editable": false
+      }
+    }
+  ]
+}

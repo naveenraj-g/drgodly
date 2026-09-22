@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { endOfDay } from "date-fns";
+import { startOfDayIST, endOfDayIST } from "@/modules/shared/helper";
 import {
   DataTable,
   DataTableToolbar,
@@ -116,11 +116,11 @@ export function AppointmentDemoTabPanel({
     | undefined;
   const startFrom =
     enableDateFilter && dateFilterRaw?.[0]
-      ? new Date(dateFilterRaw[0]).toISOString()
+      ? startOfDayIST(dateFilterRaw[0]).toISOString()
       : undefined;
   const startTo =
     enableDateFilter && dateFilterRaw?.[1]
-      ? endOfDay(new Date(dateFilterRaw[1])).toISOString()
+      ? endOfDayIST(dateFilterRaw[1]).toISOString()
       : undefined;
 
   const sort = useMemo(() => {

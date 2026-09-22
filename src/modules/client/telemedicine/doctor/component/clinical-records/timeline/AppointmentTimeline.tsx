@@ -21,6 +21,13 @@ import { GitCommitVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { toZonedTime } from "date-fns-tz";
+import {
+  APP_TIMEZONE,
+  formatDisplayDate,
+  formatDisplayTime,
+  formatDisplayDateLong,
+} from "@/modules/shared/helper";
 import type { TimelineEvent, TimelinePhase } from "./buildTimeline";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,14 +50,7 @@ const PHASE_STYLE: Record<TimelinePhase, string> = {
  * @param date - The instant to format.
  */
 function fmtDateTime(date: Date): string {
-  return date.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return `${formatDisplayDate(date)}, ${formatDisplayTime(date)}`;
 }
 
 /**
@@ -60,11 +60,7 @@ function fmtDateTime(date: Date): string {
  * @param date - The instant to format.
  */
 function fmtTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatDisplayTime(date);
 }
 
 /**
@@ -73,12 +69,7 @@ function fmtTime(date: Date): string {
  * @param date - The instant to format.
  */
 function fmtDayHeading(date: Date): string {
-  return date.toLocaleDateString(undefined, {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  return formatDisplayDateLong(date);
 }
 
 /**
@@ -88,7 +79,8 @@ function fmtDayHeading(date: Date): string {
  * @param date - The instant to key.
  */
 function dayKey(date: Date): string {
-  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+  const ist = toZonedTime(date, APP_TIMEZONE);
+  return `${ist.getFullYear()}-${ist.getMonth()}-${ist.getDate()}`;
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────

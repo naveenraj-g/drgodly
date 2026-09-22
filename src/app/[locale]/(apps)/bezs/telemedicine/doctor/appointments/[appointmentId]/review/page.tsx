@@ -24,6 +24,7 @@
  */
 
 import { redirect } from "@/i18n/navigation";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { getLocale } from "next-intl/server";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
@@ -142,11 +143,7 @@ export default async function DoctorAppointmentReviewPage({
 
   /* Format appointment date for display in the header. */
   const appointmentDate = appointment.start
-    ? new Date(appointment.start).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+    ? formatDisplayDate(appointment.start)
     : null;
 
   /* The encounter links all created FHIR resources. May be undefined if creation raced. */

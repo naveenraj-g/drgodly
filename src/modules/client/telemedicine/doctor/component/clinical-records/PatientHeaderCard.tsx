@@ -15,6 +15,7 @@ import { Cake, Mail, Phone, UserRound, VenusAndMars } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TPatientResponse } from "@/modules/entities/schemas/patient";
+import { formatDisplayDate, getPatientAge } from "@/modules/shared/helper";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,18 +47,9 @@ export function patientDisplayName(
 function fmtBirthDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
   try {
-    const d = new Date(iso);
-    const formatted = d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-    /* Age in whole years — adjust when this year's birthday hasn't passed. */
-    const today = new Date();
-    let age = today.getFullYear() - d.getFullYear();
-    const monthDiff = today.getMonth() - d.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) age -= 1;
-    return age >= 0 ? `${formatted} (${age})` : formatted;
+    const formatted = formatDisplayDate(iso);
+    const age = getPatientAge(iso);
+    return age != null ? `${formatted} (${age})` : formatted;
   } catch {
     return null;
   }

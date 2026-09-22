@@ -52,6 +52,7 @@ import { ReferenceSelect } from "@/modules/client/shared/components/ReferenceSel
 import { DateTimePicker } from "@/modules/client/shared/components/DateTimePicker";
 import { getScheduleByIdAction } from "@/modules/server/presentation/actions/schedule";
 import { searchScheduleOptions } from "../../queries/schedule.queries";
+import { useAdminStore } from "../../stores/admin.store";
 import { SlotCodeableConceptRepeatableField } from "./SlotCodeableConceptRepeatableField";
 import type { TGenerateSlotsFormSchema } from "@/modules/entities/schemas/slot";
 
@@ -85,6 +86,7 @@ export function GenerateSlotsForm({
 }: GenerateSlotsFormProps) {
   const form = useFormContext<TGenerateSlotsFormSchema>();
   const scheduleId = useWatch({ control: form.control, name: "schedule_id" });
+  const orgId = useAdminStore((s) => s.data?.orgId ?? null);
 
   /** Loads the selected schedule's planning horizon to bound the generation window pickers. */
   const scheduleQuery = useQuery({
@@ -122,8 +124,8 @@ export function GenerateSlotsForm({
             name="schedule_id"
             render={({ field }) => (
               <ReferenceSelect
-                fetchOptions={searchScheduleOptions}
-                queryKey={["schedules", "picker"]}
+                fetchOptions={(q) => searchScheduleOptions(q, orgId)}
+                queryKey={["schedules", "picker", orgId]}
                 value={
                   scheduleId
                     ? { id: scheduleId, label: form.getValues("schedule_display") ?? "" }

@@ -10,6 +10,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { ChevronRight, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,11 +19,7 @@ import type { DoctorPatientSummary } from "./types";
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDisplayDate(iso);
   } catch {
     return "—";
   }

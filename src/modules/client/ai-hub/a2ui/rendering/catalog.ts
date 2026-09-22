@@ -36,6 +36,8 @@ import { BarChart } from "../catalog/bar-chart";
 import { LineChart } from "../catalog/line-chart";
 import { AreaChart } from "../catalog/area-chart";
 import { PieChart } from "../catalog/pie-chart";
+import { RadialBarChart } from "../catalog/radial-bar-chart";
+import { ComposedChart } from "../catalog/composed-chart";
 import { DashboardCard } from "../catalog/dashboard-card";
 import { Metric } from "../catalog/metric";
 import { DataTable } from "../catalog/data-table";
@@ -93,6 +95,8 @@ export const DEFAULT_CATALOG: Catalog = {
   LineChart: { component: LineChart },
   AreaChart: { component: AreaChart },
   PieChart: { component: PieChart },
+  RadialBarChart: { component: RadialBarChart },
+  ComposedChart: { component: ComposedChart },
   DashboardCard: { component: DashboardCard },
   Metric: { component: Metric },
   DataTable: { component: DataTable },

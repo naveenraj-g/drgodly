@@ -34,6 +34,8 @@ export default async function OrganizationsPage() {
     },
   });
 
+  console.log(session);
+
   // Provide a safe empty fallback if the action fails (e.g. service is down at build time).
   const initialData = data ?? { total: 0, limit: 20, offset: 0, data: [] };
 

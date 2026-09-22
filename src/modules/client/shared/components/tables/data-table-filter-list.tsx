@@ -55,6 +55,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { formatDate } from "./utils";
+import { formatApiDate } from "@/modules/shared/helper";
 import type { FilterVariant } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -222,12 +223,12 @@ export function dynamicFilterFn<TData>(
     case "date_is": {
       const cellDate = new Date(cellRaw as string | number | Date);
       const fDate = new Date(Number(value));
-      return cellDate.toDateString() === fDate.toDateString();
+      return formatApiDate(cellDate) === formatApiDate(fDate);
     }
     case "date_is_not": {
       const cellDate = new Date(cellRaw as string | number | Date);
       const fDate = new Date(Number(value));
-      return cellDate.toDateString() !== fDate.toDateString();
+      return formatApiDate(cellDate) !== formatApiDate(fDate);
     }
     case "date_before": {
       return new Date(cellRaw as string | number | Date).getTime() < Number(value);

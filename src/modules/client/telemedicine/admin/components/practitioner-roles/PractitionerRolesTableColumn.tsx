@@ -28,6 +28,7 @@ import {
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import { TPractitionerRoleResponse } from "@/modules/entities/schemas/practitioner-role";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { adminStore } from "../../stores/admin.store";
 
 // ── Row actions ───────────────────────────────────────────────────────────────
@@ -207,7 +208,7 @@ export const PRACTITIONER_ROLES_COLUMNS: ColumnDef<TPractitionerRoleResponse>[] 
       if (!iso) return <span className="text-muted-foreground">—</span>;
       return (
         <span className="text-sm text-muted-foreground">
-          {new Date(iso).toLocaleDateString()}
+          {formatDisplayDate(iso)}
         </span>
       );
     },

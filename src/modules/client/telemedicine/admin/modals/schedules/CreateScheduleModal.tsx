@@ -9,8 +9,9 @@
  * reads from FormProvider via useFormContext() and renders field layout only.
  *
  * handleSubmit responsibilities:
- *  - user_id/org_id are optional for Schedule (unlike Location) — stamped
- *    from the session when present, matching Organization's pattern.
+ *  - org_id is optional for Schedule (unlike Location) — stamped from the
+ *    session when present, matching Organization's pattern. No user_id — the
+ *    server action doesn't need it.
  *  - Concatenate the 3 actor sub-groups (practitioner_roles, locations,
  *    healthcare_services) into one actor[] array, since the real API only
  *    accepts a single flat actor[] field — the 3-way split exists purely for
@@ -98,7 +99,6 @@ export function CreateScheduleModal() {
 
     await execute({
       payload: {
-        user_id: data?.userId,
         org_id: data?.orgId,
         active: values.active,
         comment: values.comment,

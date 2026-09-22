@@ -21,7 +21,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { endOfDay } from "date-fns";
+import { startOfDayIST, endOfDayIST } from "@/modules/shared/helper";
 import {
   DataTableWithViews,
   DataTableToolbar,
@@ -198,10 +198,10 @@ export function DoctorAppointmentsTable({
   const dateFilterRaw = state.columnFilters.find((f) => f.id === "date")
     ?.value as [number | undefined, number | undefined] | undefined;
   const startFrom = dateFilterRaw?.[0]
-    ? new Date(dateFilterRaw[0]).toISOString()
+    ? startOfDayIST(dateFilterRaw[0]).toISOString()
     : undefined;
   const startTo = dateFilterRaw?.[1]
-    ? endOfDay(new Date(dateFilterRaw[1])).toISOString()
+    ? endOfDayIST(dateFilterRaw[1]).toISOString()
     : undefined;
 
   // Reset to page 0 whenever a filter changes so stale page indices don't

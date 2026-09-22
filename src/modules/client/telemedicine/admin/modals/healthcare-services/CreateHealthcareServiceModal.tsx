@@ -113,7 +113,6 @@ export function CreateHealthcareServiceModal() {
   async function handleSubmit(values: TCreateHealthcareServiceFormSchema) {
     await execute({
       payload: {
-        user_id: data?.userId,
         org_id: data?.orgId,
         provided_by: values.provided_by,
         provided_by_display: values.provided_by_display,

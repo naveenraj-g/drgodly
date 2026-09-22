@@ -33,8 +33,8 @@ export function LocationsServicesTab() {
         <PractitionerRoleReferenceRepeatableField
           name="healthcare_service"
           resourceTypePrefix="HealthcareService"
-          fetchOptions={(q) => searchHealthcareServiceOptions(q)}
-          queryKey={["healthcare-services", "picker"]}
+          fetchOptions={(q) => searchHealthcareServiceOptions(q, orgId)}
+          queryKey={["healthcare-services", "picker", orgId]}
           addLabel="Add Healthcare Service"
           emptyMessage="No healthcare services added."
         />

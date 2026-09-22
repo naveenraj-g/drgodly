@@ -33,6 +33,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import {
   DataTable,
   DataTableColumnHeader,
@@ -299,10 +300,7 @@ const COLUMNS: ColumnDef<Patient>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm text-muted-foreground">
-        {new Date(row.getValue<string>("admittedDate")).toLocaleDateString(
-          "en-US",
-          { month: "short", day: "numeric", year: "numeric" },
-        )}
+        {formatDisplayDate(row.getValue<string>("admittedDate"))}
       </span>
     ),
     meta: { label: "Admitted Date" },

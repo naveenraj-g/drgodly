@@ -31,6 +31,7 @@ import {
 import { AppointmentRecordCard } from "./AppointmentRecordCard";
 import { createPatientAppointmentColumns } from "./PatientAppointmentColumns";
 import { endOfDay } from "./appointmentDisplay";
+import { startOfDayIST } from "@/modules/shared/helper";
 import {
   fetchPatientAppointments,
   patientAppointmentKeys,
@@ -143,7 +144,7 @@ export function PatientAppointmentsTable({
     | [number | undefined, number | undefined]
     | undefined;
   const startFrom = dateFilter?.[0]
-    ? new Date(dateFilter[0]).toISOString()
+    ? startOfDayIST(dateFilter[0]).toISOString()
     : undefined;
   const startTo = dateFilter?.[1]
     ? new Date(endOfDay(dateFilter[1])).toISOString()

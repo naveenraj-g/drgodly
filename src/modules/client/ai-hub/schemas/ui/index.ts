@@ -12,6 +12,8 @@ import patientPhotoUploadForm from "./patient_photo_upload_form.json";
 import patientLinkForm from "./patient_link_form.json";
 import vitalsDashboard from "./vitals_dashboard.json";
 import vitalsTable from "./vitals_table.json";
+import selectPatientChartReviewForm from "./select_patient_chart_review_form.json";
+import patientChartReviewDashboard from "./patient_chart_review_dashboard.json";
 import appointmentCreateForm from "./appointment_create_form.json";
 import appointmentPickPractitionerForm from "./appointment_pick_practitioner_form.json";
 import appointmentPickSlotForm from "./appointment_pick_slot_form.json";
@@ -84,6 +86,8 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   patient_link_form: patientLinkForm,
   vitals_dashboard: vitalsDashboard,
   vitals_table: vitalsTable,
+  select_patient_chart_review_form: selectPatientChartReviewForm,
+  patient_chart_review_dashboard: patientChartReviewDashboard,
   appointment_create_form: appointmentCreateForm,
   appointment_pick_practitioner_form: appointmentPickPractitionerForm,
   appointment_pick_slot_form: appointmentPickSlotForm,

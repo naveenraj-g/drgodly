@@ -58,12 +58,25 @@ export const createDocumentReferenceAction = authenticatedProcedure
 export const listDocumentReferencesAction = authenticatedProcedure
   .createServerAction()
   .input(ListDocumentReferencesActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListDocumentReferencesAction }) => {
-    return await runWithTransport<TListDocumentReferencesControllerOutput>(async () => {
-      const data = await listDocumentReferencesController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListDocumentReferencesAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListDocumentReferencesControllerOutput>(async () => {
+        // Inject org_id from session — client cannot list another org's document references
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listDocumentReferencesController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 export const getDocumentReferenceByIdAction = authenticatedProcedure
   .createServerAction()

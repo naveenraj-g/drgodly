@@ -1,0 +1,619 @@
+{
+  "type": "Column",
+  "id": "patient-chart-review-root",
+  "properties": {
+    "gap": 16,
+    "children": [
+      {
+        "type": "Row",
+        "id": "kpi-row",
+        "properties": {
+          "gap": 12,
+          "children": [
+            {
+              "type": "DashboardCard",
+              "id": "kpi-conditions-card",
+              "weight": 1,
+              "properties": {
+                "title": "Active Conditions",
+                "icon": "stethoscope",
+                "iconColor": "#f59e0b",
+                "child": {
+                  "type": "Metric",
+                  "id": "kpi-conditions",
+                  "properties": {
+                    "label": "Currently active",
+                    "value": {
+                      "$transform": {
+                        "from": "$conditions.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "clinical_status_code", "op": "eq", "value": "active" },
+                          { "type": "aggregate", "fields": { "clinical_status_code": "count" } },
+                          { "type": "extract", "field": "clinical_status_code", "fallback": 0 }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "DashboardCard",
+              "id": "kpi-medications-card",
+              "weight": 1,
+              "properties": {
+                "title": "Active Medications",
+                "icon": "pill",
+                "iconColor": "#8b5cf6",
+                "child": {
+                  "type": "Metric",
+                  "id": "kpi-medications",
+                  "properties": {
+                    "label": "Currently active",
+                    "value": {
+                      "$transform": {
+                        "from": "$medication_requests.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "status", "op": "eq", "value": "active" },
+                          { "type": "aggregate", "fields": { "status": "count" } },
+                          { "type": "extract", "field": "status", "fallback": 0 }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "DashboardCard",
+              "id": "kpi-visits-card",
+              "weight": 1,
+              "properties": {
+                "title": "Total Visits",
+                "icon": "calendar-check",
+                "iconColor": "#3b82f6",
+                "child": {
+                  "type": "Metric",
+                  "id": "kpi-visits",
+                  "properties": {
+                    "label": "With this doctor",
+                    "value": {
+                      "$transform": {
+                        "from": "$appointments.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "aggregate", "fields": { "id": "count" } },
+                          { "type": "extract", "field": "id", "fallback": 0 }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "DashboardCard",
+              "id": "kpi-hr-card",
+              "weight": 1,
+              "properties": {
+                "title": "Heart Rate",
+                "icon": "heart-pulse",
+                "iconColor": "#ef4444",
+                "child": {
+                  "type": "Metric",
+                  "id": "kpi-hr",
+                  "properties": {
+                    "label": "Latest (bpm)",
+                    "value": {
+                      "$transform": {
+                        "from": "$vitals.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "heart_rate", "op": "notNull" },
+                          { "type": "extract", "field": "heart_rate", "fallback": "—" }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+
+      {
+        "type": "Row",
+        "id": "chart-row-1",
+        "properties": {
+          "gap": 12,
+          "children": [
+            {
+              "type": "DashboardCard",
+              "id": "card-hr-trend",
+              "weight": 1,
+              "properties": {
+                "title": "Heart Rate Trend (last 30 days)",
+                "child": {
+                  "type": "LineChart",
+                  "id": "chart-hr",
+                  "properties": {
+                    "data": {
+                      "$transform": {
+                        "from": "$vitals.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "heart_rate", "op": "notNull" },
+                          { "type": "slice", "sort": "date", "order": "asc", "limit": 30 },
+                          { "type": "map", "fields": { "label": "date", "hr": "heart_rate" } }
+                        ]
+                      }
+                    },
+                    "series": [{ "key": "hr", "name": "Heart Rate", "color": "#ef4444" }],
+                    "xKey": "label",
+                    "height": 240,
+                    "showGrid": true,
+                    "exportable": true
+                  }
+                }
+              }
+            },
+            {
+              "type": "DashboardCard",
+              "id": "card-bp-trend",
+              "weight": 1,
+              "properties": {
+                "title": "Blood Pressure Trend (last 30 days)",
+                "child": {
+                  "type": "LineChart",
+                  "id": "chart-bp",
+                  "properties": {
+                    "data": {
+                      "$transform": {
+                        "from": "$vitals.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "blood_pressure_systolic", "op": "notNull" },
+                          { "type": "slice", "sort": "date", "order": "asc", "limit": 30 },
+                          {
+                            "type": "map",
+                            "fields": {
+                              "label": "date",
+                              "systolic": "blood_pressure_systolic",
+                              "diastolic": "blood_pressure_diastolic"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "series": [
+                      { "key": "systolic", "name": "Systolic", "color": "#3b82f6" },
+                      { "key": "diastolic", "name": "Diastolic", "color": "#8b5cf6" }
+                    ],
+                    "xKey": "label",
+                    "height": 240,
+                    "showGrid": true,
+                    "showLegend": true,
+                    "exportable": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+
+      {
+        "type": "Row",
+        "id": "chart-row-2",
+        "properties": {
+          "gap": 12,
+          "children": [
+            {
+              "type": "DashboardCard",
+              "id": "card-conditions-status",
+              "weight": 1,
+              "properties": {
+                "title": "Conditions by Status",
+                "child": {
+                  "type": "PieChart",
+                  "id": "chart-conditions-status",
+                  "properties": {
+                    "data": {
+                      "$transform": {
+                        "from": "$conditions.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "clinical_status_code", "op": "notNull" },
+                          {
+                            "type": "aggregate",
+                            "groupBy": "clinical_status_code",
+                            "labelField": "label",
+                            "fields": { "clinical_status_code": "count" }
+                          },
+                          { "type": "map", "fields": { "label": "label", "value": "clinical_status_code" } }
+                        ]
+                      }
+                    },
+                    "innerRadius": 55,
+                    "height": 240,
+                    "showLegend": true,
+                    "exportable": true
+                  }
+                }
+              }
+            },
+            {
+              "type": "DashboardCard",
+              "id": "card-visit-history",
+              "weight": 1,
+              "properties": {
+                "title": "Visit History (by day)",
+                "child": {
+                  "type": "AreaChart",
+                  "id": "chart-visit-history",
+                  "properties": {
+                    "data": {
+                      "$transform": {
+                        "from": "$appointments.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "start", "op": "notNull" },
+                          {
+                            "type": "map",
+                            "fields": {
+                              "visit_date": { "from": "start", "format": "date" },
+                              "visit_count": "id"
+                            }
+                          },
+                          {
+                            "type": "aggregate",
+                            "groupBy": "visit_date",
+                            "labelField": "label",
+                            "fields": { "visit_count": "count" }
+                          },
+                          { "type": "slice", "sort": "label", "order": "asc", "limit": 30 }
+                        ]
+                      }
+                    },
+                    "series": [{ "key": "visit_count", "name": "Visits", "color": "#10b981" }],
+                    "xKey": "label",
+                    "height": 240,
+                    "showGrid": true,
+                    "exportable": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+
+      {
+        "type": "Row",
+        "id": "chart-row-3",
+        "properties": {
+          "gap": 12,
+          "children": [
+            {
+              "type": "DashboardCard",
+              "id": "card-activity-vs-hr",
+              "weight": 1,
+              "properties": {
+                "title": "Activity vs Resting Heart Rate (last 14 days)",
+                "child": {
+                  "type": "ComposedChart",
+                  "id": "chart-activity-vs-hr",
+                  "properties": {
+                    "data": {
+                      "$transform": {
+                        "from": "$vitals.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "steps", "op": "notNull" },
+                          { "type": "slice", "sort": "date", "order": "asc", "limit": 14 },
+                          {
+                            "type": "map",
+                            "fields": {
+                              "label": "date",
+                              "steps": "steps",
+                              "resting_hr": "resting_heart_rate"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "barSeries": [{ "key": "steps", "name": "Steps", "color": "#10b981" }],
+                    "lineSeries": [{ "key": "resting_hr", "name": "Resting HR", "color": "#ef4444" }],
+                    "xKey": "label",
+                    "height": 240,
+                    "showGrid": true,
+                    "showLegend": true,
+                    "exportable": true
+                  }
+                }
+              }
+            },
+            {
+              "type": "DashboardCard",
+              "id": "card-sleep-composition",
+              "weight": 1,
+              "properties": {
+                "title": "Sleep Composition (latest night)",
+                "child": {
+                  "type": "RadialBarChart",
+                  "id": "chart-sleep-composition",
+                  "properties": {
+                    "data": {
+                      "$transform": {
+                        "from": "$vitals.data",
+                        "type": "chain",
+                        "steps": [
+                          { "type": "filter", "field": "deep_sleep_minutes", "op": "notNull" },
+                          { "type": "slice", "sort": "date", "order": "desc", "limit": 1 },
+                          {
+                            "type": "pivot",
+                            "source": "first",
+                            "fields": {
+                              "Deep Sleep": "deep_sleep_minutes",
+                              "REM Sleep": "rem_sleep_minutes",
+                              "Light Sleep": "light_sleep_minutes"
+                            },
+                            "colorMap": {
+                              "Deep Sleep": "#3b82f6",
+                              "REM Sleep": "#8b5cf6",
+                              "Light Sleep": "#10b981"
+                            },
+                            "excludeZero": true
+                          }
+                        ]
+                      }
+                    },
+                    "innerRadius": 24,
+                    "outerRadius": 90,
+                    "height": 240,
+                    "showLegend": true,
+                    "exportable": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+
+      {
+        "type": "DashboardCard",
+        "id": "card-records-tabs",
+        "properties": {
+          "title": "Full Records",
+          "child": {
+            "type": "Tabs",
+            "id": "records-tabs",
+            "properties": {
+              "tabItems": [
+                {
+                  "title": { "literalString": "Vitals" },
+                  "child": {
+                    "type": "DataTable",
+                    "id": "vitals-datatable",
+                    "properties": {
+                      "rows": {
+                        "$transform": {
+                          "from": "$vitals.data",
+                          "type": "map",
+                          "fields": {
+                            "date": "date",
+                            "heart_rate": "heart_rate",
+                            "bp_systolic": "blood_pressure_systolic",
+                            "bp_diastolic": "blood_pressure_diastolic",
+                            "steps": "steps",
+                            "sleep_min": "sleep_minutes"
+                          }
+                        }
+                      },
+                      "url": "/api/v1/vitals/",
+                      "pagination": {
+                        "page": 0,
+                        "pageSize": 20,
+                        "total": "$vitals.total",
+                        "pageSizeOptions": [10, 20, 50, 100]
+                      },
+                      "queryParams": {
+                        "supported": ["date", "recorded_at_from", "recorded_at_to"],
+                        "defaults": { "patient_id": "$patient_id", "org_id": "$org_id" },
+                        "offsetParam": "offset",
+                        "limitParam": "limit",
+                        "dataPath": "data",
+                        "totalPath": "total",
+                        "rowMapping": {
+                          "date": "date",
+                          "heart_rate": "heart_rate",
+                          "bp_systolic": "blood_pressure_systolic",
+                          "bp_diastolic": "blood_pressure_diastolic",
+                          "steps": "steps",
+                          "sleep_min": "sleep_minutes"
+                        },
+                        "filterLabels": {
+                          "date": "Date (exact)",
+                          "recorded_at_from": "Recorded From",
+                          "recorded_at_to": "Recorded To"
+                        },
+                        "maxExportLimit": 200
+                      },
+                      "searchable": false,
+                      "exportFormats": ["csv", "json", "xlsx", "pdf"],
+                      "columns": [
+                        { "key": "date", "label": "Date", "sortable": false },
+                        { "key": "heart_rate", "label": "HR (bpm)", "sortable": false },
+                        { "key": "bp_systolic", "label": "Systolic", "sortable": false },
+                        { "key": "bp_diastolic", "label": "Diastolic", "sortable": false },
+                        { "key": "steps", "label": "Steps", "sortable": false },
+                        { "key": "sleep_min", "label": "Sleep (min)", "sortable": false }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "title": { "literalString": "Conditions" },
+                  "child": {
+                    "type": "DataTable",
+                    "id": "conditions-datatable",
+                    "properties": {
+                      "rows": {
+                        "$transform": {
+                          "from": "$conditions.data",
+                          "type": "map",
+                          "fields": {
+                            "condition": "code_display",
+                            "clinical_status": "clinical_status_display",
+                            "verification_status": "verification_status_display",
+                            "onset": { "from": "onset_datetime", "format": "date" },
+                            "encounter": "encounter_display"
+                          }
+                        }
+                      },
+                      "searchable": true,
+                      "exportFormats": ["csv", "json", "xlsx", "pdf"],
+                      "columns": [
+                        { "key": "condition", "label": "Condition", "sortable": true },
+                        { "key": "clinical_status", "label": "Status", "sortable": true },
+                        { "key": "verification_status", "label": "Verification", "sortable": false },
+                        { "key": "onset", "label": "Onset", "sortable": true },
+                        { "key": "encounter", "label": "Encounter", "sortable": false }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "title": { "literalString": "Medications" },
+                  "child": {
+                    "type": "DataTable",
+                    "id": "medications-datatable",
+                    "properties": {
+                      "rows": {
+                        "$transform": {
+                          "from": "$medication_requests.data",
+                          "type": "map",
+                          "fields": {
+                            "medication": "medication_code_display",
+                            "status": "status",
+                            "intent": "intent",
+                            "dosage": "dosage_instruction.0.text",
+                            "authored": { "from": "authored_on", "format": "date" }
+                          }
+                        }
+                      },
+                      "searchable": true,
+                      "exportFormats": ["csv", "json", "xlsx", "pdf"],
+                      "columns": [
+                        { "key": "medication", "label": "Medication", "sortable": true },
+                        { "key": "status", "label": "Status", "sortable": true },
+                        { "key": "intent", "label": "Intent", "sortable": false },
+                        { "key": "dosage", "label": "Dosage", "sortable": false },
+                        { "key": "authored", "label": "Authored", "sortable": true }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "title": { "literalString": "Orders" },
+                  "child": {
+                    "type": "DataTable",
+                    "id": "service-requests-datatable",
+                    "properties": {
+                      "rows": {
+                        "$transform": {
+                          "from": "$service_requests.data",
+                          "type": "map",
+                          "fields": {
+                            "order": "code_display",
+                            "status": "status",
+                            "intent": "intent",
+                            "priority": "priority",
+                            "ordered": { "from": "authored_on", "format": "date" }
+                          }
+                        }
+                      },
+                      "searchable": true,
+                      "exportFormats": ["csv", "json", "xlsx", "pdf"],
+                      "columns": [
+                        { "key": "order", "label": "Order", "sortable": true },
+                        { "key": "status", "label": "Status", "sortable": true },
+                        { "key": "intent", "label": "Intent", "sortable": false },
+                        { "key": "priority", "label": "Priority", "sortable": true },
+                        { "key": "ordered", "label": "Ordered", "sortable": true }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "title": { "literalString": "Observations" },
+                  "child": {
+                    "type": "DataTable",
+                    "id": "observations-datatable",
+                    "properties": {
+                      "rows": {
+                        "$transform": {
+                          "from": "$observations.data",
+                          "type": "map",
+                          "fields": {
+                            "observation": "code_display",
+                            "value": "value_quantity_value",
+                            "unit": "value_quantity_unit",
+                            "status": "status",
+                            "effective": { "from": "effective_date_time", "format": "date" }
+                          }
+                        }
+                      },
+                      "searchable": true,
+                      "exportFormats": ["csv", "json", "xlsx", "pdf"],
+                      "columns": [
+                        { "key": "observation", "label": "Observation", "sortable": true },
+                        { "key": "value", "label": "Value", "sortable": false },
+                        { "key": "unit", "label": "Unit", "sortable": false },
+                        { "key": "status", "label": "Status", "sortable": true },
+                        { "key": "effective", "label": "Date", "sortable": true }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "title": { "literalString": "Visit History" },
+                  "child": {
+                    "type": "DataTable",
+                    "id": "appointments-datatable",
+                    "properties": {
+                      "rows": {
+                        "$transform": {
+                          "from": "$appointments.data",
+                          "type": "map",
+                          "fields": {
+                            "start": { "from": "start", "format": "date" },
+                            "status": "status",
+                            "description": "description",
+                            "minutes_duration": "minutes_duration"
+                          }
+                        }
+                      },
+                      "searchable": true,
+                      "exportFormats": ["csv", "json", "xlsx", "pdf"],
+                      "columns": [
+                        { "key": "start", "label": "Date", "sortable": true },
+                        { "key": "status", "label": "Status", "sortable": true },
+                        { "key": "description", "label": "Description", "sortable": false },
+                        { "key": "minutes_duration", "label": "Duration (min)", "sortable": false }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

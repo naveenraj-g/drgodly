@@ -20,6 +20,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { toZonedTime } from "date-fns-tz";
+import { APP_TIMEZONE, nowIST } from "@/modules/shared/helper";
 import { Calendar, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { StatCard } from "./StatCard";
 import { AppointmentBarChart, type AppointmentBarChartData } from "./AppointmentBarChart";
@@ -70,7 +72,7 @@ function buildMonthlyData(
   appointments: TAppointmentResponse[],
   months = 6,
 ): AppointmentBarChartData[] {
-  const now = new Date();
+  const now = nowIST();
   const result: AppointmentBarChartData[] = [];
 
   // i runs from months-1 (oldest) down to -1 (next month) so the range ends
@@ -82,7 +84,7 @@ function buildMonthlyData(
 
     const inMonth = appointments.filter((a) => {
       if (!a.start) return false;
-      const d = new Date(a.start);
+      const d = toZonedTime(new Date(a.start), APP_TIMEZONE);
       return d.getFullYear() === year && d.getMonth() === month;
     });
 

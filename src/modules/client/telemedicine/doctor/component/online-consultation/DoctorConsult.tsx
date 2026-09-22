@@ -413,7 +413,11 @@ export function DoctorConsult({
 
           {/* Right sidebar: AI suggestions (always visible) + optional transcript */}
           <aside className="w-[400px] flex flex-col gap-2 min-h-0 overflow-hidden">
-            <Suggestion transcripts={transcripts} notes={notes} />
+            <Suggestion
+              transcripts={transcripts}
+              notes={notes}
+              fhirAppointmentId={fhirAppointmentId}
+            />
             {showTranscript && (
               <div className="flex-1 min-h-0 overflow-auto">
                 <TranscriptionPanel

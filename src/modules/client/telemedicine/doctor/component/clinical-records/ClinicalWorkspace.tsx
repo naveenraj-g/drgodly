@@ -258,11 +258,12 @@ export function ClinicalWorkspace({
       ? savedMedications.map(medicationFromFhir)
       : normaliseMedications(staged.medicationRequests),
   );
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequestFormItem[]>(
-    () =>
-      hasPublished
-        ? savedServiceRequests.map(serviceRequestFromFhir)
-        : normaliseServiceRequests(staged.serviceRequests),
+  const [serviceRequests, setServiceRequests] = useState<
+    ServiceRequestFormItem[]
+  >(() =>
+    hasPublished
+      ? savedServiceRequests.map(serviceRequestFromFhir)
+      : normaliseServiceRequests(staged.serviceRequests),
   );
 
   // ── Prescription / Lab-Request letterhead ──────────────────────────────────
@@ -278,10 +279,17 @@ export function ClinicalWorkspace({
     organization: docMeta?.organization,
     practitioner: docMeta?.practitioner,
     patientInfo: docMeta?.patientInfo,
-    diagnosis: conditions.map((c) => c.display).filter(Boolean).join(", ") || null,
+    diagnosis:
+      conditions
+        .map((c) => c.display)
+        .filter(Boolean)
+        .join(", ") || null,
   };
   const rxMeta: DocExportMeta = { ...baseMeta, docRef: `RX-${appointmentId}` };
-  const labMeta: DocExportMeta = { ...baseMeta, docRef: `LAB-${appointmentId}` };
+  const labMeta: DocExportMeta = {
+    ...baseMeta,
+    docRef: `LAB-${appointmentId}`,
+  };
 
   // ── Direct-to-EMR writes ────────────────────────────────────────────────────
 
@@ -315,7 +323,12 @@ export function ClinicalWorkspace({
           "This visit has no encounter yet, so records cannot be saved to it.",
         );
       }
-      const fhirId = await persistClinicalEntry(kind, item, writeContext, original);
+      const fhirId = await persistClinicalEntry(
+        kind,
+        item,
+        writeContext,
+        original,
+      );
       /* Re-read so anything derived from the record on the server — the review
          status, the result files hanging off an order — reflects the write. */
       router.refresh();
@@ -442,16 +455,21 @@ export function ClinicalWorkspace({
             <Button
               asChild
               size="sm"
-              variant={isPublished ? "outline" : "default"}
+              // variant={isPublished ? "outline" : "default"}
+              variant={"outline"}
               className="gap-2"
             >
-              <Link href={reviewHref}>
+              {/* <Link href={reviewHref}>
                 {isPublished ? (
                   <PenLine className="size-4" />
                 ) : (
                   <ClipboardCheck className="size-4" />
                 )}
                 {isPublished ? "Edit note & entries" : "Review & approve"}
+              </Link> */}
+              <Link href={reviewHref}>
+                <PenLine className="size-4" />
+                {"Edit note & entries"}
               </Link>
             </Button>
           </div>
@@ -580,7 +598,6 @@ export function ClinicalWorkspace({
           <IntakeTab intake={intake} />
         </TabsContent>
       </Tabs>
-
     </div>
   );
 }

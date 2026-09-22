@@ -293,7 +293,13 @@ export function PatientProfileForm({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex flex-col min-h-[calc(100dvh-10rem)] -mb-6"
+            // min-h-[calc(100dvh-132px)] matches this app's established
+            // convention for the AppNavbar + breadcrumb chrome height. Was
+            // -10rem (160px), which undershot the true available height —
+            // on short forms (no scroll), the sticky submit bar below
+            // settled wherever this flex column ended rather than the real
+            // viewport bottom, leaving a visible gap under it.
+            className="flex flex-col min-h-[calc(100dvh-132px)] -mb-6"
           >
             <div className="flex flex-col gap-10 flex-1 mb-4">
               <PersonalDetailsSection />
@@ -301,11 +307,14 @@ export function PatientProfileForm({
               <AddressSection />
             </div>
 
-            {/* Sticky submit bar. -mb-6 bleeds through the parent <main>'s pb-6 —
-                position:sticky can't cover an ancestor's own padding, so without
-                this the bar stops short of the screen edge and leaves a visible
-                gap below the button. */}
-            <div className="sticky bottom-0 z-10 -mx-4 -mb-6 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
+            {/* Sticky submit bar. Sticky offsets resolve against the
+                scrollport's padding edge, so a plain `bottom-0` still leaves
+                the parent <main>'s pb-4 (16px) as a visible gap below the
+                bar. `-bottom-4` feeds that 16px into the sticky offset
+                itself — confirmed via computed styles that the previous
+                `-mb-6` here had zero effect (negative margin on a sticky box
+                doesn't reliably affect its stuck offset across browsers). */}
+            <div className="sticky -bottom-4 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
               <Button
                 type="submit"
                 size="sm"

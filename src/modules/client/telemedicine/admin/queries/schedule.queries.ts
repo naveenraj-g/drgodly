@@ -27,8 +27,7 @@ export const scheduleKeys = {
 
   /**
    * Key for one paginated list fetch.
-   * `orgId` is included so fetches for different tenants never share a cache
-   * entry, even though it is not forwarded to the action payload (see fetcher).
+   * `orgId` is included so fetches for different tenants never share a cache entry.
    */
   list: (params: { pageIndex: number; pageSize: number; orgId: string | null }) =>
     [...scheduleKeys.lists(), params] as const,
@@ -41,11 +40,10 @@ export const scheduleKeys = {
  * paginated response. Throws on error so TanStack Query can handle retries
  * and error state.
  *
- * fhir-gql's ListSchedulesSchema has no org_id/user_id filter at all — unlike
- * Location, results here are not server-side tenant-scoped. `orgId` is only
- * used as a cache-key discriminator, never forwarded to the action payload.
+ * fhir-gql's ListSchedulesSchema now supports an org_id filter (matches
+ * Location) — results are server-side tenant-scoped.
  *
- * @param params - Pagination params forwarded to the list action.
+ * @param params - Pagination + tenant filter forwarded to the list action.
  * @returns The paginated schedule response.
  * @throws Error with the server action's error message on failure.
  */
@@ -58,6 +56,7 @@ export async function fetchSchedules(params: {
     payload: {
       limit: params.pageSize,
       offset: params.pageIndex * params.pageSize,
+      org_id: params.orgId ?? undefined,
     },
   });
 
@@ -66,16 +65,16 @@ export async function fetchSchedules(params: {
 }
 
 /**
- * Fetches every schedule by looping the list action at the maximum page
- * size until all pages are retrieved. Same loop-until-exhausted pattern as
- * `fetchAllLocations`/`fetchAllOrganizations` — but unlike those, this is
- * NOT tenant-scoped (fhir-gql's ListSchedulesSchema has no org_id filter at
- * all), so it pulls every schedule across every tenant.
+ * Fetches every schedule for the given tenant by looping the list action at
+ * the maximum page size until all pages are retrieved. There is no
+ * server-side "get all" endpoint for Schedule, so the ReferenceSelect picker
+ * needs the complete flat list.
  *
- * @returns Every schedule record.
+ * @param orgId - Active organization ID to scope the fetch to the current tenant.
+ * @returns Every schedule record for the tenant.
  * @throws Error with the server action's error message on failure.
  */
-export async function fetchAllSchedules(): Promise<TScheduleResponse[]> {
+export async function fetchAllSchedules(orgId: string | null): Promise<TScheduleResponse[]> {
   const PAGE_SIZE = 200;
   const all: TScheduleResponse[] = [];
   let offset = 0;
@@ -83,7 +82,7 @@ export async function fetchAllSchedules(): Promise<TScheduleResponse[]> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const [data, err] = await listSchedulesAction({
-      payload: { limit: PAGE_SIZE, offset },
+      payload: { limit: PAGE_SIZE, offset, org_id: orgId ?? undefined },
     });
     if (err) throw new Error(err.message ?? "Failed to load schedules");
     if (!data) break;
@@ -101,15 +100,16 @@ export async function fetchAllSchedules(): Promise<TScheduleResponse[]> {
  * no name field — `comment` is the closest thing to a display label, and
  * falls back to `Schedule #{id}` when empty so every record stays pickable.
  *
- * Not tenant-scoped — see `fetchAllSchedules`. Still a strict UX upgrade over
- * blind free-text reference entry, which had the same lack of isolation.
- *
  * @param query - Search text; case-insensitive substring match on comment.
+ * @param orgId - Active organization ID to scope results to the current tenant.
  * @returns Up to 50 matching schedules as {id, label} options.
  * @throws Error with the server action's error message on failure.
  */
-export async function searchScheduleOptions(query: string): Promise<TReferenceOption[]> {
-  const all = await fetchAllSchedules();
+export async function searchScheduleOptions(
+  query: string,
+  orgId: string | null,
+): Promise<TReferenceOption[]> {
+  const all = await fetchAllSchedules(orgId);
   const q = query.trim().toLowerCase();
 
   return all

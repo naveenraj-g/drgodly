@@ -51,6 +51,7 @@ export default async function EMRChatSessionPage({
       sessionId={sessionId}
       initialSession={initialSession}
       basePath="/bezs/telemedicine/admin/emr-chat"
+      workflowType="chat"
     />
   );
 }

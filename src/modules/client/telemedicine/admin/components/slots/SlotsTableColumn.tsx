@@ -25,6 +25,7 @@ import {
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import { TSlotResponse } from "@/modules/entities/schemas/slot";
+import { formatDisplayDate, formatDisplayDateTime } from "@/modules/shared/helper";
 import { adminStore } from "../../stores/admin.store";
 
 // ── Filter option constants ────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ export const SLOT_ROW_ACTIONS: RowAction<TSlotResponse>[] = [
         data: {
           slotId: row.original.id,
           slotLabel: row.original.start
-            ? new Date(row.original.start).toLocaleString()
+            ? formatDisplayDateTime(row.original.start)
             : `Slot #${row.original.id}`,
         },
       }),
@@ -163,7 +164,7 @@ export const SLOTS_COLUMNS: ColumnDef<TSlotResponse>[] = [
       const start = row.original.start;
       const end = row.original.end;
       if (!start && !end) return <span className="text-muted-foreground">—</span>;
-      const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : "…");
+      const fmt = (iso?: string | null) => (iso ? formatDisplayDateTime(iso) : "…");
       return (
         <span className="text-sm text-muted-foreground">
           {fmt(start)} – {fmt(end)}
@@ -233,7 +234,7 @@ export const SLOTS_COLUMNS: ColumnDef<TSlotResponse>[] = [
       if (!iso) return <span className="text-muted-foreground">—</span>;
       return (
         <span className="text-sm text-muted-foreground">
-          {new Date(iso).toLocaleDateString()}
+          {formatDisplayDate(iso)}
         </span>
       );
     },

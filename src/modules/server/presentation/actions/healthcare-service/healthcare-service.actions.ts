@@ -71,14 +71,27 @@ export const createHealthcareServiceAction = adminProcedure
 export const listHealthcareServicesAction = adminProcedure
   .createServerAction()
   .input(ListHealthcareServicesActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListHealthcareServicesAction }) => {
-    return await runWithTransport<TListHealthcareServicesControllerOutput>(
-      async () => {
-        const data = await listHealthcareServicesController(input.payload);
-        return { result: data };
-      }
-    );
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListHealthcareServicesAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListHealthcareServicesControllerOutput>(
+        async () => {
+          // Merge session org_id into the payload — prevents client from supplying a different org_id
+          const enrichedPayload = {
+            ...input.payload,
+            org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          };
+          const data = await listHealthcareServicesController(enrichedPayload);
+          return { result: data };
+        }
+      );
+    }
+  );
 
 /** Fetches a single healthcare service by its numeric ID. */
 export const getHealthcareServiceByIdAction = adminProcedure

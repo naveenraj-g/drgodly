@@ -115,11 +115,13 @@ export type TPatchSchedule = z.infer<typeof PatchScheduleValidationSchema>;
 
 /**
  * Query parameters for listing schedules (server-side filtering + pagination).
- * Unlike Slot, there is NO org_id/user_id filter — fhir-gql's
- * ListSchedulesSchema only accepts active, limit, offset. Schedule also has
- * no `name` field at all — `comment` is the closest thing to a display label.
+ * fhir-gql's ListSchedulesSchema now supports org_id filtering (matches
+ * Slot/Location). Schedule still has no `name` field — `comment` is the
+ * closest thing to a display label.
  */
 export const ListSchedulesValidationSchema = z.object({
+  /** Filter by tenant organization ID — scopes results to a single tenant. */
+  org_id: z.string().optional(),
   active: z.boolean().optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),

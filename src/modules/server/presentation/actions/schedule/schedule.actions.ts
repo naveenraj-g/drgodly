@@ -69,12 +69,25 @@ export const createScheduleAction = adminProcedure
 export const listSchedulesAction = adminProcedure
   .createServerAction()
   .input(ListSchedulesActionSchema, { skipInputParsing: true })
-  .handler(async ({ input }: { input: TListSchedulesAction }) => {
-    return await runWithTransport<TListSchedulesControllerOutput>(async () => {
-      const data = await listSchedulesController(input.payload);
-      return { result: data };
-    });
-  });
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TListSchedulesAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TListSchedulesControllerOutput>(async () => {
+        // Merge session org_id into the payload — prevents client from supplying a different org_id
+        const enrichedPayload = {
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        };
+        const data = await listSchedulesController(enrichedPayload);
+        return { result: data };
+      });
+    },
+  );
 
 /** Fetches a single schedule by its numeric ID. */
 export const getScheduleByIdAction = adminProcedure

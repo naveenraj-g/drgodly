@@ -31,6 +31,11 @@ import {
 } from "@/modules/client/telemedicine/doctor/component/dashboard/DoctorDashboard";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 import { getPractitionerDisplayName } from "@/modules/client/telemedicine/shared/components/clinical/practitionerFormat";
+import {
+  startOfDayIST,
+  endOfDayIST,
+  formatDisplayDateLong,
+} from "@/modules/shared/helper";
 import type {
   TAppointmentResponse,
   TPaginatedAppointmentResponse,
@@ -53,18 +58,16 @@ export default async function DoctorPage() {
   // Redirects to /doctor/settings/profile if no FHIR Practitioner record
   const practitioner = await requirePractitionerProfile();
 
-  // Build today's date range in ISO 8601 (local midnight → 23:59:59.999)
+  // Build today's date range in ISO 8601 (IST midnight → 23:59:59.999 IST).
+  // Real instant, not nowIST() — startOfDayIST/endOfDayIST/formatDisplayDateLong
+  // do their own IST conversion and would double-shift a pre-zoned Date.
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
 
   const [data] = await listAppointmentsAction({
     payload: {
       practitioner_id: practitioner.id,
-      start_from: startOfDay.toISOString(),
-      start_to: endOfDay.toISOString(),
+      start_from: startOfDayIST(now).toISOString(),
+      start_to: endOfDayIST(now).toISOString(),
       status: DASHBOARD_APPOINTMENT_STATUS,
       sort: DASHBOARD_APPOINTMENT_SORT,
       limit: DASHBOARD_APPOINTMENTS_LIMIT,
@@ -77,12 +80,7 @@ export default async function DoctorPage() {
 
   const doctorName = getPractitionerDisplayName(practitioner.name);
 
-  const todayLabel = now.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const todayLabel = formatDisplayDateLong(now);
 
   const base = `/${locale}/bezs/telemedicine/doctor`;
 

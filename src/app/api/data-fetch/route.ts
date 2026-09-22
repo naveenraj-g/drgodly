@@ -20,6 +20,7 @@
  */
 
 import { getAuthToken as getJWTToken } from "@/modules/server/auth/jwt-token";
+import { getServerSession } from "@/modules/server/auth/get-session";
 
 /**
  * Traverses a dot-notation path on an object.
@@ -80,6 +81,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "url is required" }, { status: 400 });
   }
 
+  const authSession = await getServerSession();
+  if (!authSession?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const token = await getJWTToken();
 
   // Relative paths are prefixed with FHIR_SERVER_URL automatically.
@@ -87,8 +93,18 @@ export async function POST(req: Request) {
     ? `${process.env.FHIR_SERVER_URL ?? ""}${url}`
     : url;
 
+  /* Whenever a UI schema's queryParams declares an org_id key (tenant-scoped
+     tables), override it with the caller's own session org_id — never trust
+     a value that travelled through the browser, same as every server action
+     already does via buildBaseContext(). Tables that don't filter by org_id
+     at all are left untouched. */
+  const resolvedQueryParams: Record<string, unknown> = { ...queryParams };
+  if ("org_id" in resolvedQueryParams) {
+    resolvedQueryParams.org_id = authSession.session?.activeOrganizationId ?? undefined;
+  }
+
   const params = new URLSearchParams(
-    Object.entries(queryParams as Record<string, unknown>)
+    Object.entries(resolvedQueryParams)
       .filter(([, v]) => v != null && v !== "")
       .map(([k, v]) => [k, String(v)]),
   );

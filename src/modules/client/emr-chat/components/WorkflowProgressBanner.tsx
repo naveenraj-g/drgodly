@@ -39,7 +39,7 @@ export function WorkflowProgressBanner({
   totalSteps,
   onAbandon,
 }: WorkflowProgressBannerProps) {
-  const percent = totalSteps > 0 ? Math.round(((currentStepIndex) / totalSteps) * 100) : 0;
+  const percent = totalSteps > 0 ? Math.round(((currentStepIndex + 1) / totalSteps) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-1 px-4 py-2.5 border-b border-border bg-primary/5 shrink-0">

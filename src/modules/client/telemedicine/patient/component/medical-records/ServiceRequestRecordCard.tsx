@@ -19,6 +19,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import {
   FlaskConical,
   ScanLine,
@@ -83,11 +84,7 @@ function statusVariant(
 function fmtDate(iso: string | null | undefined): string | null {
   if (!iso) return null;
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDisplayDate(iso);
   } catch {
     return null;
   }

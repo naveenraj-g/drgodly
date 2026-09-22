@@ -51,8 +51,8 @@ import {
   Stethoscope,
   Video,
 } from "lucide-react";
-import { endOfDay, startOfDay } from "date-fns";
 import { toast } from "sonner";
+import { startOfDayIST, endOfDayIST } from "@/modules/shared/helper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -166,8 +166,8 @@ export function DoctorDashboard({
         const [data, err] = await listAppointmentsAction({
           payload: {
             practitioner_id: practitionerId,
-            start_from: startOfDay(today).toISOString(),
-            start_to: endOfDay(today).toISOString(),
+            start_from: startOfDayIST(today).toISOString(),
+            start_to: endOfDayIST(today).toISOString(),
             status: DASHBOARD_APPOINTMENT_STATUS,
             sort: DASHBOARD_APPOINTMENT_SORT,
             limit: DASHBOARD_APPOINTMENTS_LIMIT,

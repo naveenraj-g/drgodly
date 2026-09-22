@@ -161,8 +161,8 @@ export function CreateOrganizationModal() {
           telecom: c.telecom,
         })),
         endpoint: values.endpoint,
-        // Stamp the creator and tenant on the resource from the session context.
-        user_id: data?.userId,
+        // Stamp the tenant on the resource from the session context. No
+        // user_id — the server action doesn't need it for this resource.
         org_id: data?.orgId,
       },
       transportOptions: {

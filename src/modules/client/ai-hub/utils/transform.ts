@@ -24,6 +24,8 @@
  *   }
  */
 
+import { formatDisplayDate } from "@/modules/shared/helper";
+
 // ── Aggregation operations ────────────────────────────────────────────────────
 
 export type AggOp = "sum" | "avg" | "min" | "max" | "count" | "first" | "last";
@@ -123,6 +125,28 @@ export interface ExtractSpec {
 }
 
 /**
+ * pluck — find one matching element inside a per-record array field and
+ * merge selected fields from it onto a copy of the record. Used to flatten
+ * a nested reference array (e.g. Appointment.participant[]) into a flat
+ * field a later `filter`/`aggregate` step can group by, since those only
+ * read flat dot-paths.
+ *
+ * Example (flattening the Patient participant off an Appointment row):
+ *   { type:"pluck", from:"participant",
+ *     where:{ field:"reference_type", eq:"Patient" },
+ *     fields:{ patient_id:"reference_id", patient_name:"reference_display" } }
+ */
+export interface PluckSpec {
+  type: "pluck";
+  /** Dot-path to the array field on each record to search within. */
+  from: string;
+  /** Condition an array element must satisfy to be selected. */
+  where: { field: string; eq: any };
+  /** Output field name -> path (relative to the matched element). */
+  fields: Record<string, string>;
+}
+
+/**
  * chain — apply multiple transforms in sequence.
  * Each step receives the output of the previous step.
  *
@@ -145,6 +169,7 @@ export type TransformSpec =
   | SliceSpec
   | FilterSpec
   | ExtractSpec
+  | PluckSpec
   | ChainSpec;
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -161,7 +186,7 @@ function applyFormat(val: any, format?: string): any {
   if (val == null) return val;
   switch (format) {
     case "date":
-      return typeof val === "string" ? val.slice(0, 10) : new Date(val).toLocaleDateString();
+      return formatDisplayDate(val);
     case "round":
       return Math.round(Number(val));
     case "percent":
@@ -314,6 +339,20 @@ function runExtract(data: any[], spec: ExtractSpec): any {
   return val ?? spec.fallback ?? null;
 }
 
+function runPluck(data: any[], spec: PluckSpec): any[] {
+  return data.map((record) => {
+    const arr = getAt(record, spec.from);
+    const match = Array.isArray(arr)
+      ? arr.find((el) => getAt(el, spec.where.field) === spec.where.eq)
+      : undefined;
+    const extracted: Record<string, any> = {};
+    for (const [outKey, path] of Object.entries(spec.fields)) {
+      extracted[outKey] = match ? getAt(match, path) : undefined;
+    }
+    return { ...record, ...extracted };
+  });
+}
+
 function runChain(data: any[], spec: ChainSpec): any {
   return spec.steps.reduce((acc: any, step) => applyTransform(acc, step), data);
 }
@@ -334,6 +373,7 @@ export function applyTransform(data: any, spec: TransformSpec): any {
     case "slice":     return runSlice(arr, spec);
     case "filter":    return runFilter(arr, spec);
     case "extract":   return runExtract(arr, spec);
+    case "pluck":     return runPluck(arr, spec);
     case "chain":     return runChain(arr, spec);
     default:          return arr;
   }

@@ -18,9 +18,9 @@
  * Mounted once inside LocationModalProvider.
  *
  * handleSubmit responsibilities:
- *  - Guard: user_id/org_id are REQUIRED by fhir-gql for Location (unlike
- *    Organization, where they're optional) — block submit with a toast if
- *    the session is missing either.
+ *  - Guard: org_id is REQUIRED by fhir-gql for Location (unlike Organization,
+ *    where it's optional) — block submit with a toast if the session is
+ *    missing it. No user_id guard — the server action doesn't need it.
  *  - Split aliases (comma string) → string[]
  *  - Wrap address_line (single string) → [string]
  *  - Split each hours_of_operation[].days_of_week (comma string) → string[]
@@ -103,18 +103,17 @@ export function CreateLocationModal() {
    * @param values - Validated form values from CreateLocationFormSchema.
    */
   async function handleSubmit(values: TCreateLocationFormSchema) {
-    // fhir-gql requires user_id/org_id for Location — unlike Organization,
-    // there is no server-side fallback if these are missing from the session.
-    if (!data?.userId || !data?.orgId) {
+    // fhir-gql requires org_id for Location — unlike Organization, there is
+    // no server-side fallback if it's missing from the session.
+    if (!data?.orgId) {
       toast.error(
-        "Missing user or organization context — please sign in again before creating a location.",
+        "Missing organization context — please sign in again before creating a location.",
       );
       return;
     }
 
     await execute({
       payload: {
-        user_id: data.userId,
         org_id: data.orgId,
         status: values.status,
         operational_status_system: values.operational_status_system,

@@ -35,6 +35,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatDisplayDateTime } from "@/modules/shared/helper";
 import {
   Check,
   CheckCircle2,
@@ -402,7 +403,7 @@ export function ExtractedDataPanel({
         {record.reviewed_by && (
           <p className="text-xs">
             Reviewed by {record.reviewed_by}
-            {record.reviewed_at ? ` on ${new Date(record.reviewed_at).toLocaleString()}` : ""}
+            {record.reviewed_at ? ` on ${formatDisplayDateTime(record.reviewed_at)}` : ""}
           </p>
         )}
       </div>
@@ -419,7 +420,7 @@ export function ExtractedDataPanel({
             Added to the record
             {record.reviewed_by ? ` · reviewed by ${record.reviewed_by}` : ""}
             {record.reviewed_at
-              ? ` on ${new Date(record.reviewed_at).toLocaleString()}`
+              ? ` on ${formatDisplayDateTime(record.reviewed_at)}`
               : ""}
           </p>
         </div>

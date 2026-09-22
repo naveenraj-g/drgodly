@@ -211,9 +211,13 @@ export type TPatchHealthcareService = z.infer<typeof PatchHealthcareServiceValid
 
 /**
  * Query parameters for listing healthcare services (server-side filtering + pagination).
- * Unlike Location, there IS a real `name` filter (matches Organization's list contract).
+ * There is a real `name` filter (matches Organization's list contract), and
+ * fhir-gql's ListHealthcareServicesValidationSchema now supports org_id
+ * filtering too.
  */
 export const ListHealthcareServicesValidationSchema = z.object({
+  /** Filter by tenant organization ID — scopes results to a single tenant. */
+  org_id: z.string().optional(),
   name: z.string().optional(),
   active: z.boolean().optional(),
   limit: z.number().int().min(1).max(200).optional(),

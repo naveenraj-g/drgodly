@@ -1,0 +1,83 @@
+{
+  "id": "select-patient-chart-review-root",
+  "type": "Card",
+  "properties": {
+    "child": {
+      "id": "select-patient-chart-review-form",
+      "type": "Form",
+      "properties": {
+        "action": { "name": "confirm_patient_selection" },
+        "submitLabel": { "literalString": "Open Chart →" },
+        "gap": "medium",
+        "alignment": "stretch",
+        "children": [
+          {
+            "id": "select-patient-title",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Select a patient" },
+              "usageHint": "h2"
+            }
+          },
+          {
+            "id": "select-patient-subtitle",
+            "type": "Text",
+            "properties": {
+              "text": {
+                "literalString": "Only patients you have attended appear here. Search by name, or pick from the list."
+              },
+              "usageHint": "caption"
+            }
+          },
+          { "id": "select-patient-divider", "type": "Divider", "properties": {} },
+          {
+            "id": "patient_select",
+            "type": "DataSelect",
+            "properties": {
+              "label": { "literalString": "Patient" },
+              "placeholder": { "literalString": "Search your patients…" },
+              "items": {
+                "$transform": {
+                  "from": "$doctor_appointments.data",
+                  "type": "chain",
+                  "steps": [
+                    {
+                      "type": "pluck",
+                      "from": "participant",
+                      "where": { "field": "reference_type", "eq": "Patient" },
+                      "fields": { "patient_id": "reference_id", "patient_name": "reference_display" }
+                    },
+                    { "type": "filter", "field": "patient_id", "op": "notNull" },
+                    {
+                      "type": "map",
+                      "fields": {
+                        "patient_id": "patient_id",
+                        "patient_name": "patient_name",
+                        "start": "start",
+                        "visit_count": "patient_id"
+                      }
+                    },
+                    { "type": "slice", "sort": "start", "order": "desc" },
+                    {
+                      "type": "aggregate",
+                      "groupBy": "patient_id",
+                      "labelField": "patient_id",
+                      "fields": {
+                        "patient_name": "first",
+                        "start": "first",
+                        "visit_count": "count"
+                      }
+                    }
+                  ]
+                }
+              },
+              "labelTemplate": "{patient_name}",
+              "descriptionTemplate": "{visit_count} visit(s) · Last seen {start | short_date}",
+              "emits": [{ "key": "patient_id", "path": "patient_id" }]
+            }
+          }
+        ]
+      }
+    }
+  }
+}

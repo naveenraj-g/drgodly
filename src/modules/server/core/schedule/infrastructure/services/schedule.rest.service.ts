@@ -159,6 +159,7 @@ export class ScheduleRestApiService implements ISchedulesService {
     try {
       const res = await this.client.get<unknown>("/", {
         params: {
+          org_id: query?.org_id,
           active: query?.active,
           limit: query?.limit ?? 20,
           offset: query?.offset ?? 0,

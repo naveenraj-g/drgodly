@@ -14,6 +14,15 @@ export interface WorkflowDefinition {
   version: string;
   tags?: string[];
   /**
+   * Which workflow launcher surface this workflow appears on. "analysis"
+   * workflows (read-only dashboards) are listed on analysis-only pages like
+   * Patient Chart Review; everything else (including workflows that omit
+   * this field entirely) is treated as "chat" and listed on general-purpose
+   * EMR chat pages. Purely a launcher-filtering concern — has no effect on
+   * how the workflow itself executes.
+   */
+  workflow_type?: "chat" | "analysis";
+  /**
    * Permission strings the caller must hold in session.session.permissions[]
    * for this workflow to be accessible. An empty array or absent field means
    * any authenticated user may run the workflow.

@@ -18,6 +18,8 @@
 
 "use client";
 
+import { formatInTimeZone } from "date-fns-tz";
+import { APP_TIMEZONE, formatDisplayDayMonth } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { CalendarX } from "lucide-react";
@@ -87,11 +89,7 @@ function getPatientName(appt: TAppointmentResponse): string {
  * @param iso - ISO 8601 datetime string.
  */
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return formatInTimeZone(new Date(iso), APP_TIMEZONE, "HH:mm");
 }
 
 /**
@@ -100,10 +98,7 @@ function formatTime(iso: string): string {
  * @param iso - ISO 8601 datetime string.
  */
 function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatDisplayDayMonth(iso);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

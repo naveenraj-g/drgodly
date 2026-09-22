@@ -12,6 +12,7 @@
  */
 
 import { applyTransform, type TransformSpec } from "./transform"
+import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper"
 
 type AnyObject = Record<string, any>
 
@@ -43,10 +44,10 @@ const formatValue = (value: any, formatter?: string) => {
       }).format(Number(value))
 
     case "date":
-      return new Date(value).toLocaleDateString()
+      return formatDisplayDate(value)
 
     case "time":
-      return new Date(value).toLocaleTimeString()
+      return formatDisplayTime(value)
 
     default:
       return value

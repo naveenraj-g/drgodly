@@ -19,7 +19,10 @@ import { Stethoscope, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { usePermittedWorkflows } from "../queries/workflow.queries";
+import {
+  usePermittedWorkflows,
+  type WorkflowTypeFilter,
+} from "../queries/workflow.queries";
 
 /** Maximum number of quick-start workflow cards to display. */
 const MAX_SUGGESTIONS = 4;
@@ -53,6 +56,12 @@ interface SessionGreetingProps {
    * @param prompt - Text to inject into the chat input.
    */
   onSuggestion: (prompt: string) => void;
+  /**
+   * Scopes the quick-start cards to one launcher surface — "chat" (default
+   * when omitted) or "analysis". Forwarded to usePermittedWorkflows so the
+   * greeting only ever suggests workflows valid for the page it's shown on.
+   */
+  workflowType?: WorkflowTypeFilter;
 }
 
 /**
@@ -60,12 +69,14 @@ interface SessionGreetingProps {
  *
  * @param props.onTriggerWorkflow - Direct workflow trigger callback.
  * @param props.onSuggestion      - Text-input pre-fill callback.
+ * @param props.workflowType      - Optional launcher-surface filter.
  */
 export function SessionGreeting({
   onTriggerWorkflow,
   onSuggestion,
+  workflowType,
 }: SessionGreetingProps) {
-  const { data: workflows, isLoading } = usePermittedWorkflows();
+  const { data: workflows, isLoading } = usePermittedWorkflows(workflowType);
 
   const suggestions = workflows?.slice(0, MAX_SUGGESTIONS) ?? [];
 

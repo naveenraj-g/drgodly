@@ -51,6 +51,8 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatInTimeZone } from "date-fns-tz";
+import { APP_TIMEZONE, formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 
 // ── Path / template utilities ─────────────────────────────────────────────────
 // Self-contained helpers — each catalog component is standalone (no shared util imports).
@@ -90,31 +92,23 @@ function applyFormatter(value: unknown, formatter: string): string {
   switch (formatter.trim()) {
     case "time": {
       const d = new Date(raw);
-      return isNaN(d.getTime())
-        ? raw
-        : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return isNaN(d.getTime()) ? raw : formatDisplayTime(d);
     }
     case "date": {
       const d = new Date(raw);
-      return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
+      return isNaN(d.getTime()) ? raw : formatDisplayDate(d);
     }
     case "short_date": {
       const d = new Date(raw);
       return isNaN(d.getTime())
         ? raw
-        : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+        : formatInTimeZone(d, APP_TIMEZONE, "EEE dd-MM");
     }
     case "datetime": {
       const d = new Date(raw);
       return isNaN(d.getTime())
         ? raw
-        : d.toLocaleString([], {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+        : formatInTimeZone(d, APP_TIMEZONE, "EEE dd-MM, HH:mm");
     }
     default:
       return raw;

@@ -15,6 +15,7 @@
  */
 
 import { ScrollText } from "lucide-react";
+import { formatDisplayDateTime } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { classificationLine, schedulingLine } from "./exportLabOrders";
@@ -197,7 +198,7 @@ export function LabOrderPreview({
             <p className="text-[11px] text-muted-foreground">Reg No: {prac.regNo}</p>
           )}
           <p className="text-[10px] text-muted-foreground">
-            Generated on {new Date().toLocaleString()}
+            Generated on {formatDisplayDateTime(new Date())}
           </p>
         </div>
       </div>

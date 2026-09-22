@@ -11,6 +11,7 @@
  * Mirrors LocationDetailPanel's structure and conventions.
  */
 
+import { formatDisplayDateTime } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TScheduleResponse } from "@/modules/entities/schemas/schedule";
@@ -193,5 +194,5 @@ function Section({
 /** Formats an ISO-8601 string to a localized date-time or returns undefined. */
 function formatDate(iso?: string | null): string | undefined {
   if (!iso) return undefined;
-  return new Date(iso).toLocaleString();
+  return formatDisplayDateTime(iso);
 }

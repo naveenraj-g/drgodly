@@ -20,3 +20,4 @@ export * from "./condition/condition.module";
 export * from "./diagnostic-report/diagnostic-report.module";
 export * from "./document-reference/document-reference.module";
 export * from "./staging-medical-record/staging-medical-record.module";
+export * from "./vitals/vitals.module";

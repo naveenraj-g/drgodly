@@ -23,6 +23,7 @@ import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { getServerSession } from "@/modules/server/auth/get-session";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { requirePatientProfile } from "@/modules/server/auth/require-profile";
 import { getAppointmentByIdAction } from "@/modules/server/presentation/actions/appointment";
 import { getIntakeByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/intake";
@@ -191,11 +192,7 @@ export default async function PatientAppointmentViewPage({
       (p: TAppointmentParticipantResponse) => p.reference_type === "Practitioner",
     )?.reference_display ?? "Doctor";
   const appointmentDate = appointment.start
-    ? new Date(appointment.start).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+    ? formatDisplayDate(appointment.start)
     : null;
 
   /* Letterhead extras — clinic details, prescriber credentials, and this
@@ -213,11 +210,7 @@ export default async function PatientAppointmentViewPage({
   return (
     <div className="w-full space-y-6">
       {/* Appointment header — date, status, doctor name, type */}
-      <AppointmentDetailHeader
-        appointment={appointment}
-        backHref={backHref}
-        perspective="patient"
-      />
+      <AppointmentDetailHeader appointment={appointment} perspective="patient" />
 
       {/* Tabbed report sections — isPatientView adds the Upload Result button to ServiceRequest cards */}
       <AppointmentReportTabs

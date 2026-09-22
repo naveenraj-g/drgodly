@@ -7,17 +7,18 @@
  * page: status badge, date/time, doctor/patient names, duration, appointment
  * type, and description. Used by both the patient and doctor detail pages.
  *
- * Includes a Back button to navigate to the calling list page.
+ * Includes a Back button (router.back()) that returns to wherever the user
+ * actually navigated from, rather than a fixed href to the list page.
  */
 
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, CalendarDays, Clock, Stethoscope, User, Timer } from "lucide-react";
+import { CalendarDays, Clock, Stethoscope, User, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { BackButton } from "@/modules/client/telemedicine/shared/components/BackButton";
 import { type TAppointmentResponse } from "@/modules/entities/schemas/appointment";
+import { formatDisplayDateLong, formatDisplayTime } from "@/modules/shared/helper";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,12 +30,7 @@ import { type TAppointmentResponse } from "@/modules/entities/schemas/appointmen
  */
 function formatLongDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  return formatDisplayDateLong(iso);
 }
 
 /**
@@ -45,10 +41,7 @@ function formatLongDate(iso: string | null | undefined): string {
  */
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDisplayTime(iso);
 }
 
 /** @private FHIR status → display label. */
@@ -100,8 +93,6 @@ function getDoctorName(
 interface AppointmentDetailHeaderProps {
   /** The appointment data fetched from the server. */
   appointment: TAppointmentResponse;
-  /** Localised href to navigate back to the appointments list. */
-  backHref: string;
   /** Controls whether to show the doctor or patient perspective labels. */
   perspective: "patient" | "doctor";
 }
@@ -115,12 +106,10 @@ interface AppointmentDetailHeaderProps {
  * Doctor perspective: shows "Patient" label with subject display name.
  *
  * @param appointment - Full FHIR appointment record.
- * @param backHref - URL of the appointments list for the back button.
  * @param perspective - Determines which party label to show.
  */
 export function AppointmentDetailHeader({
   appointment,
-  backHref,
   perspective,
 }: AppointmentDetailHeaderProps) {
   const status = appointment.status ?? "";
@@ -138,12 +127,7 @@ export function AppointmentDetailHeader({
   return (
     <div className="space-y-4">
       {/* Back nav */}
-      <Button asChild variant="ghost" size="sm" className="gap-1.5 -ml-2 text-muted-foreground">
-        <Link href={backHref}>
-          <ArrowLeft className="size-4" />
-          Back to Appointments
-        </Link>
-      </Button>
+      <BackButton />
 
       {/* Title row */}
       <div className="flex flex-wrap items-center gap-3">

@@ -67,7 +67,14 @@ export function TerminologyCombobox({
   placeholder = "Search terminology...",
 }: TerminologyComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState(initialQuery);
+  /* Prefer the already-resolved concept's own label over the AI-extracted
+     initialQuery — value is set whenever this item was loaded from saved
+     FHIR data or a draft, and re-searching from the AI's original guess
+     instead of what's actually stored would be a regression for anything
+     the doctor (or a prior session) already resolved. */
+  const [search, setSearch] = useState(
+    () => value?.text ?? value?.display ?? initialQuery,
+  );
   const [results, setResults] = useState<ResolvedConcept[]>([]);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);

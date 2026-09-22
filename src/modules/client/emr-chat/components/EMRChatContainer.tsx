@@ -58,6 +58,7 @@ import { ChatInput } from "./emr-chat/ChatInput";
 import { WorkflowLauncher } from "./emr-chat/WorkflowLauncher";
 import { buildMarkdownNode, getSortedSteps } from "./emr-chat/utils";
 import { useRouteConfig } from "@/modules/client/shared/hooks/useRouteConfig";
+import type { WorkflowTypeFilter } from "../queries/workflow.queries";
 
 // ── Singleton processor (one per chat session in memory) ─────────────────────
 const processor = createMessageProcessor();
@@ -85,6 +86,14 @@ interface EMRChatContainerProps {
    * "/bezs/telemedicine/doctor/emr". Used to build session and new-chat URLs.
    */
   basePath: string;
+  /**
+   * Scopes the "Workflows" tab's launcher grid to one surface — "chat"
+   * (default when omitted) for general-purpose EMR chat pages, or
+   * "analysis" for read-only dashboard pages like Patient Chart Review.
+   * Forwarded to WorkflowLauncher, which passes it on to
+   * GET /api/workflow/permitted?type=.
+   */
+  workflowType?: WorkflowTypeFilter;
 }
 
 /**
@@ -102,6 +111,7 @@ export default function EMRChatContainer({
   sessionId: urlSessionId,
   initialSession,
   basePath,
+  workflowType,
 }: EMRChatContainerProps) {
   // ── Store state ───────────────────────────────────────────────────────────
   const {
@@ -403,6 +413,7 @@ export default function EMRChatContainer({
       {/* Workflow launcher panel */}
       {view === "workflows" && (
         <WorkflowLauncher
+          workflowType={workflowType}
           onTriggerWorkflow={(id, name) => {
             setView("chat");
             triggerWorkflowById(id, name);
@@ -437,6 +448,7 @@ export default function EMRChatContainer({
           loading={loading}
           containerRef={messageListRef}
           processor={processor}
+          workflowType={workflowType}
           onTriggerWorkflow={(id, name) => {
             setView("chat");
             triggerWorkflowById(id, name);

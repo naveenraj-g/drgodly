@@ -1018,11 +1018,61 @@ export interface PieChartNode extends BaseComponentNode {
   properties: PieChartType;
 }
 
+/**
+ * Radial bar chart — same {label, value, color?} data shape as PieChart, but
+ * rendered as concentric progress rings instead of pie slices. Good for a
+ * small set of proportions/scores where a "gauge" reading is more legible
+ * than a pie (e.g. sleep-stage composition, a goal-completion ring).
+ */
+export interface RadialBarChartType {
+  data: Array<{ label: string; value: number; color?: string }>;
+  innerRadius?: number;
+  outerRadius?: number;
+  height?: number;
+  showLegend?: boolean;
+  exportable?: boolean;
+  title?: string;
+}
+
+/**
+ * Composed chart — bar series and line series plotted together against the
+ * same category axis. Good for correlating two different-scale metrics over
+ * the same timeline (e.g. daily step count as bars against resting heart
+ * rate as an overlaid line).
+ */
+export interface ComposedChartType {
+  data: Array<Record<string, any>>;
+  /** Series rendered as bars. */
+  barSeries?: ChartSeries[];
+  /** Series rendered as lines. */
+  lineSeries?: ChartSeries[];
+  xKey?: string;
+  height?: number;
+  showGrid?: boolean;
+  showLegend?: boolean;
+  exportable?: boolean;
+  title?: string;
+}
+
+export interface RadialBarChartNode extends BaseComponentNode {
+  type: "RadialBarChart";
+  properties: RadialBarChartType;
+}
+
+export interface ComposedChartNode extends BaseComponentNode {
+  type: "ComposedChart";
+  properties: ComposedChartType;
+}
+
 // ── Dashboard components ─────────────────────────────────────────────────────
 
 export interface DashboardCardType {
   title: string;
   subtitle?: string;
+  /** Lucide icon name (e.g. "heart-pulse", "pill") shown in a colored badge beside the title. */
+  icon?: string;
+  /** Color for the icon and its badge background — any valid CSS color (hex, named, etc.). */
+  iconColor?: string;
   /** Named class slots for targeting specific DOM layers of this component. */
   classNames?: {
     /** The outer card div. */
@@ -1148,6 +1198,8 @@ export type AnyComponentNode =
   | LineChartNode
   | AreaChartNode
   | PieChartNode
+  | RadialBarChartNode
+  | ComposedChartNode
   | DashboardCardNode
   | MetricNode
   | DataTableNode;

@@ -10,6 +10,7 @@
 
 "use client";
 
+import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,11 +83,7 @@ const STATUS_CONFIG: Record<
  * @returns Human-readable date, e.g. "Jun 15, 2026".
  */
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDisplayDate(iso);
 }
 
 /**
@@ -96,10 +93,7 @@ function formatDate(iso: string): string {
  * @returns Human-readable time, e.g. "9:30 AM".
  */
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDisplayTime(iso);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

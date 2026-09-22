@@ -26,6 +26,7 @@ import {
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import { TPractitionerResponse } from "@/modules/entities/schemas/practitioner";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { practitionerLabel } from "../../queries/practitioner.queries";
 import { adminStore } from "../../stores/admin.store";
 
@@ -213,7 +214,7 @@ export const PRACTITIONERS_COLUMNS: ColumnDef<TPractitionerResponse>[] = [
       if (!iso) return <span className="text-muted-foreground">—</span>;
       return (
         <span className="text-sm text-muted-foreground">
-          {new Date(iso).toLocaleDateString()}
+          {formatDisplayDate(iso)}
         </span>
       );
     },

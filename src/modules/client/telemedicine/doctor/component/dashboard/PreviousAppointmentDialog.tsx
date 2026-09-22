@@ -19,8 +19,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
 import { FileText, Loader2, Stethoscope, UserRound } from "lucide-react";
+import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -183,7 +183,7 @@ export function PreviousAppointmentDialog({
               <span className="text-sm font-medium">{getPatientName(lookup.appointment)}</span>
               {lookup.appointment.start && (
                 <span className="text-xs text-muted-foreground">
-                  {format(new Date(lookup.appointment.start), "MMM d, yyyy 'at' h:mm a")}
+                  {formatDisplayDate(lookup.appointment.start)} at {formatDisplayTime(lookup.appointment.start)}
                 </span>
               )}
               {lookup.appointment.appointment_type_display && (

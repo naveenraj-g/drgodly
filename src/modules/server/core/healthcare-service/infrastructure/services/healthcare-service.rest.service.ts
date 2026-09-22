@@ -161,6 +161,7 @@ export class HealthcareServiceRestApiService implements IHealthcareServicesServi
     try {
       const res = await this.client.get<unknown>("/", {
         params: {
+          org_id: query?.org_id,
           name: query?.name,
           active: query?.active,
           limit: query?.limit ?? 20,

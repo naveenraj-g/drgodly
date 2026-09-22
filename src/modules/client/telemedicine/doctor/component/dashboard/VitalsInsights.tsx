@@ -26,6 +26,8 @@
 "use client";
 
 import { Activity, Droplets, Gauge, HeartPulse, Thermometer, Wind } from "lucide-react";
+import { formatInTimeZone } from "date-fns-tz";
+import { APP_TIMEZONE } from "@/modules/shared/helper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -117,7 +119,7 @@ interface TrendPoint {
 /** Formats effective_date_time as a short weekday label, e.g. "Mon". */
 function dayLabel(iso: string | null | undefined): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString(undefined, { weekday: "short" });
+  return formatInTimeZone(new Date(iso), APP_TIMEZONE, "EEE");
 }
 
 /**

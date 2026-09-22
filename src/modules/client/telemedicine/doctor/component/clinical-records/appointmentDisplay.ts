@@ -12,6 +12,8 @@
  * server components (the Clinical Records page) can import them too.
  */
 
+import { endOfDayIST, formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
+
 // ── Status vocabulary ─────────────────────────────────────────────────────────
 
 /**
@@ -106,12 +108,10 @@ export function appointmentTiming(
  * last day the doctor selected, which reads as the filter being off by one.
  *
  * @param ms - Epoch milliseconds landing anywhere within the target day.
- * @returns Epoch milliseconds at 23:59:59.999 of that local day.
+ * @returns Epoch milliseconds at 23:59:59.999 of that day, in IST.
  */
 export function endOfDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(23, 59, 59, 999);
-  return d.getTime();
+  return endOfDayIST(ms).getTime();
 }
 
 /**
@@ -123,11 +123,7 @@ export function endOfDay(ms: number): number {
 export function fmtDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    return formatDisplayDate(iso);
   } catch {
     return "—";
   }
@@ -142,11 +138,7 @@ export function fmtDate(iso: string | null | undefined): string {
 export function fmtTime(iso: string | null | undefined): string | null {
   if (!iso) return null;
   try {
-    return new Date(iso).toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    return formatDisplayTime(iso);
   } catch {
     return null;
   }

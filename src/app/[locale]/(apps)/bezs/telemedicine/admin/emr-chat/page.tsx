@@ -30,6 +30,7 @@ export default async function EMRChatPage() {
       userId={userId}
       orgId={orgId}
       basePath="/bezs/telemedicine/admin/emr-chat"
+      workflowType="chat"
     />
   );
 }

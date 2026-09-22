@@ -28,8 +28,9 @@ export interface IHealthcareServicesTableProps {
   orgId: string | null;
   /**
    * Authenticated user's ID from the session (Better Auth `user.id`).
-   * Forwarded to the create/edit modals via the admin store so it can be
-   * stamped on newly created resources as `user_id`.
+   * Forwarded to the create modal via the admin store for the file-upload
+   * token fetcher's path scoping — NOT stamped onto the created resource;
+   * the server action doesn't need a user_id.
    */
   userId: string | null;
 }

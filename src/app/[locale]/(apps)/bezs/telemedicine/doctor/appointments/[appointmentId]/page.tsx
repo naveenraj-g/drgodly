@@ -153,11 +153,7 @@ export default async function DoctorAppointmentViewPage({
   return (
     <div className="w-full space-y-6">
       {/* Appointment header — date, status, patient name, type */}
-      <AppointmentDetailHeader
-        appointment={appointment}
-        backHref={backHref}
-        perspective="doctor"
-      />
+      <AppointmentDetailHeader appointment={appointment} perspective="doctor" />
 
       {/* Tabbed report sections */}
       <AppointmentReportTabs

@@ -23,6 +23,7 @@ import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
 
 import { getServerSession } from "@/modules/server/auth/get-session";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
 import { getAppointmentByIdAction } from "@/modules/server/presentation/actions/appointment";
 import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
@@ -201,11 +202,7 @@ export default async function ClinicalWorkspacePage({
   ]);
 
   const appointmentDate = appointment.start
-    ? new Date(appointment.start).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
+    ? formatDisplayDate(appointment.start)
     : null;
 
   return (

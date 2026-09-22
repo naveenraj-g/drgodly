@@ -14,6 +14,7 @@
 
 import { AlertCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { formatDisplayTime } from "@/modules/shared/helper";
 
 /** A single transcript line received from the SSE stream. */
 export type TranscriptLine = {
@@ -95,10 +96,7 @@ export function TranscriptionPanel({
         if (data?.text) {
           let timeStr = "";
           try {
-            timeStr = new Date(data.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
+            timeStr = formatDisplayTime(data.timestamp);
           } catch {
             // timestamp unavailable — leave empty
           }

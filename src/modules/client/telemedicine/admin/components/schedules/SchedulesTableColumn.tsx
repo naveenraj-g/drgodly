@@ -25,6 +25,7 @@ import {
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import { TScheduleResponse } from "@/modules/entities/schemas/schedule";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { adminStore } from "../../stores/admin.store";
 
 // ── Row actions ───────────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ export const SCHEDULES_COLUMNS: ColumnDef<TScheduleResponse>[] = [
       const start = row.original.planning_horizon_start;
       const end = row.original.planning_horizon_end;
       if (!start && !end) return <span className="text-muted-foreground">—</span>;
-      const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : "…");
+      const fmt = (iso?: string | null) => (iso ? formatDisplayDate(iso) : "…");
       return (
         <span className="text-sm text-muted-foreground">
           {fmt(start)} – {fmt(end)}
@@ -203,7 +204,7 @@ export const SCHEDULES_COLUMNS: ColumnDef<TScheduleResponse>[] = [
       if (!iso) return <span className="text-muted-foreground">—</span>;
       return (
         <span className="text-sm text-muted-foreground">
-          {new Date(iso).toLocaleDateString()}
+          {formatDisplayDate(iso)}
         </span>
       );
     },

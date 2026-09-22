@@ -9,7 +9,9 @@
  *   and practitioner_id are locked in.
  *
  * Step 2 — Choose Date & Slot
- *   DateScroller shows the next 30 days, dimming any day-of-week the selected
+ *   Two-column layout: a shadcn Calendar (month view, single-date pick) on
+ *   the left, available times on the right. The Calendar's disabled matcher
+ *   restricts picks to the next 30 days and dims any day-of-week the selected
  *   PractitionerRole never works (from its own availability data — no fetch
  *   needed). Slots are fetched one day at a time, only once a date is picked
  *   (`date=` query, not a range) — a single day never comes close to the
@@ -71,7 +73,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StepIndicator } from "./StepIndicator";
-import { DateScroller } from "./DateScroll";
+import { Calendar as DateCalendar } from "@/components/ui/calendar";
 import {
   PractitionerCard,
   getPractitionerName,
@@ -86,7 +88,12 @@ import type { TPractitionerRoleBookingResponse } from "@/modules/entities/schema
 import type { TSlotResponse } from "@/modules/entities/schemas/slot";
 import { Link, useRouter, usePathname } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
-import { getProfileInitials } from "@/modules/shared/helper";
+import {
+  getProfileInitials,
+  formatApiDate,
+  formatDisplayDate,
+  formatDisplayTime,
+} from "@/modules/shared/helper";
 import { useServerActionQuery } from "@/lib/zsa-query";
 import { patientAppointmentKeys } from "../list/appointmentQueries";
 
@@ -139,11 +146,7 @@ const DEFAULT_APPOINTMENT_TYPE = {
  */
 function getSlotTime(slot: TSlotResponse): string {
   if (!slot.start) return "";
-  return new Date(slot.start).toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
+  return formatDisplayTime(slot.start);
 }
 
 /**
@@ -166,12 +169,7 @@ function getSlotDuration(slot: TSlotResponse): number | null {
  * @returns Formatted date string.
  */
 function formatFullDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(date);
+  return formatDisplayDate(date);
 }
 
 /** FHIR R4 DaysOfWeek codes, indexed to match JS Date.getDay() (0 = Sunday). */
@@ -281,7 +279,7 @@ export function BookAppointment({
   // close to the API's 200-row page cap the way a whole month's can, so this
   // can't silently truncate the calendar the way the old eager range-fetch did.
   const selectedDateStr = useMemo(
-    () => selectedDate?.toISOString().slice(0, 10) ?? null,
+    () => (selectedDate ? formatApiDate(selectedDate) : null),
     [selectedDate],
   );
 
@@ -362,11 +360,40 @@ export function BookAppointment({
     const s = new Set<string>();
     calendarDates.forEach((d) => {
       if (allowedDays.has(WEEKDAY_CODES[d.getDay()])) {
-        s.add(d.toISOString().slice(0, 10));
+        s.add(formatApiDate(d));
       }
     });
     return s;
   }, [selectedRole, calendarDates]);
+
+  // ── Derived: set of the 30 bookable ISO dates, for the Calendar's disabled matcher ──
+  const calendarDateStrings = useMemo<Set<string>>(
+    () => new Set(calendarDates.map((d) => formatApiDate(d))),
+    [calendarDates],
+  );
+
+  /**
+   * Disables any date outside the 30-day booking window, or (when the role's
+   * availability data narrows it further) a day-of-week the role never works.
+   * Mirrors DateScroller's own disabled logic, just as a matcher fn for the
+   * shadcn Calendar instead of a per-button boolean.
+   *
+   * Uses formatApiDate (IST-pinned local date components), not
+   * `toISOString()` — the Calendar widget hands this matcher local-midnight
+   * Date objects for each grid cell, and `toISOString()` converts to UTC
+   * first. In any positive-UTC-offset timezone (e.g. IST) that silently
+   * rolls every date back by one day, which made today's cell fail the
+   * lookup and show as disabled.
+   */
+  const isDayDisabled = useCallback(
+    (date: Date) => {
+      const iso = formatApiDate(date);
+      if (!calendarDateStrings.has(iso)) return true;
+      if (availableDateStrings && !availableDateStrings.has(iso)) return true;
+      return false;
+    },
+    [calendarDateStrings, availableDateStrings],
+  );
 
   // ── Derived: slots for the currently selected date ──────────────────────────
   // Already scoped server-side to selectedDateStr — this just drops any slot
@@ -387,8 +414,17 @@ export function BookAppointment({
     else if (step === 2 && selectedDate && selectedSlot) setStep(3);
   }, [step, selectedRole, selectedDate, selectedSlot]);
 
-  /** Goes back one step. */
+  /**
+   * Goes back one step. Leaving step 2 (date/time selection) back to step 1
+   * clears the picked date/slot — otherwise re-advancing without changing
+   * practitioner would land back on step 2 with a stale date/time still
+   * selected, since only picking a practitioner (not this button) resets them.
+   */
   const handlePrevStep = useCallback(() => {
+    if (step === 2) {
+      setSelectedDate(null);
+      setSelectedSlot(null);
+    }
     if (step > 1) setStep(step - 1);
   }, [step]);
 
@@ -531,13 +567,17 @@ export function BookAppointment({
   const slotDuration = selectedSlot ? getSlotDuration(selectedSlot) : null;
 
   return (
-    <div className="flex flex-col min-h-[calc(100dvh-10rem)] -mb-6">
+    // min-h-[calc(100dvh-132px)] matches this app's established convention
+    // for the AppNavbar + breadcrumb chrome height (see e.g. AppointmentReview,
+    // VoiceIntakeTest). Was previously -10rem (160px), which undershot the
+    // true available height — on short-content steps (no scroll), the sticky
+    // action bar below settled wherever this flex column ended rather than
+    // the real viewport bottom, leaving a visible gap under it.
+    <div className="flex flex-col min-h-[calc(100dvh-132px)] -mb-6">
       <div className="flex-1">
         {/* Page header */}
         <div className="mb-4">
-          <h1 className="text-2xl font-semibold mb-1">
-            Book an Appointment
-          </h1>
+          <h1 className="text-2xl font-semibold mb-1">Book an Appointment</h1>
           <p className="text-muted-foreground">
             Find and book with verified specialists
           </p>
@@ -668,70 +708,79 @@ export function BookAppointment({
                 </div>
               </div>
 
-              <Card className="space-y-8 py-4 px-4 h-fit">
-                {/* Date Scroller */}
-                <div>
-                  <h3 className="font-semibold text-muted-foreground text-sm mb-4">
-                    Available Dates{" "}
-                    {selectedDate ? `(${selectedDate.toDateString()})` : null}
-                  </h3>
-                  <DateScroller
-                    dates={calendarDates}
-                    selectedDate={selectedDate}
-                    onSelect={(d) => {
-                      setSelectedDate(d);
-                      setSelectedSlot(null);
-                    }}
-                    availableDates={availableDateStrings}
-                  />
-                </div>
+              <Card className="py-4 px-4 h-fit">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Calendar — month view, single-date pick */}
+                  <div>
+                    <h3 className="font-semibold text-muted-foreground text-sm mb-4">
+                      Available Dates{" "}
+                      {selectedDate ? `(${formatDisplayDate(selectedDate)})` : null}
+                    </h3>
+                    <DateCalendar
+                      mode="single"
+                      selected={selectedDate ?? undefined}
+                      onSelect={(d) => {
+                        if (!d) return;
+                        setSelectedDate(d);
+                        setSelectedSlot(null);
+                      }}
+                      disabled={isDayDisabled}
+                      className="rounded-md border mx-auto p-3 [--cell-size:2.25rem]"
+                      classNames={{
+                        weekdays: "flex gap-1.5",
+                        week: "mt-2 flex w-full gap-1.5",
+                      }}
+                    />
+                  </div>
 
-                {/* Time Slot Grid */}
-                <div>
-                  <h3 className="font-semibold mb-4 text-muted-foreground text-sm">
-                    Available Times
-                  </h3>
-                  {!selectedDate ? (
-                    <p className="text-sm text-muted-foreground py-4">
-                      Pick a date above to see available times.
-                    </p>
-                  ) : isLoadingSlots ? (
-                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                      {Array.from({ length: 8 }).map((_, i) => (
-                        <Skeleton key={i} className="h-9 w-full rounded-md" />
-                      ))}
-                    </div>
-                  ) : slotsForDate.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">
-                      No available slots for this day. Please pick another date.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
-                      {slotsForDate.map((slot) => {
-                        const isSelected = selectedSlot?.id === slot.id;
-                        const time = getSlotTime(slot);
-                        const duration = getSlotDuration(slot);
-                        return (
-                          <Button
-                            key={slot.id}
-                            variant={isSelected ? "default" : "outline"}
-                            onClick={() => setSelectedSlot(slot)}
-                            className="flex flex-col items-center gap-0.5 h-auto py-2"
-                          >
-                            <span className="flex items-center gap-1.5 text-xs">
-                              <Clock className="w-3 h-3" />
-                              {time}
-                            </span>
-                            {duration && (
-                              <span className="text-[10px] opacity-70">
-                                {duration} min
+                  {/* Time Slot List */}
+                  <div>
+                    <h3 className="font-semibold mb-4 text-muted-foreground text-sm">
+                      Available Times
+                    </h3>
+                    {!selectedDate ? (
+                      <p className="text-sm text-muted-foreground py-4">
+                        Pick a date to see available times.
+                      </p>
+                    ) : isLoadingSlots ? (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                          <Skeleton key={i} className="h-8 w-full rounded-md" />
+                        ))}
+                      </div>
+                    ) : slotsForDate.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-4">
+                        No available slots for this day. Please pick another
+                        date.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {slotsForDate.map((slot) => {
+                          const isSelected = selectedSlot?.id === slot.id;
+                          const time = getSlotTime(slot);
+                          const duration = getSlotDuration(slot);
+                          return (
+                            <Button
+                              key={slot.id}
+                              variant={isSelected ? "default" : "outline"}
+                              onClick={() => setSelectedSlot(slot)}
+                              className="flex flex-col items-center gap-0 h-auto py-1"
+                            >
+                              <span className="flex items-center gap-1 text-xs">
+                                <Clock className="w-3 h-3" />
+                                {time}
                               </span>
-                            )}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  )}
+                              {duration && (
+                                <span className="text-[9px] opacity-70">
+                                  {duration} min
+                                </span>
+                              )}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Card>
             </div>
@@ -835,8 +884,16 @@ export function BookAppointment({
       </div>
       {/* end flex-1 */}
 
-      {/* ── Sticky bottom action bar ── */}
-      <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
+      {/* ── Sticky bottom action bar ──
+          Sticky offsets resolve against the scrollport's padding edge, so a
+          plain `bottom-0` here still leaves (apps)/layout.tsx's <main> pb-4
+          (16px) as a visible gap below the bar. `-bottom-4` feeds that 16px
+          into the sticky offset itself (confirmed via computed styles:
+          main's own rect bottom already touches the true viewport edge, so
+          the gap is exactly main's padding, not something a margin trick on
+          this element can reliably close — negative margin on a sticky box
+          doesn't consistently affect its stuck offset across browsers). */}
+      <div className="sticky -bottom-4 z-10 -mx-4 px-4 py-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 border-t flex justify-end">
         {step < 3 ? (
           <Button
             size="sm"

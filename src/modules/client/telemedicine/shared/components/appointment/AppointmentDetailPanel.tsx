@@ -29,6 +29,11 @@ import {
   type TAppointmentNoteResponse,
   type TAppointmentParticipantResponse,
 } from "@/modules/entities/schemas/appointment";
+import {
+  formatDisplayDate,
+  formatDisplayTime,
+  formatDisplayDateTime,
+} from "@/modules/shared/helper";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,11 +72,7 @@ interface AppointmentDetailPanelProps {
  */
 function formatDate(iso?: string | null): string | undefined {
   if (!iso) return undefined;
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDisplayDate(iso);
 }
 
 /**
@@ -82,10 +83,7 @@ function formatDate(iso?: string | null): string | undefined {
  */
 function formatTime(iso?: string | null): string | undefined {
   if (!iso) return undefined;
-  return new Date(iso).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDisplayTime(iso);
 }
 
 /**
@@ -96,7 +94,7 @@ function formatTime(iso?: string | null): string | undefined {
  */
 function formatDateTime(iso?: string | null): string | undefined {
   if (!iso) return undefined;
-  return new Date(iso).toLocaleString();
+  return formatDisplayDateTime(iso);
 }
 
 /**

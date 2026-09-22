@@ -6,6 +6,7 @@
  */
 
 import type { Column } from "@tanstack/react-table";
+import { formatApiDate } from "@/modules/shared/helper";
 
 // ---------------------------------------------------------------------------
 // Column pinning — sticky positioning helpers
@@ -54,7 +55,9 @@ export function getColumnPinningStyle<TData>({
 // ---------------------------------------------------------------------------
 
 /**
- * Formats a date value into a human-readable string using the browser locale.
+ * Formats a date value as this application's dd-MM-yyyy display format. Pass
+ * `opts` to fall back to a custom Intl.DateTimeFormat instead (e.g. for a
+ * month/year-only label) — the default (no opts) is the only caller today.
  *
  * @param date - Date object, ISO string, or numeric timestamp.
  * @param opts - Optional Intl.DateTimeFormatOptions overrides.
@@ -67,12 +70,13 @@ export function formatDate(
   if (!date) return "";
 
   try {
-    return new Intl.DateTimeFormat("en-US", {
-      month: opts.month ?? "short",
-      day: opts.day ?? "numeric",
-      year: opts.year ?? "numeric",
-      ...opts,
-    }).format(new Date(date));
+    const d = new Date(date);
+    if (Object.keys(opts).length === 0) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      return `${dd}-${mm}-${d.getFullYear()}`;
+    }
+    return new Intl.DateTimeFormat("en-US", opts).format(d);
   } catch {
     return "";
   }
@@ -147,11 +151,7 @@ export function dateFilterFn(
   if (!filterValue) return true;
   const cellDate = new Date(value as string | number | Date);
   const filterDate = new Date(filterValue);
-  return (
-    cellDate.getFullYear() === filterDate.getFullYear() &&
-    cellDate.getMonth() === filterDate.getMonth() &&
-    cellDate.getDate() === filterDate.getDate()
-  );
+  return formatApiDate(cellDate) === formatApiDate(filterDate);
 }
 
 /**

@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/command";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatInTimeZone } from "date-fns-tz";
+import { APP_TIMEZONE, formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 
 /** Resolves a dot-separated path (e.g. "a.b.0.c") against any nested object/array. */
 function resolvePath(obj: unknown, path: string): unknown {
@@ -45,31 +47,23 @@ function applyFormatter(value: unknown, formatter: string): string {
   switch (formatter.trim()) {
     case "time": {
       const d = new Date(raw);
-      return isNaN(d.getTime())
-        ? raw
-        : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return isNaN(d.getTime()) ? raw : formatDisplayTime(d);
     }
     case "date": {
       const d = new Date(raw);
-      return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
+      return isNaN(d.getTime()) ? raw : formatDisplayDate(d);
     }
     case "short_date": {
       const d = new Date(raw);
       return isNaN(d.getTime())
         ? raw
-        : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+        : formatInTimeZone(d, APP_TIMEZONE, "EEE dd-MM");
     }
     case "datetime": {
       const d = new Date(raw);
       return isNaN(d.getTime())
         ? raw
-        : d.toLocaleString([], {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+        : formatInTimeZone(d, APP_TIMEZONE, "EEE dd-MM, HH:mm");
     }
     default:
       return raw;
@@ -158,7 +152,6 @@ export function DataSelect({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, search, labelPath, labelTemplate, descriptionPath, descriptionTemplate]);
 
-  const fieldId = component.id;
   const triggerWidth = triggerRef.current?.offsetWidth;
 
   return (
@@ -235,11 +228,17 @@ export function DataSelect({
         </PopoverContent>
       </Popover>
 
-      {/* Hidden inputs collected by form.tsx / collectContainerData — one per emit entry. */}
+      {/*
+        Hidden inputs collected by form.tsx collectFormData.
+        id = emit.key directly so the form data key matches the schema field
+        name exactly — mirrors DynamicSelect's convention (see its own emits
+        block for the same comment); component.id must stay out of this or
+        the submitted key silently stops matching the step's validation_schema.
+      */}
       {emits.map((emit) => (
         <input
           key={emit.key}
-          id={`${fieldId}_${emit.key}`}
+          id={emit.key}
           type="hidden"
           value={
             selectedItem

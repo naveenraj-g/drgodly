@@ -18,6 +18,7 @@ import type {
   ObservationFormItem,
   ServiceRequestFormItem,
 } from "../../appointment-review/types";
+import { formatDisplayDayMonth } from "@/modules/shared/helper";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -106,10 +107,7 @@ export function serviceRequestSummary(item: ServiceRequestFormItem): string {
   const occurrence = item.occurrenceDatetime
     ? (() => {
         try {
-          return new Date(item.occurrenceDatetime!).toLocaleDateString(undefined, {
-            day: "numeric",
-            month: "short",
-          });
+          return formatDisplayDayMonth(item.occurrenceDatetime!);
         } catch {
           return null;
         }

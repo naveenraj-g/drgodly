@@ -16,6 +16,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 import {
   CalendarDays,
   Clock,
@@ -47,14 +48,7 @@ import type { TConsultationTranscriptMessage } from "@/modules/entities/schemas/
 function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    return `${formatDisplayDate(iso)}, ${formatDisplayTime(iso)}`;
   } catch {
     return "—";
   }

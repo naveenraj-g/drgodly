@@ -26,6 +26,12 @@
  *     - assistant_text → settled AI response (full text at once).
  *     - audio          → strips optional WAV header, decodes PCM @ 24 kHz,
  *                        schedules gapless playback via a linear scheduler.
+ *     - status         → agent-reported phase (greeting/ready/thinking),
+ *                        independent of the connection lifecycle — drives the
+ *                        header status label/dot while the call is otherwise
+ *                        just "connected". Unlike VoiceIntakeTest, a
+ *                        "status_end" value is NOT auto-end here — voice
+ *                        consultation still ends only via the manual button.
  *     - error          → toast.
  *
  *  3. Patient clicks "End Call":
@@ -101,12 +107,20 @@ interface VoiceConsultationTestProps {
   patientContext?: string;
 }
 
-/** Connection/activity status driving header indicator and button label. */
-type ConnectionStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "speaking";
+/** Call lifecycle status — drives Start/End Call button and mic pipeline. */
+type ConnectionStatus = "disconnected" | "connecting" | "connected";
+
+/**
+ * Agent-reported phase within an active call — drives the header status
+ * label/dot. Independent of ConnectionStatus: the call stays "connected"
+ * throughout, while this cycles through the agent's actual turn-taking state.
+ *   idle      — connected, no status message received yet
+ *   greeting  — agent is speaking its opening line
+ *   ready     — greeting done, agent is listening
+ *   thinking  — agent is processing what the patient just said
+ *   speaking  — agent is streaming a spoken response (text/text_delta arriving)
+ */
+type AgentPhase = "idle" | "greeting" | "ready" | "thinking" | "speaking";
 
 /** Ending-phase steps (mirrors TextConsultation endingPhase). */
 type EndingPhase = "idle" | "report" | "saving";
@@ -196,6 +210,7 @@ export function VoiceConsultationTest({
   patientContext,
 }: VoiceConsultationTestProps) {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
+  const [agentPhase, setAgentPhase] = useState<AgentPhase>("idle");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [liveRole, setLiveRole] = useState<"user" | "assistant" | null>(null);
@@ -275,7 +290,7 @@ export function VoiceConsultationTest({
     pendingAssistantTextRef.current = "";
     setLiveTranscript("");
     setLiveRole(null);
-    setStatus("connected");
+    setAgentPhase("ready");
     addMessage({ key: nanoid(), from: "assistant", content: text });
   }, [addMessage]);
 
@@ -319,6 +334,7 @@ export function VoiceConsultationTest({
     flushPendingAssistantText();
     teardown();
     setStatus("disconnected");
+    setAgentPhase("idle");
     setLiveTranscript("");
     setLiveRole(null);
     setIsMuted(false);
@@ -407,6 +423,7 @@ export function VoiceConsultationTest({
     setLiveRole(null);
     setIsMuted(false);
     setStatus("connecting");
+    setAgentPhase("idle");
 
     try {
       // 1. Get auth token + WS URL from the server-side proxy endpoint.
@@ -503,6 +520,8 @@ export function VoiceConsultationTest({
             text?: string;
             audio?: string;
             message?: string;
+            /** "status" — agent-reported phase: "greeting" | "ready" | "thinking". */
+            status?: string;
           };
 
           console.log("[VoiceConsultationTest] WS message:", {
@@ -510,6 +529,20 @@ export function VoiceConsultationTest({
             text: data.text?.slice(0, 100),
             hasAudio: !!data.audio,
           });
+
+          if (data.type === "status" && data.status) {
+            console.log("[VoiceConsultationTest] status:", data.status);
+            if (data.status === "greeting") {
+              setAgentPhase("greeting");
+            } else if (data.status === "ready") {
+              setAgentPhase("ready");
+            } else if (data.status === "thinking") {
+              setAgentPhase("thinking");
+            }
+            // No auto-end here (unlike VoiceIntakeTest) — a "status_end"
+            // value, if it ever arrives, is deliberately ignored; voice
+            // consultation only ends via the manual "End Call" button.
+          }
 
           if (data.type === "transcript" && data.text !== undefined) {
             // New user turn starting — commit any in-flight agent text first
@@ -530,7 +563,7 @@ export function VoiceConsultationTest({
             pendingAssistantTextRef.current += data.text;
             setLiveTranscript(pendingAssistantTextRef.current);
             setLiveRole("assistant");
-            setStatus("speaking");
+            setAgentPhase("speaking");
           }
 
           if (data.type === "text_delta" && data.text) {
@@ -540,7 +573,7 @@ export function VoiceConsultationTest({
             pendingAssistantTextRef.current += data.text;
             setLiveTranscript(pendingAssistantTextRef.current);
             setLiveRole("assistant");
-            setStatus("speaking");
+            setAgentPhase("speaking");
           }
 
           if (data.type === "assistant_text" && data.text) {
@@ -555,7 +588,7 @@ export function VoiceConsultationTest({
             });
             setLiveTranscript("");
             setLiveRole(null);
-            setStatus("connected");
+            setAgentPhase("ready");
           }
 
           if (data.type === "audio" && data.audio && data.audio.trim()) {
@@ -598,9 +631,8 @@ export function VoiceConsultationTest({
           "reason:",
           event.reason,
         );
-        setStatus((prev) =>
-          prev === "connected" || prev === "speaking" ? "disconnected" : prev,
-        );
+        setStatus((prev) => (prev === "connected" ? "disconnected" : prev));
+        setAgentPhase("idle");
         setLiveTranscript("");
         setLiveRole(null);
       };
@@ -645,6 +677,7 @@ export function VoiceConsultationTest({
   const restartCall = useCallback(() => {
     teardown();
     setStatus("disconnected");
+    setAgentPhase("idle");
     setLiveTranscript("");
     setLiveRole(null);
     setIsMuted(false);
@@ -654,7 +687,7 @@ export function VoiceConsultationTest({
 
   // ── Derived UI values ─────────────────────────────────────────────────────────
 
-  const isConnected = status === "connected" || status === "speaking";
+  const isConnected = status === "connected";
   const isConnecting = status === "connecting";
   const isBusy = isConnecting || endingPhase !== "idle";
 
@@ -663,14 +696,23 @@ export function VoiceConsultationTest({
       ? "Offline"
       : status === "connecting"
         ? "Connecting..."
-        : status === "speaking"
-          ? "Speaking..."
-          : "Online";
+        : agentPhase === "greeting"
+          ? "Speaking greeting..."
+          : agentPhase === "thinking"
+            ? "Thinking..."
+            : agentPhase === "speaking"
+              ? "Speaking..."
+              : agentPhase === "ready"
+                ? "Ready — you can speak"
+                : "Online";
 
   const statusDotClass =
     status === "disconnected"
       ? "bg-muted-foreground"
-      : status === "connecting" || status === "speaking"
+      : status === "connecting" ||
+          agentPhase === "greeting" ||
+          agentPhase === "thinking" ||
+          agentPhase === "speaking"
         ? "bg-amber-400 animate-pulse"
         : "bg-emerald-500";
 

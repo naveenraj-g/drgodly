@@ -23,6 +23,7 @@ import { Mail, MapPin, Phone, Pill, AlertTriangle, FileText } from "lucide-react
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import {
   DataTable,
   DataTableColumnHeader,
@@ -331,9 +332,7 @@ function PatientDetailPanel({ row }: { row: Row<Patient> }) {
           Last Visit Notes
         </p>
         <p className="text-xs text-muted-foreground">
-          {new Date(p.lastVisitDate).toLocaleDateString("en-US", {
-            month: "long", day: "numeric", year: "numeric",
-          })}
+          {formatDisplayDate(p.lastVisitDate)}
         </p>
         <div className="flex items-start gap-2 rounded-md bg-background p-2.5 text-sm ring-1 ring-border">
           <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />

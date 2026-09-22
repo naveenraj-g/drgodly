@@ -22,8 +22,8 @@ export interface ISchedulesTableProps {
   initialData: TPaginatedScheduleResponse;
   /**
    * Authenticated user's ID from the session (Better Auth `user.id`).
-   * Forwarded to the create modal so it can be stamped on newly created
-   * schedules as `user_id`.
+   * No longer consumed by the create modal — the server action doesn't need
+   * a user_id. Kept on this type for now; callers may still populate it.
    */
   userId: string | null;
   /**

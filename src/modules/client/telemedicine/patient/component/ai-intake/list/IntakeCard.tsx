@@ -9,6 +9,7 @@
 "use client";
 
 import { Eye, MessageSquare, Mic } from "lucide-react";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,11 +31,7 @@ const STATUS_CLASS: Record<string, string> = {
 
 function formatDate(d: Date | null | undefined): string {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatDisplayDate(d);
 }
 
 /**

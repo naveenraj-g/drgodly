@@ -10,8 +10,8 @@
 
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,7 @@ export function PersonalDetailsSection() {
                       !field.value && "text-muted-foreground",
                     )}
                   >
-                    {field.value ? format(field.value, "PPP") : "Pick a date"}
+                    {field.value ? formatDisplayDate(field.value) : "Pick a date"}
                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>

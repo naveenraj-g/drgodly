@@ -25,6 +25,7 @@ import {
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import { TLocationResponse } from "@/modules/entities/schemas/location";
+import { formatDisplayDate } from "@/modules/shared/helper";
 import { adminStore } from "../../stores/admin.store";
 
 // ── Filter option constants ────────────────────────────────────────────────────
@@ -245,7 +246,7 @@ export const LOCATIONS_COLUMNS: ColumnDef<TLocationResponse>[] = [
       if (!iso) return <span className="text-muted-foreground">—</span>;
       return (
         <span className="text-sm text-muted-foreground">
-          {new Date(iso).toLocaleDateString()}
+          {formatDisplayDate(iso)}
         </span>
       );
     },

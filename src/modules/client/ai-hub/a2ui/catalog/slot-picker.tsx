@@ -7,6 +7,8 @@ import type { IMessageProcessor } from "../rendering/processor";
 import { Label } from "@/components/ui/label";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import { APP_TIMEZONE, formatApiDate } from "@/modules/shared/helper";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -23,25 +25,22 @@ function resolvePath(obj: unknown, path: string): unknown {
   }, obj);
 }
 
-/** Returns "YYYY-MM-DD" from an ISO datetime string, using local time. */
+/** Returns "YYYY-MM-DD" from an ISO datetime string, pinned to IST. */
 function toDateKey(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso.slice(0, 10);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return formatApiDate(d);
 }
 
-/** HH:MM in 24-hour format, matching the design. */
+/** HH:MM in 24-hour format, pinned to IST, matching the design. */
 function toHHMM(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return formatInTimeZone(d, APP_TIMEZONE, "HH:mm");
 }
 
 function todayKey(): string {
-  return toDateKey(new Date().toISOString());
+  return formatApiDate(new Date());
 }
 
 const DATES_PER_PAGE = 5;
@@ -124,12 +123,11 @@ export function SlotPicker({
         {effectiveDateKey && (
           <span className="ml-1">
             (
-            {new Date(effectiveDateKey + "T12:00:00").toLocaleDateString([], {
-              weekday: "short",
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
+            {formatInTimeZone(
+              fromZonedTime(`${effectiveDateKey}T12:00:00`, APP_TIMEZONE),
+              APP_TIMEZONE,
+              "EEE, dd MMMM yyyy",
+            )}
             )
           </span>
         )}
@@ -153,8 +151,7 @@ export function SlotPicker({
 
         <div className="flex flex-1 gap-2">
           {visibleDates.map(([key]) => {
-            // Use noon local time to avoid DST midnight edge cases
-            const d = new Date(key + "T12:00:00");
+            const d = fromZonedTime(`${key}T12:00:00`, APP_TIMEZONE);
             const isToday = key === today;
             const isActive = key === effectiveDateKey;
 
@@ -173,10 +170,10 @@ export function SlotPicker({
                 <span className="text-[10px] font-semibold uppercase tracking-wider">
                   {isToday
                     ? "TODAY"
-                    : d.toLocaleDateString([], { weekday: "short" }).toUpperCase()}
+                    : formatInTimeZone(d, APP_TIMEZONE, "EEE").toUpperCase()}
                 </span>
                 <span className="mt-1 text-base font-bold leading-none">
-                  {d.toLocaleDateString([], { month: "short", day: "numeric" })}
+                  {formatInTimeZone(d, APP_TIMEZONE, "dd-MM")}
                 </span>
               </button>
             );

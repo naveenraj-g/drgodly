@@ -25,6 +25,7 @@ import type { ChatMessage } from "@/modules/client/ai-hub/store/chat-store";
 import { SessionGreeting } from "../SessionGreeting";
 import { ToolCallDetails } from "./ToolCallDetails";
 import { PermissionDeniedMessage } from "./PermissionDeniedMessage";
+import type { WorkflowTypeFilter } from "../../queries/workflow.queries";
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -51,6 +52,8 @@ interface MessageListProps {
    * @param prompt - The suggestion text to inject into the input.
    */
   onSuggestion: (prompt: string) => void;
+  /** Scopes the greeting's quick-start cards to one launcher surface — see SessionGreeting. */
+  workflowType?: WorkflowTypeFilter;
 }
 
 /**
@@ -63,6 +66,7 @@ interface MessageListProps {
  * @param props.processor          - IMessageProcessor for rendering A2UI components.
  * @param props.onTriggerWorkflow  - Direct workflow trigger from the greeting cards.
  * @param props.onSuggestion       - Injects a suggested prompt into the input.
+ * @param props.workflowType       - Optional launcher-surface filter for the greeting.
  */
 export function MessageList({
   messages,
@@ -71,6 +75,7 @@ export function MessageList({
   processor,
   onTriggerWorkflow,
   onSuggestion,
+  workflowType,
 }: MessageListProps) {
   return (
     // overscroll-y-contain prevents scroll chaining to the page body when the
@@ -82,6 +87,7 @@ export function MessageList({
             <SessionGreeting
               onTriggerWorkflow={onTriggerWorkflow}
               onSuggestion={onSuggestion}
+              workflowType={workflowType}
             />
           ) : (
             <div className="flex flex-col gap-5">
