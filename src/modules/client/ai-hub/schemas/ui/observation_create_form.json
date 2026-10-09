@@ -14,7 +14,7 @@
           {
             "id": "obs-form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Clinical Observation" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Clinical Observation" }, "usageHint": "h3" }
           },
           {
             "id": "obs-form-subtitle",

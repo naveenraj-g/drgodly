@@ -203,6 +203,11 @@ export function TextIntake({
         ? `${patientContext}\n\n${text}`
         : text;
 
+    console.log(
+      "[TextIntake] outgoing session_id (frontend):",
+      sessionId ?? "null — no session yet, agent will create one",
+    );
+
     try {
       const res = await fetch("/api/intake-agent", {
         method: "POST",
@@ -216,7 +221,15 @@ export function TextIntake({
 
       // Capture the session id from the response header on the first turn
       const headerSessionId = res.headers.get("X-Session-Id");
-      if (headerSessionId) setSessionId(headerSessionId);
+      if (headerSessionId) {
+        console.log(
+          "[TextIntake] session_id from agent (X-Session-Id header):",
+          headerSessionId,
+          "— frontend was holding:",
+          sessionId,
+        );
+        setSessionId(headerSessionId);
+      }
 
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
@@ -237,7 +250,15 @@ export function TextIntake({
           if (!line.trim()) continue;
           const result = parseChunkLine(line);
           // Also capture session id from the agent_end chunk
-          if (result.sessionId) setSessionId(result.sessionId);
+          if (result.sessionId) {
+            console.log(
+              "[TextIntake] session_id from agent (agent_end chunk):",
+              result.sessionId,
+              "— frontend was holding:",
+              sessionId,
+            );
+            setSessionId(result.sessionId);
+          }
           if (result.token !== null) appendToken(result.token);
           if (result.conversationEnded) conversationEndedThisTurn = true;
           if (result.done) break outer;
@@ -245,7 +266,15 @@ export function TextIntake({
       }
       if (leftover.trim()) {
         const result = parseChunkLine(leftover);
-        if (result.sessionId) setSessionId(result.sessionId);
+        if (result.sessionId) {
+          console.log(
+            "[TextIntake] session_id from agent (trailing agent_end chunk):",
+            result.sessionId,
+            "— frontend was holding:",
+            sessionId,
+          );
+          setSessionId(result.sessionId);
+        }
         if (result.token !== null) appendToken(result.token);
         if (result.conversationEnded) conversationEndedThisTurn = true;
       }

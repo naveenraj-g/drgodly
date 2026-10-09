@@ -579,6 +579,7 @@ export function ClinicalWorkspace({
             diagnosticReports={diagnosticReports}
             patientId={patientId}
             appointmentId={appointmentId}
+            encounterId={encounterId}
             orgId={orgId}
             userId={userId}
             meta={labMeta}

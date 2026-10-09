@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Prescribe Medication" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

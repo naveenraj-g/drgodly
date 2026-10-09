@@ -33,7 +33,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 4: Add Observations" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {
@@ -163,12 +163,12 @@
                     "alignment": "stretch",
                     "children": [
                       {
-                        "id": "value_quantity",
+                        "id": "value",
                         "type": "TextField",
                         "weight": 1,
                         "properties": {
-                          "label": { "literalString": "Value (number)" },
-                          "placeholder": { "literalString": "e.g. 98.6" },
+                          "label": { "literalString": "Value" },
+                          "placeholder": { "literalString": "e.g. 98.6, or free text" },
                           "textFieldType": "text"
                         }
                       },
@@ -183,54 +183,6 @@
                         }
                       }
                     ]
-                  }
-                },
-                {
-                  "id": "value_string",
-                  "type": "TextField",
-                  "properties": {
-                    "label": { "literalString": "Value (text, optional)" },
-                    "placeholder": { "literalString": "Free-text observation value" },
-                    "textFieldType": "text"
-                  }
-                },
-                {
-                  "id": "obs-timing-row",
-                  "type": "Row",
-                  "properties": {
-                    "gap": "medium",
-                    "alignment": "stretch",
-                    "children": [
-                      {
-                        "id": "effective_datetime",
-                        "type": "DateTimeInput",
-                        "weight": 1,
-                        "properties": {
-                          "label": { "literalString": "Effective Date/Time" },
-                          "enableDate": true,
-                          "enableTime": true
-                        }
-                      },
-                      {
-                        "id": "issued",
-                        "type": "DateTimeInput",
-                        "weight": 1,
-                        "properties": {
-                          "label": { "literalString": "Issued" },
-                          "enableDate": true,
-                          "enableTime": true
-                        }
-                      }
-                    ]
-                  }
-                },
-                {
-                  "id": "note",
-                  "type": "TextField",
-                  "properties": {
-                    "label": { "literalString": "Note (optional)" },
-                    "placeholder": { "literalString": "Additional notes" },
-                    "textFieldType": "longText"
                   }
                 }
               ]

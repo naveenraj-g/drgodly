@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Select a patient" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

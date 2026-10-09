@@ -6,6 +6,12 @@
  * Mirrors abandonConsultationAction (ZSA). Called when a participant leaves
  * without completing the session. Authenticates via bearer JWT — see
  * verify-bearer-token.ts.
+ *
+ * org_id is always taken from the token, never the client — the repository
+ * requires it to match the target consultation's own org_id before writing,
+ * so a caller in one org can't abandon another org's consultation by
+ * guessing a fhir_appointment_id. Same guarantee abandonConsultationAction
+ * provides today.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -21,9 +27,10 @@ import { abandonConsultationController } from "@/modules/server/core/consultatio
  */
 export async function POST(req: NextRequest) {
   try {
-    await verifyBearerToken(req);
+    const claims = await verifyBearerToken(req);
     const body = await req.json();
-    const data = await abandonConsultationController(body);
+    const payload = { ...body, org_id: claims.orgId };
+    const data = await abandonConsultationController(payload);
     return NextResponse.json(data);
   } catch (err) {
     return mobileErrorResponse(err, "[api/consultation/abandon]");

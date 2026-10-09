@@ -6,23 +6,32 @@
  * Validates the form data from Step 3 of the upload_patient_report workflow and
  * transforms it into the payload expected by POST /diagnostic-reports/.
  *
- * Form field sources:
- *   patient_id                              — from sessionContext (Step 1 output)
- *   encounter_id                            — from sessionContext (Step 2 output)
- *   service_request_select_service_request_id — DataSelect emit: {componentId}_{key}
- *                                             component id="service_request_select",
- *                                             emit key="service_request_id"
- *   report_file                             — FileUpload component (id="report_file")
- *                                             writes { fileId, filename, contentType, sizeBytes }
+ * Form field sources — every catalog component (DataSelect, DynamicSelect,
+ * FileUpload) writes its hidden input's `id` as the bare emit key / component
+ * id, with no componentId prefix (see form.tsx's collectFormData and each
+ * component's own emits block) — the field names below must match that
+ * exactly, or the submission silently fails Zod validation:
+ *   patient_id       — from sessionContext (Step 1 output)
+ *   encounter_id      — from sessionContext (Step 2 output)
+ *   service_request_id — DataSelect emit key (component id="service_request_select",
+ *                         emits: [{ key: "service_request_id", ... }])
+ *   report_file        — FileUpload component (id="report_file")
+ *                         writes { fileId, filename, contentType, sizeBytes }
  *
  * Output (POST /diagnostic-reports/):
  *   {
  *     status: "final",
  *     subject: "Patient/{patient_id}",
  *     encounter_id,
+ *     org_id,
  *     based_on: [{ reference: "ServiceRequest/{id}" }],
  *     presented_form: [{ url, content_type, size, title, creation }]
  *   }
+ *
+ * org_id is always present in sessionContext (server-derived from the
+ * authenticated session on every /api/workflow request — see
+ * buildBaseContext in _lib.ts), not a form field, so it's read straight
+ * through rather than validated against a form emit.
  */
 
 import { z } from "zod";
@@ -54,11 +63,14 @@ export const adminUploadReportSchema = z
       z.number().int().positive("Encounter context lost. Please restart the workflow."),
     ),
 
+    /** Carried from sessionContext — always present, stamped from the session. */
+    org_id: z.string().min(1, "Organization context lost. Please restart the workflow."),
+
     /**
      * DataSelect emit: component id="service_request_select", emit key="service_request_id".
-     * DataSelect writes hidden inputs as {componentId}_{key} = service_request_select_service_request_id.
+     * The hidden input's id is the bare emit key — no componentId prefix.
      */
-    service_request_select_service_request_id: z.preprocess(
+    service_request_id: z.preprocess(
       toPositiveInt,
       z.number().int().positive("Please select a test order before uploading."),
     ),
@@ -85,12 +97,14 @@ export const adminUploadReportSchema = z
     subject: `Patient/${d.patient_id}`,
     /** Links the report to the encounter it belongs to. */
     encounter_id: d.encounter_id,
+    /** Tenant scoping — every FHIR_GQL_URL-backed create call stamps this. */
+    org_id: d.org_id,
     /**
      * Fulfils the ServiceRequest that ordered this test.
      * FHIR DiagnosticReport.basedOn[].reference.
      */
     based_on: [
-      { reference: `ServiceRequest/${d.service_request_select_service_request_id}` },
+      { reference: `ServiceRequest/${d.service_request_id}` },
     ],
     /**
      * The uploaded file. FileNest fileId is stored as the URL and resolved to

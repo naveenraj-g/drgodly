@@ -91,7 +91,7 @@
           "type": "http",
           "purpose": "confirm_patient_selection",
           "tool_name": "confirm_patient_selection",
-          "url": "$fhir_gql_url/patients/$patient_id",
+          "url": "$fhir_gql_url/patients/$patient_id?org_id=$org_id",
           "method": "GET",
           "validation_schema": "admin_select_patient_schema",
           "retryable": false,
@@ -140,7 +140,7 @@
           "type": "http",
           "purpose": "fetch_encounter",
           "tool_name": "get_encounter_for_appointment",
-          "url": "$fhir_gql_url/encounters/?appointment_id=$appointment_id&limit=1",
+          "url": "$fhir_gql_url/encounters/?appointment_id=$appointment_id&org_id=$org_id&limit=1",
           "method": "GET",
           "validation_schema": "select_appointment_schema",
           "retryable": false,
@@ -172,7 +172,7 @@
           "description": "Load service requests for the resolved encounter so the user can select which test order this report belongs to.",
           "context_key": "encounter_service_requests",
           "tool_name": "list_encounter_service_requests",
-          "url": "$fhir_gql_url/service-requests/?encounter_id=$encounter_id&limit=50",
+          "url": "$fhir_gql_url/service-requests/?encounter_id=$encounter_id&org_id=$org_id&limit=50",
           "method": "GET",
           "timeout_ms": 10000
         }

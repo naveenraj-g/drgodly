@@ -14,7 +14,7 @@
           {
             "id": "form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Create Coverage" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Create Coverage" }, "usageHint": "h3" }
           },
           {
             "id": "form-subtitle",

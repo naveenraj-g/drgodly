@@ -1,68 +1,88 @@
 /**
  * @file TodaysOverviewDonut.tsx
- * @description Donut chart summarising today's demo appointments by coarse
- * status (Completed / In Progress / Scheduled / Cancelled), with a centered
- * "x/y Appointments" total and a labelled legend.
+ * @description Donut chart summarising today's appointments by the
+ * *exact* FHIR appointment status (Pending / Booked / Arrived / Fulfilled /
+ * Cancelled / ...), with a centered "x/y Appointments" total and a labelled
+ * legend.
  * @layer client/telemedicine/doctor/component/appointment-demo
  *
- * Colors are a reserved status mapping (good/informational/neutral/muted),
- * not a generic categorical palette — mirrors the convention already used by
- * AppointmentStatusChart (dashboard-overview) so status color never doubles
- * as an arbitrary series color elsewhere in the app. Identity is never
- * color-alone: every slice also has a text label + count in the legend.
+ * Reuses STATUS_LABEL from DoctorAppointmentColumns — the same wording the
+ * table's own status badges show — rather than a separate coarse bucket, so
+ * the donut and the table never disagree about what counts as what (e.g. a
+ * "pending" appointment and a "booked" one used to both read as "Scheduled"
+ * here, hiding a real difference the table itself already distinguishes).
+ *
+ * Colors are a reserved status mapping, not a generic categorical palette —
+ * same convention as AppointmentStatusChart (dashboard-overview) and the
+ * table's own status badge colors (translated to hex since Recharts fills
+ * can't consume Tailwind classes directly). Identity is never color-alone:
+ * every slice also has a text label + count in the legend.
  */
 
 "use client";
 
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
-import type { CoarseStatus } from "./appointmentDisplay";
+import {
+  APPOINTMENT_STATUS_OPTIONS,
+  STATUS_LABEL,
+} from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentColumns";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TodaysOverviewDonutProps {
-  /** Count of today's appointments per coarse status. */
-  counts: Record<CoarseStatus, number>;
+  /** Count of today's appointments per *raw* FHIR status code. */
+  counts: Record<string, number>;
 }
 
-// ── Status → label/color ─────────────────────────────────────────────────────
+// ── Status → color (hex, for Recharts fill) ──────────────────────────────────
+// Same semantic families as DoctorAppointmentColumns' STATUS_CLASS (slate/
+// amber/blue/teal/green/red/orange/cyan/purple), just as hex instead of
+// Tailwind utility classes.
 
-const STATUS_META: Record<CoarseStatus, { label: string; color: string }> = {
-  completed: { label: "Completed", color: "#16a34a" }, // green-600
-  "in-progress": { label: "In Progress", color: "#2563eb" }, // blue-600
-  scheduled: { label: "Scheduled", color: "#7dd3fc" }, // sky-300
-  cancelled: { label: "Cancelled", color: "#d1d5db" }, // gray-300
+const STATUS_HEX: Record<string, string> = {
+  proposed: "#64748b", // slate-500
+  pending: "#d97706", // amber-600
+  booked: "#2563eb", // blue-600
+  arrived: "#0d9488", // teal-600
+  fulfilled: "#16a34a", // green-600
+  cancelled: "#dc2626", // red-600
+  noshow: "#ea580c", // orange-600
+  "entered-in-error": "#991b1b", // red-800
+  "checked-in": "#0891b2", // cyan-600
+  waitlist: "#9333ea", // purple-600
 };
 
-const STATUS_ORDER: CoarseStatus[] = [
-  "completed",
-  "in-progress",
-  "scheduled",
-  "cancelled",
-];
+/** Same ordering as the table's Status filter options, for a stable legend. */
+const STATUS_ORDER = APPOINTMENT_STATUS_OPTIONS.map((o) => o.value);
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
  * Renders the "Today's Overview" donut with a centered total and a
- * color-dot + count legend.
+ * color-dot + count legend, one slice per raw status actually present.
  *
- * @param counts - Appointment count per coarse status.
+ * @param counts - Appointment count per raw FHIR status code.
  */
 export function TodaysOverviewDonut({ counts }: TodaysOverviewDonutProps) {
-  const total = STATUS_ORDER.reduce((sum, status) => sum + counts[status], 0);
+  // Only statuses that actually occurred today — an all-zero legend for
+  // ten possible codes would be noise, not information.
+  const present = STATUS_ORDER.filter((status) => (counts[status] ?? 0) > 0);
+  const total = present.reduce((sum, status) => sum + counts[status], 0);
 
-  const slices = STATUS_ORDER.filter((status) => counts[status] > 0).map(
-    (status) => ({
-      status,
-      label: STATUS_META[status].label,
-      color: STATUS_META[status].color,
-      count: counts[status],
-    }),
-  );
+  const slices = present.map((status) => ({
+    status,
+    label: STATUS_LABEL[status] ?? status,
+    color: STATUS_HEX[status] ?? "#9ca3af", // gray-400 fallback for an unmapped code
+    count: counts[status],
+  }));
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative size-32 shrink-0">
+    <div className="flex items-center gap-6">
+      {/* Scales with however wide the card actually is (it used to be a
+          fixed size-32 regardless of a wider card having plenty of room)
+          — capped so it doesn't become absurd on a very wide card, and
+          floored so it stays legible on a narrow one. */}
+      <div className="relative aspect-square w-[42%] min-w-28 max-w-56 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -88,28 +108,32 @@ export function TodaysOverviewDonut({ counts }: TodaysOverviewDonutProps) {
         </ResponsiveContainer>
         {/* Centered total — never rely on the ring's colors alone to convey it */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-bold leading-tight">
+          <span className="text-2xl font-bold leading-tight">
             {total}/{total}
           </span>
-          <span className="text-[10px] text-muted-foreground leading-tight text-center">
+          <span className="text-xs text-muted-foreground leading-tight text-center">
             Appointments
           </span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        {STATUS_ORDER.map((status) => (
-          <div key={status} className="flex items-center gap-1.5 text-xs">
-            <span
-              className="size-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: STATUS_META[status].color }}
-            />
-            <span className="text-muted-foreground">{STATUS_META[status].label}</span>
-            <span className="font-medium tabular-nums ml-auto pl-3">
-              {counts[status]}
-            </span>
-          </div>
-        ))}
+      <div className="flex flex-1 min-w-0 flex-col gap-2 text-sm">
+        {present.length > 0 ? (
+          present.map((status) => (
+            <div key={status} className="flex items-center gap-2">
+              <span
+                className="size-3 rounded-full shrink-0"
+                style={{ backgroundColor: STATUS_HEX[status] ?? "#9ca3af" }}
+              />
+              <span className="text-muted-foreground">{STATUS_LABEL[status] ?? status}</span>
+              <span className="font-medium tabular-nums ml-auto pl-3">
+                {counts[status]}
+              </span>
+            </div>
+          ))
+        ) : (
+          <span className="text-muted-foreground">No appointments today.</span>
+        )}
       </div>
     </div>
   );

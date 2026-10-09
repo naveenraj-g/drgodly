@@ -136,12 +136,22 @@ export const deleteEncounterAction = authenticatedProcedure
 export const getEncounterByAppointmentAction = authenticatedProcedure
   .createServerAction()
   .input(z.object({ appointment_id: z.coerce.number().int().positive() }))
-  .handler(async ({ input }: { input: { appointment_id: number } }) => {
-    return await runWithTransport<TEncounterResponse | null>(async () => {
-      const data = await listEncountersController({
-        appointment_id: input.appointment_id,
-        limit: 1,
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: { appointment_id: number };
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TEncounterResponse | null>(async () => {
+        const data = await listEncountersController({
+          appointment_id: input.appointment_id,
+          // Merge session org_id — prevents client from supplying a different org_id
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          limit: 1,
+        });
+        return { result: data.data?.[0] ?? null };
       });
-      return { result: data.data?.[0] ?? null };
-    });
-  });
+    },
+  );

@@ -13,12 +13,15 @@ import type { TConsultationResponse } from "@/modules/entities/schemas/consultat
 
 /**
  * @param fhirAppointmentId - FHIR Appointment.id (integer).
+ * @param orgId - When supplied, a row belonging to a different org is treated as not found.
  * @returns The linked Consultation or null.
  */
 export async function getConsultationByFhirAppointmentIdUseCase(
   fhirAppointmentId: number,
+  orgId?: string,
 ): Promise<TConsultationResponse | null> {
   return getInjection("IConsultationRepository").getByFhirAppointmentId(
     fhirAppointmentId,
+    orgId,
   );
 }

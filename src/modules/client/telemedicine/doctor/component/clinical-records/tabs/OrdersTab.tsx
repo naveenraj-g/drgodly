@@ -91,6 +91,8 @@ interface OrdersTabProps {
   patientId: number;
   /** FHIR Appointment.id — part of the preview route this tab links into. */
   appointmentId: number;
+  /** FHIR Encounter.id — stamped on the DiagnosticReport/DocumentReference an uploaded result creates. Null disables upload. */
+  encounterId: number | null;
   /** Active organisation id — forwarded to the staging record registered on upload. */
   orgId?: string;
   /** Session user id — forwarded to the staging record registered on upload. */
@@ -117,6 +119,7 @@ export function OrdersTab({
   diagnosticReports,
   patientId,
   appointmentId,
+  encounterId,
   orgId,
   userId,
   meta,
@@ -230,6 +233,7 @@ export function OrdersTab({
               }
               patientId={patientId}
               appointmentId={appointmentId}
+              encounterId={encounterId}
               orgId={orgId}
               userId={userId}
             />
@@ -327,6 +331,8 @@ interface OrderResultsProps {
   patientId: number;
   /** FHIR Appointment.id — part of the preview route. */
   appointmentId: number;
+  /** FHIR Encounter.id — stamped on the DiagnosticReport/DocumentReference an uploaded result creates. Null disables upload. */
+  encounterId: number | null;
   /** Active organisation id — forwarded to the staging record registered on upload. */
   orgId?: string;
   /** Session user id — forwarded to the staging record registered on upload. */
@@ -345,6 +351,7 @@ function OrderResults({
   files,
   patientId,
   appointmentId,
+  encounterId,
   orgId,
   userId,
 }: OrderResultsProps) {
@@ -377,6 +384,7 @@ function OrderResults({
           variant="outline"
           size="sm"
           className="ml-auto h-7 shrink-0 gap-1.5 text-xs"
+          disabled={encounterId == null}
           onClick={() =>
             doctorStore.getState().onOpen({
               type: "uploadOrderResult",
@@ -384,6 +392,7 @@ function OrderResults({
                 serviceRequestId: order.fhirId!,
                 serviceRequestCode: order.display,
                 patientFhirId: patientId,
+                encounterId: encounterId!,
                 orgId,
                 userId,
               },

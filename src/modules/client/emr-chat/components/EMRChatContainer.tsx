@@ -166,6 +166,7 @@ export default function EMRChatContainer({
   // ── Hooks ─────────────────────────────────────────────────────────────────
   const {
     ensureSession,
+    syncRouterAfterSessionCreate,
     persistMessage,
     startNewChat,
     openSession,
@@ -191,6 +192,7 @@ export default function EMRChatContainer({
     userId,
     orgId,
     ensureSession,
+    syncRouterAfterSessionCreate,
     persistMessage,
     loadWorkflowStep,
     dbWorkflowStateId,
@@ -227,6 +229,19 @@ export default function EMRChatContainer({
     }
 
     // Session page — restore messages and workflow state from server-preloaded data.
+    //
+    // Skip when the store already holds this exact session live (ensureSession
+    // just created it in this tab, via router.replace, before the very first
+    // message/response was persisted). initialSession here is a server
+    // snapshot fetched at that same moment — hydrating from it would clobber
+    // the in-memory message the user just sent with an incomplete DB read.
+    // A genuinely fresh arrival at this session (sidebar click, direct URL,
+    // page refresh) never has a matching activeSessionId already set, so it
+    // still gets the full restore below.
+    if (useEmrChatStore.getState().activeSessionId === initialSession.id) {
+      return;
+    }
+
     setActiveSessionId(initialSession.id);
 
     // Map DB message rows to ChatMessage objects.
@@ -390,6 +405,11 @@ export default function EMRChatContainer({
     (s) => s.id === activeSessionId,
   )?.title;
 
+  /* "EMR Analysis" for read-only dashboard surfaces (Patient Chart Review and
+     any future workflow_type: "analysis" pages), "EMR Chat" for everything
+     else (general-purpose chat, both doctor and admin). */
+  const defaultTitle = workflowType === "analysis" ? "EMR Analysis" : "EMR Chat";
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -402,6 +422,7 @@ export default function EMRChatContainer({
       {/* Top bar — includes the Chat / Workflows / UI Schemas tab toggle */}
       <ChatTopbar
         title={activeSessionTitle}
+        defaultTitle={defaultTitle}
         hasActiveWorkflow={activeWorkflow !== null}
         workflowName={activeWorkflowName}
         view={view}

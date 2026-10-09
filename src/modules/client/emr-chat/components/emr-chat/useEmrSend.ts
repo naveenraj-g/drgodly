@@ -35,6 +35,7 @@ type PersistMessageFn = (
 ) => Promise<void>;
 
 type EnsureSessionFn = (firstMessageText?: string) => Promise<string>;
+type SyncRouterAfterSessionCreateFn = () => void;
 
 type LoadWorkflowStepFn = (
   workflow: WorkflowDefinition,
@@ -48,6 +49,7 @@ export interface UseEmrSendParams {
   userId: string;
   orgId?: string | null;
   ensureSession: EnsureSessionFn;
+  syncRouterAfterSessionCreate: SyncRouterAfterSessionCreateFn;
   persistMessage: PersistMessageFn;
   loadWorkflowStep: LoadWorkflowStepFn;
   dbWorkflowStateId: string | null;
@@ -91,6 +93,7 @@ export function useEmrSend({
   userId,
   orgId,
   ensureSession,
+  syncRouterAfterSessionCreate,
   persistMessage,
   loadWorkflowStep,
   dbWorkflowStateId,
@@ -281,6 +284,11 @@ export function useEmrSend({
     setInput("");
     setLoading(true);
 
+    // Captured before ensureSession runs: true only when this call is the
+    // one creating a brand-new session, so the router sync below fires
+    // exactly once per session, after everything has settled.
+    const isNewSession = !useEmrChatStore.getState().activeSessionId;
+
     let sessionId: string;
     try {
       sessionId = await ensureSession(text);
@@ -324,6 +332,9 @@ export function useEmrSend({
       });
     } finally {
       setLoading(false);
+      // Only after the whole exchange has settled — see ensureSession's doc
+      // comment for why calling this any earlier gets silently dropped.
+      if (isNewSession) syncRouterAfterSessionCreate();
     }
   }, [
     input,
@@ -333,6 +344,7 @@ export function useEmrSend({
     setLoading,
     sessionContext,
     ensureSession,
+    syncRouterAfterSessionCreate,
     persistMessage,
     userId,
     orgId,
@@ -351,6 +363,9 @@ export function useEmrSend({
 
       addMessage({ id: crypto.randomUUID(), role: "user", text: workflowName });
       setLoading(true);
+
+      // See handleSend for why this is captured up front.
+      const isNewSession = !useEmrChatStore.getState().activeSessionId;
 
       let sessionId: string;
       try {
@@ -390,6 +405,7 @@ export function useEmrSend({
         });
       } finally {
         setLoading(false);
+        if (isNewSession) syncRouterAfterSessionCreate();
       }
     },
     [
@@ -398,6 +414,7 @@ export function useEmrSend({
       setLoading,
       sessionContext,
       ensureSession,
+      syncRouterAfterSessionCreate,
       persistMessage,
       userId,
       orgId,

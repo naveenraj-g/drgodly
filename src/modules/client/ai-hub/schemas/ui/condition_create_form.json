@@ -14,7 +14,7 @@
           {
             "id": "cond-form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Clinical Condition" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Clinical Condition" }, "usageHint": "h3" }
           },
           {
             "id": "cond-form-subtitle",

@@ -8,9 +8,10 @@
  *
  * FHIR records created per upload batch (same shape the patient side writes,
  * so both appear identically in the record):
- *   • ONE DiagnosticReport   — based_on: the ServiceRequest,
+ *   • ONE DiagnosticReport   — based_on: the ServiceRequest, encounter_id: this visit,
  *                              presented_form[]: one entry per file
  *   • ONE DocumentReference per file — content[0].attachment.url = FileNest id,
+ *                              context.encounter: [this visit],
  *                              context.related: [DiagnosticReport, ServiceRequest]
  *
  * Mounted once inside DoctorModalProvider.
@@ -55,6 +56,8 @@ interface UploadOrderResultContentProps {
   patientFhirId?: number;
   /** Order name, e.g. "CBC" — used to name the created DocumentReference. */
   serviceRequestCode?: string;
+  /** FHIR Encounter.id — stamped on the created DiagnosticReport/DocumentReference so they scope to this visit, not just the order. */
+  encounterId?: number;
   /** Active organisation id — forwarded to the staging record registered on upload. */
   orgId?: string;
   /** Session user id — forwarded to the staging record registered on upload. */
@@ -74,6 +77,7 @@ function UploadOrderResultContent({
   serviceRequestId,
   patientFhirId,
   serviceRequestCode,
+  encounterId,
   orgId,
   userId,
 }: UploadOrderResultContentProps) {
@@ -97,6 +101,7 @@ function UploadOrderResultContent({
         payload: {
           status: "preliminary",
           ...(subject ? { subject } : {}),
+          ...(encounterId != null ? { encounter_id: encounterId } : {}),
           based_on: [{ reference: `ServiceRequest/${serviceRequestId}` }],
           presented_form: records.map((r) => ({
             url: r.id,
@@ -145,7 +150,12 @@ function UploadOrderResultContent({
                   },
                 },
               ],
-              context: { related },
+              context: {
+                ...(encounterId != null
+                  ? { encounter: [{ reference: `Encounter/${encounterId}` }] }
+                  : {}),
+                related,
+              },
             },
           }),
         ),
@@ -212,6 +222,7 @@ export function UploadOrderResultModal() {
   const serviceRequestId = data?.serviceRequestId;
   const patientFhirId = data?.patientFhirId;
   const serviceRequestCode = data?.serviceRequestCode;
+  const encounterId = data?.encounterId;
   const orgId = data?.orgId;
   const userId = data?.userId;
 
@@ -264,6 +275,7 @@ export function UploadOrderResultModal() {
               serviceRequestId={serviceRequestId}
               patientFhirId={patientFhirId ?? undefined}
               serviceRequestCode={serviceRequestCode}
+              encounterId={encounterId}
               orgId={orgId}
               userId={userId}
             />

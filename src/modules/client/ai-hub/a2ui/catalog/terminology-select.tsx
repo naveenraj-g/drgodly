@@ -115,7 +115,23 @@ export function TerminologySelect({
     );
   }, [items, search]);
 
-  const displayConcepts = serverSearch ? serverResults : filteredItems;
+  // De-duplicated by system+code: the underlying value-set/search source has
+  // occasionally returned the same concept twice (e.g. "OR", "BBL" showing up
+  // as two separate rows) — besides being confusing to a doctor scanning the
+  // list, two <CommandItem>s sharing a React key breaks reconciliation badly
+  // enough that clicking one can visibly toggle/select a different row.
+  const displayConcepts = useMemo(() => {
+    const raw = serverSearch ? serverResults : filteredItems;
+    const seen = new Set<string>();
+    const deduped: Concept[] = [];
+    for (const c of raw) {
+      const dedupeKey = `${c.system ?? ""}::${c.code}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      deduped.push(c);
+    }
+    return deduped;
+  }, [serverSearch, serverResults, filteredItems]);
 
   // ---------------------------------------------------------------------------
   // Server fetch — shared by initial open, search change, and load-more
@@ -306,7 +322,7 @@ export function TerminologySelect({
               <CommandGroup>
                 {displayConcepts.map((concept) => (
                   <CommandItem
-                    key={concept.code}
+                    key={`${concept.system ?? ""}::${concept.code}`}
                     value={concept.code}
                     onSelect={() => handleSelect(concept)}
                     className="flex items-start gap-2"

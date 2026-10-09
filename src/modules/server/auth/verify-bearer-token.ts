@@ -16,9 +16,12 @@
  * Claim shape caveat: Better Auth's JWT plugin defaults to signing
  * `session.user` (id, email, name, ...) with `sub` set to the user id, unless
  * the external IAM service customizes `jwt.definePayload`. `sub` is therefore
- * reliable; `org_id` is not guaranteed to be present in the token and callers
- * should treat it as optional (falling back to a value supplied in the
- * request body) until confirmed against the real IAM config.
+ * reliable; `org_id` and `role` are not guaranteed to be present in the token
+ * and callers should treat them as optional until confirmed against the real
+ * IAM config. `role` in particular is read defensively (undefined rather than
+ * thrown) precisely so callers fail closed: routes that gate on a
+ * "telemedicine-staff" role treat a missing/unrecognized role as "not staff",
+ * never as "trust the client instead."
  */
 
 import "server-only";
@@ -32,6 +35,13 @@ export interface BearerTokenClaims {
   userId: string;
   /** Present only if the IAM's JWT payload includes it — not guaranteed. */
   orgId?: string;
+  /**
+   * The caller's active role (e.g. "doctor", "application-admin"), for
+   * routes that need to distinguish staff from a patient caller — mirrors
+   * session.session.activeRole on the web session. Present only if the IAM's
+   * JWT payload includes it — not guaranteed.
+   */
+  role?: string;
   /** Full decoded payload, for routes that need something beyond userId/orgId. */
   payload: JWTPayload;
 }
@@ -85,6 +95,7 @@ export async function verifyBearerToken(
         typeof payload.activeOrganizationId === "string"
           ? payload.activeOrganizationId
           : undefined,
+      role: typeof payload.activeRole === "string" ? payload.activeRole : undefined,
       payload,
     };
   } catch (err) {

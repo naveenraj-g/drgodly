@@ -14,7 +14,7 @@
           {
             "id": "spec-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Specimen" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Specimen" }, "usageHint": "h3" }
           },
           {
             "id": "spec-subtitle",

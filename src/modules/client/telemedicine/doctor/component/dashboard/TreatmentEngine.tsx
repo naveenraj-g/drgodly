@@ -21,6 +21,7 @@ import { AlertTriangle, FlaskConical, Info, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AiGeneratedBadge } from "@/modules/client/telemedicine/shared/components/clinical/ReviewStatus";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -110,6 +111,7 @@ export function TreatmentEngine({ assessmentPlan }: TreatmentEngineProps) {
         <CardTitle className="text-base flex items-center gap-2">
           <Stethoscope className="size-4 text-muted-foreground" />
           Treatment Engine
+          <AiGeneratedBadge />
         </CardTitle>
       </CardHeader>
 

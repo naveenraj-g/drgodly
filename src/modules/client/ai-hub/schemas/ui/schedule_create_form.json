@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Create Schedule" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

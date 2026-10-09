@@ -306,7 +306,7 @@ export function DoctorConsult({
 
   return (
     <LiveKitRoom
-      video={true}
+      video={false}
       audio={true}
       token={token}
       serverUrl={livekitUrl}

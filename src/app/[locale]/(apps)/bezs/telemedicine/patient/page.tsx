@@ -59,6 +59,10 @@ export default async function PatientPage() {
   const displayName = formatPatientName(patient);
 
   return (
-    <PatientDashboard userName={displayName} appointments={appointments} />
+    <PatientDashboard
+      userName={displayName}
+      appointments={appointments}
+      patientId={patient.id}
+    />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -82,11 +82,20 @@ export function DataTable({ processor, surfaceId, component, weight = "initial" 
   const isServerSide = !!(props.url && qp?.supported?.length);
 
   // ── State ──────────────────────────────────────────────────────────────────
+  // Server-side tables start empty rather than seeded from the initially
+  // resolved props.rows: with manualPagination on (below), TanStack trusts
+  // that whatever's in `rows` is already exactly one page — but the
+  // context-resolver's data is the full unpaginated result (e.g. limit=90),
+  // so rendering it directly bypassed pageSize entirely on first load,
+  // showing every row instead of just the first page. The mount effect
+  // further down fetches the real, correctly-limited first page instead.
   const [rows, setRows] = useState<Record<string, any>[]>(
-    () => resolvePrimitive(props.rows) ?? [],
+    () => (isServerSide ? [] : (resolvePrimitive(props.rows) ?? [])),
   );
   const [totalRows, setTotalRows] = useState(
-    props.pagination?.total ?? (resolvePrimitive(props.rows) ?? []).length,
+    isServerSide
+      ? 0
+      : (props.pagination?.total ?? (resolvePrimitive(props.rows) ?? []).length),
   );
   const [loading, setLoading] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -94,7 +103,7 @@ export function DataTable({ processor, surfaceId, component, weight = "initial" 
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: props.pagination?.pageSize ?? 20,
+    pageSize: props.pagination?.pageSize ?? 10,
   });
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -144,6 +153,19 @@ export function DataTable({ processor, surfaceId, component, weight = "initial" 
     },
     [isServerSide, props.url, qp],
   );
+
+  // Fetch the real, pageSize-limited first page on mount for server-side
+  // tables — see the `rows`/`totalRows` initial-state comment above for why
+  // this can't just rely on the initially resolved props.rows.
+  useEffect(() => {
+    if (isServerSide) {
+      fetchPage({ page: 0, pageSize: pagination.pageSize });
+    }
+    // Intentionally mount-only: page/sort/search changes are handled by the
+    // table's own onPaginationChange/onSortingChange/onGlobalFilterChange
+    // handlers below, which already call fetchPage themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── TanStack columns ───────────────────────────────────────────────────────
   const tanstackColumns = useMemo<ColumnDef<Record<string, any>>[]>(

@@ -41,9 +41,18 @@ export default async function DoctorEMRPage() {
 
   return (
     <EMRChatContainer
+      // A React key equal to the session identity ("new" here, the real
+      // sessionId on the [sessionId] route) forces a full unmount/remount
+      // whenever that identity changes across a client-side navigation —
+      // without it, Next.js can reuse the already-mounted instance when
+      // navigating back to this bare route from a session, so the mount-once
+      // "restore state" effect never re-fires and a stale workflow/messages
+      // from the previous session keep showing.
+      key="new"
       userId={userId}
       orgId={orgId}
       basePath="/bezs/telemedicine/doctor/emr"
+      workflowType="chat"
     />
   );
 }

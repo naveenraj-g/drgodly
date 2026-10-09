@@ -1,8 +1,9 @@
 /**
  * @file appointmentDisplay.ts
- * @description Pure display-mapping helpers shared by the appointment demo
- * page's server fetch (page.tsx) and its client components. Framework-free
- * (no "use client"/React) so it can be imported from both sides.
+ * @description Pure display-mapping helpers shared by the doctor
+ * appointments page's server-side fetchers (demoQueries.ts) and its client
+ * components. Framework-free (no "use client"/React) so it can be imported
+ * from both sides.
  * @layer client/telemedicine/doctor/component/appointment-demo
  */
 
@@ -69,39 +70,6 @@ export function reasonLine(appointment: TAppointmentResponse): string {
 /** Muted detail line under the reason, e.g. the presenting complaint. */
 export function noteLine(appointment: TAppointmentResponse): string {
   return appointment.reason?.[0]?.text ?? appointment.description ?? "—";
-}
-
-// ── Avatar styling ────────────────────────────────────────────────────────────
-
-/** Pastel palette the avatar color is deterministically picked from. */
-const AVATAR_PALETTE = [
-  "#fda4af", // rose-300
-  "#fdba74", // orange-300
-  "#93c5fd", // blue-300
-  "#c4b5fd", // violet-300
-  "#86efac", // green-300
-  "#f9a8d4", // pink-300
-  "#7dd3fc", // sky-300
-  "#fcd34d", // amber-300
-];
-
-/**
- * @param name - Patient display name.
- * @returns Up to 2 uppercase initials, or "?" when no name is available.
- */
-export function initialsFor(name: string | null | undefined): string {
-  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
-}
-
-/**
- * Deterministically picks an avatar background color from a patient id, so
- * the same patient always gets the same color without storing one.
- */
-export function avatarColorFor(seed: number | null | undefined): string {
-  const index = Math.abs(seed ?? 0) % AVATAR_PALETTE.length;
-  return AVATAR_PALETTE[index];
 }
 
 // ── Patient demographics ─────────────────────────────────────────────────────

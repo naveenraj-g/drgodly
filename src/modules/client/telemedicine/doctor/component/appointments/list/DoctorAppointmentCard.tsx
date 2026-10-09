@@ -11,6 +11,7 @@
 "use client";
 
 import type { Row } from "@tanstack/react-table";
+import { differenceInYears } from "date-fns";
 import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 import {
   CalendarClock,
@@ -25,6 +26,7 @@ import {
   Video,
   XCircle,
 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +35,25 @@ import {
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
+import type { TPatientResponse } from "@/modules/entities/schemas/patient";
 import { APPOINTMENT_STATUS_OPTIONS, type DoctorAppointmentColumnCallbacks } from "./DoctorAppointmentColumns";
+
+// ── Patient demographics (age/gender subtext under the name) ────────────────
+
+/** @returns Age in whole years from Patient.birth_date, or null when unknown. */
+function patientAge(patient: TPatientResponse | null | undefined): number | null {
+  if (!patient?.birth_date) return null;
+  return differenceInYears(new Date(), new Date(patient.birth_date));
+}
+
+/** @returns A single-letter gender label ("M"/"F") or the raw code's initial. */
+function patientGenderLabel(patient: TPatientResponse | null | undefined): string | null {
+  const gender = patient?.gender;
+  if (!gender) return null;
+  if (gender === "male") return "M";
+  if (gender === "female") return "F";
+  return gender.charAt(0).toUpperCase();
+}
 
 // ── Status → label/class (mirrors DoctorAppointmentColumns) ─────────────────
 
@@ -69,15 +89,24 @@ function formatTime(iso: string | null | undefined): string {
  *
  * @param row - TanStack row (gives access to `row.original`).
  * @param callbacks - Same action callbacks the columns factory receives.
+ * @param patient - Resolved FHIR Patient record for this row's subject, if
+ *   the caller has one on hand — drives the age/gender subtext under the
+ *   name. Optional: callers that don't resolve patient records (today's
+ *   real DoctorAppointmentsTable) just get the name line without it, same
+ *   as before this prop existed.
  */
 export function DoctorAppointmentCard({
   row,
   callbacks,
+  patient,
 }: {
   row: Row<TAppointmentResponse>;
   callbacks: DoctorAppointmentColumnCallbacks;
+  patient?: TPatientResponse | null;
 }) {
   const appointment = row.original;
+  const age = patientAge(patient);
+  const gender = patientGenderLabel(patient);
   const status = appointment.status;
   const canConfirm = status === "pending";
   const canCancel = status === "booked" || status === "pending";
@@ -131,9 +160,28 @@ export function DoctorAppointmentCard({
       <CardContent className="flex h-full flex-col gap-2.5 px-4 py-3">
         {/* Patient + status */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-            <User className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">{appointment.subject_display ?? "—"}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            {/* Same circular Avatar badge the table view uses — one
+                consistent icon rather than a bare glyph, no profile photo
+                wired up here either. */}
+            <Avatar className="shrink-0">
+              <AvatarFallback className="bg-muted text-muted-foreground">
+                <User className="size-3.5" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">
+                {appointment.subject_display ?? "—"}
+              </div>
+              {/* Age/gender subtext — same line the table's own Patient
+                  column shows, omitted (not just blank) when patient wasn't
+                  resolved. */}
+              {(age != null || gender) && (
+                <div className="truncate text-xs font-normal text-muted-foreground">
+                  {[age != null ? `${age} yrs` : null, gender].filter(Boolean).join(" · ")}
+                </div>
+              )}
+            </div>
           </div>
           <Badge
             variant="outline"

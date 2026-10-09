@@ -1,9 +1,11 @@
 {
   "id": "view_vitals_dashboard",
   "name": "Vitals Dashboard",
-  "description": "Displays a comprehensive vitals dashboard with KPI metrics, trend charts, and a full server-side paginated data table for a given patient.",
-  "version": "1.0.0",
-  "tags": ["vitals", "dashboard", "charts", "wearable", "healthcare"],
+  "description": "Doctor selects one of their attended patients, then sees a comprehensive vitals dashboard with KPI metrics, trend charts, and a full server-side paginated data table.",
+  "version": "1.1.0",
+  "workflow_type": "analysis",
+  "tags": ["vitals", "dashboard", "charts", "wearable", "healthcare", "doctor", "patient"],
+  "required_permissions": ["patient:read", "appointment:read", "vitals:read"],
   "llm_hints": {
     "intent_examples": [
       "Show vitals dashboard",
@@ -14,14 +16,15 @@
       "Show activity dashboard"
     ],
     "when_to_use": [
-      "User wants to view a patient's vitals overview or dashboard",
-      "User asks for heart rate, blood pressure, steps, or sleep data",
-      "User wants to see health trends or charts",
-      "User wants to browse all vitals records"
+      "Doctor wants to view a patient's vitals overview or dashboard",
+      "Doctor asks for heart rate, blood pressure, steps, or sleep data",
+      "Doctor wants to see vitals trends or charts",
+      "Doctor wants to browse all of a patient's vitals records"
     ],
     "when_not_to_use": [
       "User wants to record or create new vitals entries",
-      "User wants to update or delete a vitals entry"
+      "User wants to update or delete a vitals entry",
+      "Patient wants to view their own vitals (use the patient portal instead)"
     ],
     "required_context": []
   },
@@ -30,7 +33,7 @@
     "orchestrator": "nextjs",
     "audit_enabled": false
   },
-  "introduction": "Here is the vitals dashboard for this patient.",
+  "introduction": "I'll pull up the vitals dashboard. First, select a patient you've attended.",
   "completion": {
     "message": "Vitals dashboard closed.",
     "action": "dismiss"
@@ -38,22 +41,22 @@
   "workflow_steps": [
     {
       "sequence_number": 1,
-      "id": "resolve_current_patient",
-      "name": "Resolve Patient",
+      "id": "resolve_current_practitioner",
+      "name": "Resolve Practitioner",
       "step_type": "context",
-      "description": "Silently fetches the current patient record to extract patient_id for use in subsequent steps.",
+      "description": "Silently fetches the current doctor's Practitioner record to extract practitioner_id for use in subsequent steps.",
       "context_resolver": {
-        "tool_name": "get_my_patient_profile",
-        "url": "$fhir_gql_url/patients/me",
+        "tool_name": "get_my_practitioner_profile",
+        "url": "$fhir_gql_url/practitioners/me",
         "method": "GET",
         "timeout_ms": 5000
       },
       "context": {
         "inputs": {},
         "outputs": {
-          "patient_id": {
+          "practitioner_id": {
             "type": "integer",
-            "resource": "Patient",
+            "resource": "Practitioner",
             "field": "id"
           }
         }
@@ -61,17 +64,72 @@
     },
     {
       "sequence_number": 2,
+      "id": "select_patient",
+      "name": "Select Patient",
+      "step_type": "form",
+      "description": "Search the doctor's own attended-patient roster (derived from their appointments) and pick one.",
+      "context": {
+        "inputs": {
+          "practitioner_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {
+          "patient_id": {
+            "type": "integer",
+            "resource": "Patient",
+            "field": "id"
+          }
+        }
+      },
+      "context_resolvers": [
+        {
+          "description": "Loads every appointment for this practitioner (tenant-scoped) so the patient roster can be derived client-side.",
+          "context_key": "doctor_appointments",
+          "tool_name": "list_practitioner_appointments",
+          "url": "$fhir_gql_url/appointments/?practitioner_id=$practitioner_id&org_id=$org_id&limit=200",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
+      "ui": {
+        "schema": "select_patient_vitals_form",
+        "mode": "create",
+        "prefill": false,
+        "editable": true
+      },
+      "actions": [
+        {
+          "type": "http",
+          "purpose": "confirm_patient_selection",
+          "tool_name": "confirm_patient_selection",
+          "url": "$fhir_gql_url/patients/$patient_id?org_id=$org_id",
+          "method": "GET",
+          "validation_schema": "admin_select_patient_schema",
+          "retryable": false,
+          "timeout_ms": 8000
+        }
+      ]
+    },
+    {
+      "sequence_number": 3,
       "id": "view_vitals_dashboard",
       "name": "Vitals Dashboard",
       "step_type": "view",
-      "description": "Renders KPI metrics, trend charts, and a server-side paginated table of all vitals records.",
-      "context_resolver": {
-        "context_key": "vitals",
-        "tool_name": "list_vitals",
-        "url": "$fhir_gql_url/api/v1/vitals/?patient_id=$patient_id&limit=90&offset=0",
-        "method": "GET",
-        "timeout_ms": 10000
+      "description": "Renders KPI metrics, trend charts, and a server-side paginated table of the selected patient's vitals records.",
+      "context": {
+        "inputs": {
+          "patient_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {}
       },
+      "context_resolvers": [
+        {
+          "context_key": "vitals",
+          "tool_name": "list_patient_vitals",
+          "url": "$fhir_gql_url/vitals/?patient_id=$patient_id&org_id=$org_id&limit=90&offset=0",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
       "ui": {
         "schema": "vitals_dashboard",
         "mode": "view",

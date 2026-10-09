@@ -12,7 +12,7 @@
         "type": "Text",
         "properties": {
           "text": { "literalString": "Upload Profile Photo" },
-          "usageHint": "h2"
+          "usageHint": "h3"
         }
       },
       {

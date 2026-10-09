@@ -391,6 +391,7 @@ export class IntakePrismaRepository implements IIntakeRepository {
    */
   async getByFhirAppointmentId(
     fhirAppointmentId: number,
+    orgId?: string,
   ): Promise<TIntakeResponse | null> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
@@ -403,7 +404,10 @@ export class IntakePrismaRepository implements IIntakeRepository {
 
     try {
       const row = await prisma.intake.findFirst({
-        where: { fhir_appointment_id: fhirAppointmentId },
+        where: {
+          fhir_appointment_id: fhirAppointmentId,
+          ...(orgId ? { org_id: orgId } : {}),
+        },
       });
 
       const result = row ? toDto(row) : null;

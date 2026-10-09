@@ -1,0 +1,267 @@
+{
+  "id": "doctor_upload_patient_report",
+  "name": "Upload Patient Report",
+  "description": "Doctor selects one of their own attended patients, picks a completed appointment with that patient, then sees every service request (test order) for that visit and uploads the result file against one. A Diagnostic Report is created linking the file to the order.",
+  "version": "1.0.0",
+  "tags": [
+    "fhir",
+    "diagnostic-report",
+    "upload",
+    "results",
+    "service-request",
+    "encounter",
+    "doctor",
+    "patient"
+  ],
+  "required_permissions": [
+    "patient:read",
+    "appointment:read",
+    "encounter:read",
+    "service_request:read",
+    "diagnostic_report:create"
+  ],
+  "llm_hints": {
+    "intent_examples": [
+      "Upload a test report for one of my patients",
+      "Upload lab results for my patient",
+      "Attach a report to a patient's test order",
+      "Upload diagnostic report for an appointment",
+      "Record test results for a patient I've seen",
+      "Upload radiology report",
+      "Add a PDF report to a patient's service request"
+    ],
+    "when_to_use": [
+      "Doctor wants to upload a result file (PDF, image) against a service request for a patient they attended",
+      "Doctor needs to attach a lab or imaging report to one of their own completed appointments' orders",
+      "Doctor wants to create a DiagnosticReport linked to a specific test order they raised"
+    ],
+    "when_not_to_use": [
+      "Patient is uploading their own report (use the patient medical records page instead)",
+      "Doctor wants to create a diagnostic report without uploading a file (use create_diagnostic_report instead)",
+      "Doctor wants to order a new test (use create_service_request instead)",
+      "An admin/staff member is uploading on behalf of any patient in the org (use the admin Upload Patient Report workflow instead)"
+    ],
+    "required_context": []
+  },
+  "execution": {
+    "mode": "deterministic",
+    "orchestrator": "nextjs",
+    "audit_enabled": true
+  },
+  "introduction": "I'll help you upload a report in 4 steps: select one of your patients, choose your completed appointment with them, select the test order and upload the file, then confirm to link it.",
+  "completion": {
+    "message": "Report uploaded successfully. A Diagnostic Report and a Document Reference have been created and linked to the test order.",
+    "action": "dismiss"
+  },
+  "workflow_steps": [
+    {
+      "sequence_number": 1,
+      "id": "resolve_current_practitioner",
+      "name": "Resolve Practitioner",
+      "step_type": "context",
+      "description": "Silently fetches the current doctor's Practitioner record to extract practitioner_id for use in subsequent steps.",
+      "context_resolver": {
+        "tool_name": "get_my_practitioner_profile",
+        "url": "$fhir_gql_url/practitioners/me",
+        "method": "GET",
+        "timeout_ms": 5000
+      },
+      "context": {
+        "inputs": {},
+        "outputs": {
+          "practitioner_id": {
+            "type": "integer",
+            "resource": "Practitioner",
+            "field": "id"
+          }
+        }
+      }
+    },
+    {
+      "sequence_number": 2,
+      "id": "select_patient",
+      "name": "Select Patient",
+      "step_type": "form",
+      "description": "Search the doctor's own attended-patient roster (derived from their appointments) and pick one.",
+      "context": {
+        "inputs": {
+          "practitioner_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {
+          "patient_id": {
+            "type": "integer",
+            "resource": "Patient",
+            "field": "id"
+          }
+        }
+      },
+      "context_resolvers": [
+        {
+          "description": "Loads every appointment for this practitioner (tenant-scoped) so the patient roster can be derived client-side.",
+          "context_key": "doctor_appointments",
+          "tool_name": "list_practitioner_appointments",
+          "url": "$fhir_gql_url/appointments/?practitioner_id=$practitioner_id&org_id=$org_id&limit=200",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
+      "ui": {
+        "schema": "doctor_select_patient_form",
+        "mode": "create",
+        "prefill": false,
+        "editable": true
+      },
+      "actions": [
+        {
+          "type": "http",
+          "purpose": "confirm_patient_selection",
+          "tool_name": "confirm_patient_selection",
+          "url": "$fhir_gql_url/patients/$patient_id?org_id=$org_id",
+          "method": "GET",
+          "validation_schema": "admin_select_patient_schema",
+          "retryable": false,
+          "timeout_ms": 8000
+        }
+      ]
+    },
+    {
+      "sequence_number": 3,
+      "id": "select_appointment",
+      "name": "Select Appointment",
+      "step_type": "form",
+      "description": "Select one of the doctor's own completed appointments with the selected patient. The encounter is resolved automatically — if no encounter exists for the selected appointment, the workflow stops.",
+      "context": {
+        "inputs": {
+          "patient_id": { "type": "integer", "source": "workflow" },
+          "practitioner_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {
+          "encounter_id": {
+            "type": "integer",
+            "resource": "Encounter",
+            "field": "data.0.id",
+            "error_message": "No encounter found for this appointment. Please select an appointment that has an associated encounter before continuing."
+          }
+        },
+        "required_outputs": ["encounter_id"]
+      },
+      "context_resolvers": [
+        {
+          "description": "Load this doctor's completed appointments with the selected patient so they can pick one — scoped to both patient and practitioner, not the patient's full history with other doctors.",
+          "context_key": "patient_appointments",
+          "tool_name": "list_patient_appointments_with_doctor",
+          "url": "$fhir_gql_url/appointments/?patient_id=$patient_id&practitioner_id=$practitioner_id&org_id=$org_id&status=fulfilled&limit=100",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
+      "ui": {
+        "schema": "doctor_select_patient_appointment_form",
+        "mode": "create",
+        "prefill": false,
+        "editable": true
+      },
+      "actions": [
+        {
+          "type": "http",
+          "purpose": "fetch_encounter",
+          "tool_name": "get_encounter_for_appointment",
+          "url": "$fhir_gql_url/encounters/?appointment_id=$appointment_id&org_id=$org_id&limit=1",
+          "method": "GET",
+          "validation_schema": "select_appointment_schema",
+          "retryable": false,
+          "timeout_ms": 10000
+        }
+      ]
+    },
+    {
+      "sequence_number": 4,
+      "id": "upload_report",
+      "name": "Upload Report",
+      "step_type": "form",
+      "description": "Select the test order (ServiceRequest) this report belongs to, then upload the result file. A Diagnostic Report is created on submit.",
+      "context": {
+        "inputs": {
+          "encounter_id": { "type": "integer", "source": "workflow" },
+          "patient_id": { "type": "integer", "source": "workflow" }
+        },
+        "outputs": {
+          "diagnostic_report_id": {
+            "type": "integer",
+            "resource": "DiagnosticReport",
+            "field": "id"
+          }
+        }
+      },
+      "context_resolvers": [
+        {
+          "description": "Load service requests for the resolved encounter so the doctor can select which test order this report belongs to.",
+          "context_key": "encounter_service_requests",
+          "tool_name": "list_encounter_service_requests",
+          "url": "$fhir_gql_url/service-requests/?encounter_id=$encounter_id&org_id=$org_id&limit=50",
+          "method": "GET",
+          "timeout_ms": 10000
+        }
+      ],
+      "ui": {
+        "schema": "doctor_upload_report_form",
+        "mode": "create",
+        "prefill": false,
+        "editable": true
+      },
+      "actions": [
+        {
+          "type": "http",
+          "purpose": "upload_patient_report",
+          "tool_name": "upload_patient_report",
+          "url": "$fhir_gql_url/diagnostic-reports/",
+          "method": "POST",
+          "validation_schema": "admin_upload_report_schema",
+          "retryable": false,
+          "timeout_ms": 15000
+        }
+      ]
+    },
+    {
+      "sequence_number": 5,
+      "id": "attach_document",
+      "name": "Attach Document",
+      "step_type": "form",
+      "description": "Links the uploaded file to the encounter and test order as a DocumentReference, so it also appears in the Documents tab — same as the two-resource write the doctor dashboard's upload dialog does in one click.",
+      "context": {
+        "inputs": {
+          "patient_id": { "type": "integer", "source": "workflow" },
+          "encounter_id": { "type": "integer", "source": "workflow" },
+          "service_request_id": { "type": "integer", "source": "workflow" },
+          "diagnostic_report_id": { "type": "integer", "source": "workflow" },
+          "report_file": { "type": "object", "source": "workflow" }
+        },
+        "outputs": {
+          "document_reference_id": {
+            "type": "integer",
+            "resource": "DocumentReference",
+            "field": "id"
+          }
+        }
+      },
+      "ui": {
+        "schema": "doctor_attach_document_form",
+        "mode": "create",
+        "prefill": false,
+        "editable": true
+      },
+      "actions": [
+        {
+          "type": "http",
+          "purpose": "create_document_reference",
+          "tool_name": "create_document_reference",
+          "url": "$fhir_gql_url/document-references/",
+          "method": "POST",
+          "validation_schema": "doctor_create_document_reference_schema",
+          "retryable": false,
+          "timeout_ms": 15000
+        }
+      ]
+    }
+  ]
+}

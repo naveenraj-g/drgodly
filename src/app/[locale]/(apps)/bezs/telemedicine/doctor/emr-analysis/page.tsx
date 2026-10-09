@@ -46,6 +46,8 @@ export default async function EmrAnalysisPage() {
 
   return (
     <EMRChatContainer
+      // Keyed by session identity — see doctor/emr/page.tsx for why.
+      key="new"
       userId={userId}
       orgId={orgId}
       basePath="/bezs/telemedicine/doctor/emr-analysis"

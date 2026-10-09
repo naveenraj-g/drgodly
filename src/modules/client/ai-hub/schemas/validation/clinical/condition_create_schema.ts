@@ -60,13 +60,6 @@ export const conditionCreateSchema = z
     category_system: z.preprocess(toOptionalStr, z.string().optional()),
     category_display: z.preprocess(toOptionalStr, z.string().optional()),
     category_text: z.preprocess(toOptionalStr, z.string().optional()),
-
-    // Timeline
-    onset_datetime: z.preprocess(toOptionalStr, z.string().optional()),
-    recorded_date: z.preprocess(toOptionalStr, z.string().optional()),
-
-    // Clinical notes
-    note_text: z.preprocess(toOptionalStr, z.string().optional()),
   })
   .transform((d) => ({
     user_id: d.user_id,
@@ -110,10 +103,4 @@ export const conditionCreateSchema = z
           },
         ]
       : undefined,
-
-    onset_datetime: d.onset_datetime,
-    recorded_date: d.recorded_date,
-
-    // Note as list
-    note: d.note_text ? [{ text: d.note_text }] : undefined,
   }));

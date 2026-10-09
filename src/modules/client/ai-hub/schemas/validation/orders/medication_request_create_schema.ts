@@ -101,9 +101,6 @@ export const medicationRequestCreateSchema = z
       toOptionalInt,
       z.number().int().positive().optional(),
     ),
-
-    // Timing
-    authored_on: z.preprocess(toOptionalStr, z.string().optional()),
   })
   .transform((d) => ({
     user_id: d.user_id,
@@ -132,9 +129,6 @@ export const medicationRequestCreateSchema = z
       ? `Practitioner/${d.requester_ref_id}`
       : undefined,
 
-    // Authored on datetime
-    authored_on: d.authored_on,
-
     // Dosage instructions
     dosage_instruction:
       d.dosage_text || d.route_code
@@ -148,17 +142,14 @@ export const medicationRequestCreateSchema = z
           ]
         : undefined,
 
-    // Dispense request
-    dispense_request:
-      d.dispense_quantity !== undefined ||
-      d.dispense_unit ||
-      d.repeats !== undefined
-        ? {
-            quantity_value: d.dispense_quantity,
-            quantity_unit: d.dispense_unit,
-            number_of_repeats_allowed: d.repeats,
-          }
-        : undefined,
+    // Dispensing — flat top-level fields, not nested under a "dispense_request"
+    // object. The real API schema (see
+    // src/modules/entities/schemas/medication-request/input.ts) has no
+    // dispense_request field at all; sending it 422s with "Extra inputs are
+    // not permitted".
+    dispense_quantity_value: d.dispense_quantity,
+    dispense_quantity_unit: d.dispense_unit,
+    dispense_number_of_repeats_allowed: d.repeats,
 
     // Reason reference (links to Condition from session)
     reason_reference: d.condition_id

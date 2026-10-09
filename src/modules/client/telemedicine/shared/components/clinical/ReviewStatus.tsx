@@ -102,6 +102,33 @@ export function ReviewBadge({
   );
 }
 
+// ── AI-generated marker (never doctor-edited) ────────────────────────────────
+
+/**
+ * Fixed "AI Generated" marker for content the doctor never edits at all —
+ * unlike ReviewBadge/ReviewBanner, which key off `Consultation.published_at`
+ * and disappear once a doctor approves the note. Doctor review only ever
+ * touches the SOAP note; the assessment plan (Assessment tab, Treatment
+ * Engine) is agent output start to finish, with no doctor-edit path, so it
+ * needs a marker that stays up regardless of the consultation's publish
+ * state rather than one that reads as "reviewed" once the SOAP note is.
+ */
+export function AiGeneratedBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "gap-1 border-amber-300 bg-amber-50 text-[10px] font-normal text-amber-900",
+        "dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200",
+        className,
+      )}
+    >
+      <Sparkles className="size-2.5" />
+      AI Generated
+    </Badge>
+  );
+}
+
 // ── Banner ────────────────────────────────────────────────────────────────────
 
 interface ReviewBannerProps {

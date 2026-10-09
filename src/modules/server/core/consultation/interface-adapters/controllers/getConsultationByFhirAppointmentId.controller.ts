@@ -18,7 +18,7 @@ function presenter(data: TConsultationResponse | null) {
 export type TGetConsultationByFhirAppointmentIdControllerOutput = ReturnType<typeof presenter>;
 
 /**
- * @param input - Raw payload ({ fhir_appointment_id }).
+ * @param input - Raw payload ({ fhir_appointment_id, org_id }).
  * @returns Linked Consultation or null.
  * @throws InputParseError on schema validation failure.
  */
@@ -29,6 +29,9 @@ export async function getConsultationByFhirAppointmentIdController(
     await GetConsultationByFhirAppointmentIdValidationSchema.safeParseAsync(input);
   if (!parsed.success) throw new InputParseError(parsed.error);
   return presenter(
-    await getConsultationByFhirAppointmentIdUseCase(parsed.data.fhir_appointment_id),
+    await getConsultationByFhirAppointmentIdUseCase(
+      parsed.data.fhir_appointment_id,
+      parsed.data.org_id,
+    ),
   );
 }

@@ -1,6 +1,6 @@
 {
   "id": "add_consultation_extractions",
-  "name": "Add Consultation Extractions",
+  "name": "Add Clinical Records",
   "description": "Practitioner selects one of their fulfilled appointments, the encounter is verified automatically, then records any combination of clinical extractions: Condition, Observation, Medication Request, and Service Request.",
   "version": "2.0.0",
   "tags": [
@@ -90,7 +90,7 @@
           "type": "http",
           "purpose": "fetch_encounter",
           "tool_name": "get_encounter_for_appointment",
-          "url": "$fhir_gql_url/encounters/?appointment_id=$appointment_id&limit=1",
+          "url": "$fhir_gql_url/encounters/?appointment_id=$appointment_id&org_id=$org_id&limit=1",
           "method": "GET",
           "validation_schema": "select_appointment_schema",
           "retryable": false,
@@ -149,7 +149,7 @@
           "description": "Fetch existing conditions for this encounter to display alongside the form.",
           "context_key": "existing_conditions",
           "tool_name": "list_existing_conditions",
-          "url": "$fhir_gql_url/conditions/?encounter_id=$encounter_id",
+          "url": "$fhir_gql_url/conditions/?encounter_id=$encounter_id&org_id=$org_id",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -232,7 +232,7 @@
           "description": "Fetch existing observations for this encounter.",
           "context_key": "existing_observations",
           "tool_name": "list_existing_observations",
-          "url": "$fhir_gql_url/observations/?encounter_id=$encounter_id",
+          "url": "$fhir_gql_url/observations/?encounter_id=$encounter_id&org_id=$org_id",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -307,7 +307,7 @@
           "description": "Fetch existing medication requests for this encounter.",
           "context_key": "existing_medication_requests",
           "tool_name": "list_existing_medication_requests",
-          "url": "$fhir_gql_url/medication-requests/?encounter_id=$encounter_id",
+          "url": "$fhir_gql_url/medication-requests/?encounter_id=$encounter_id&org_id=$org_id",
           "method": "GET",
           "timeout_ms": 8000
         },
@@ -374,7 +374,7 @@
           "description": "Fetch existing service requests for this encounter.",
           "context_key": "existing_service_requests",
           "tool_name": "list_existing_service_requests",
-          "url": "$fhir_gql_url/service-requests/?encounter_id=$encounter_id",
+          "url": "$fhir_gql_url/service-requests/?encounter_id=$encounter_id&org_id=$org_id",
           "method": "GET",
           "timeout_ms": 8000
         },

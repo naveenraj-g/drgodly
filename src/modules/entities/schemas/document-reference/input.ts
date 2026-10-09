@@ -205,6 +205,9 @@ export type TUpdateDocumentReference = z.infer<typeof UpdateDocumentReferenceVal
 // ── List / getById / delete ───────────────────────────────────────────────────
 
 export const ListDocumentReferencesValidationSchema = z.object({
+  patient_id: z.number().int().optional(),
+  encounter_id: z.number().int().optional(),
+  user_id: z.string().optional(),
   org_id: z.string().optional(),
   limit: z.number().int().min(1).max(200).optional(),
   offset: z.number().int().min(0).optional(),

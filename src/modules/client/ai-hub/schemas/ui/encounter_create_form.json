@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 2: Open Encounter" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

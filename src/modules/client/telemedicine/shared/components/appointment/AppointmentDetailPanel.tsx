@@ -217,15 +217,14 @@ export function AppointmentDetailPanel({
   /* Reschedule chain — both links are set by the reschedule flow. */
   const hasRescheduleChain = Boolean(
     appointment.previous_appointment_id ??
-      appointment.originating_appointment_id,
+    appointment.originating_appointment_id,
   );
 
   const hasLinks = Boolean(
     appointment.encounter_id ??
-      appointment.based_on?.length ??
-      appointment.slot?.length ??
-      appointment.account?.length ??
-      appointment.replaces?.length,
+    appointment.based_on?.length ??
+    appointment.account?.length ??
+    appointment.replaces?.length,
   );
 
   return (
@@ -257,8 +256,19 @@ export function AppointmentDetailPanel({
           label="Type"
           value={
             appointment.appointment_type_display ??
-            appointment.appointment_type_text ??
-            undefined
+            appointment.appointment_type_text ? (
+              <span
+                className="block truncate"
+                title={
+                  appointment.appointment_type_display ??
+                  appointment.appointment_type_text ??
+                  undefined
+                }
+              >
+                {appointment.appointment_type_display ??
+                  appointment.appointment_type_text}
+              </span>
+            ) : undefined
           }
         />
         <DetailField
@@ -419,6 +429,11 @@ export function AppointmentDetailPanel({
                       participant.reference_type ??
                       "—"}
                   </span>
+                  {participant.reference_id != null && (
+                    <span className="font-mono text-xs text-muted-foreground">
+                      ID {participant.reference_id}
+                    </span>
+                  )}
                   {participant.reference_type && (
                     <Badge variant="secondary" className="text-[10px]">
                       {participant.reference_type}
@@ -433,16 +448,6 @@ export function AppointmentDetailPanel({
                       {role}
                     </Badge>
                   ))}
-                  {participant.status && (
-                    <span className="text-xs text-muted-foreground">
-                      {participant.status}
-                    </span>
-                  )}
-                  {participant.required && (
-                    <span className="text-xs text-muted-foreground">
-                      required
-                    </span>
-                  )}
                 </div>
               ))}
             </div>
@@ -536,15 +541,6 @@ export function AppointmentDetailPanel({
                   }
                 />
               ))}
-              {(appointment.slot ?? []).map((ref) => (
-                <ReferenceChip
-                  key={`slot-${ref.id}`}
-                  label={
-                    ref.reference_display ??
-                    `${ref.reference_type}/${ref.reference_id}`
-                  }
-                />
-              ))}
               {(appointment.account ?? []).map((ref) => (
                 <ReferenceChip
                   key={`account-${ref.id}`}
@@ -584,17 +580,15 @@ export function AppointmentDetailPanel({
 
       {/* ── Audit ────────────────────────────────────────────────────────── */}
       <Separator />
-      <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-muted-foreground md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-muted-foreground">
         <DetailField
           label="Created"
           value={formatDateTime(appointment.created_at)}
         />
-        <DetailField label="Created by" value={appointment.created_by} />
         <DetailField
           label="Updated"
           value={formatDateTime(appointment.updated_at)}
         />
-        <DetailField label="Updated by" value={appointment.updated_by} />
       </div>
     </div>
   );
@@ -618,7 +612,11 @@ function DetailField({
 }) {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <div>
+    // min-w-0: a grid item won't shrink below its content's intrinsic width
+    // by default, which silently defeats any `truncate` a caller puts on
+    // the value (e.g. Type) at narrower viewports — this is what lets that
+    // actually take effect instead of overflowing the cell.
+    <div className="min-w-0">
       <p className="text-xs text-muted-foreground">{label}</p>
       <div className="mt-0.5 text-sm font-medium">{value}</div>
     </div>

@@ -14,7 +14,7 @@
           {
             "id": "form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Step 6: Add Communication Languages" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Step 6: Add Communication Languages" }, "usageHint": "h3" }
           },
           {
             "id": "form-subtitle",

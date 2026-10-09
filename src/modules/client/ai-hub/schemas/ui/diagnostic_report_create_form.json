@@ -14,7 +14,7 @@
           {
             "id": "dr-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Step 1: Create Diagnostic Report" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Step 1: Create Diagnostic Report" }, "usageHint": "h3" }
           },
           {
             "id": "dr-subtitle",

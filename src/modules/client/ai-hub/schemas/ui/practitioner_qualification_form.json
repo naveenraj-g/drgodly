@@ -14,7 +14,7 @@
           {
             "id": "form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Step 5: Add Qualifications" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Step 5: Add Qualifications" }, "usageHint": "h3" }
           },
           {
             "id": "form-subtitle",

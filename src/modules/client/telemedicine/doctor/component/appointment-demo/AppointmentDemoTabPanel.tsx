@@ -1,9 +1,8 @@
 /**
  * @file AppointmentDemoTabPanel.tsx
  * @description One tab's fully server-driven appointments table for the
- * appointment-demo page — owns its own useServerDataTable instance and
- * useQuery fetch, exactly like DoctorAppointmentsTable does for the real
- * Appointments page: server-side pagination (10 rows initially), sorting,
+ * doctor's "My Appointments" page — owns its own useServerDataTable instance
+ * and useQuery fetch: server-side pagination (10 rows initially), sorting,
  * and every filter (patient search, status, date range) forwarded to
  * listAppointmentsAction. No client-side filtering/sorting/pagination.
  * @layer client/telemedicine/doctor/component/appointment-demo
@@ -11,15 +10,18 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { DateRange } from "react-day-picker";
 import { startOfDayIST, endOfDayIST } from "@/modules/shared/helper";
 import {
-  DataTable,
+  DataTableWithViews,
   DataTableToolbar,
   useServerDataTable,
   useDebouncedValue,
 } from "@/modules/client/shared/components/tables";
+import { AppointmentDetailPanel } from "@/modules/client/telemedicine/shared/components/appointment/AppointmentDetailPanel";
+import { DoctorAppointmentCard } from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentCard";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import {
   createAppointmentDemoColumns,
@@ -32,7 +34,7 @@ import {
   type DemoTabPageResult,
 } from "./demoQueries";
 
-/** Rows per page on first load — kept small since this is a redesign prototype. */
+/** Rows per page on first load. */
 const INITIAL_PAGE_SIZE = 10;
 
 /** Default `_sort` token per tab — ascending for the forward-looking tabs, descending (most recent first) for the backward-looking ones. */
@@ -53,6 +55,15 @@ interface AppointmentDemoTabPanelProps {
   initialData?: DemoTabPageResult;
   enableStatusFilter: boolean;
   enableDateFilter: boolean;
+  /**
+   * The right-rail mini calendar's picked range — two-way synced with this
+   * tab's own "Time" column filter (see the sync effects below). Only
+   * meaningful when enableDateFilter is true; inert on "Today", which is
+   * fixed to today by definition.
+   */
+  calendarRange?: DateRange | null;
+  /** Reports this tab's own column-filter changes back up to the calendar. */
+  onCalendarRangeChange?: (range: DateRange | null) => void;
 }
 
 /**
@@ -68,6 +79,8 @@ export function AppointmentDemoTabPanel({
   initialData,
   enableStatusFilter,
   enableDateFilter,
+  calendarRange = null,
+  onCalendarRangeChange,
 }: AppointmentDemoTabPanelProps) {
   // Columns don't need row data to be built (patients are injected via the
   // `patients` option, not read from a closure), so a stable empty array
@@ -96,7 +109,22 @@ export function AppointmentDemoTabPanel({
     data: rows,
     pageCount,
     initialPageSize: INITIAL_PAGE_SIZE,
-    initialSorting: [{ id: "time", desc: DEFAULT_SORT[tab].startsWith("-") }],
+    // Seeds both headers' chevrons on load, same as DoctorAppointmentsTable:
+    // Date keeps this tab's own natural direction (soonest-first for Today/
+    // Upcoming, most-recent-first for Past/Cancelled), Time always ascending
+    // (chronological within a day) regardless of tab.
+    initialSorting: [
+      { id: "date", desc: DEFAULT_SORT[tab].startsWith("-") },
+      { id: "time", desc: false },
+    ],
+    // Reason/Notes is secondary detail — hidden by default to keep the table
+    // compact, same treatment DoctorAppointmentsTable gives Type/Duration;
+    // still available via the toolbar's column-visibility toggle.
+    initialColumnVisibility: { reason: false },
+    // Every appointment carries detail worth expanding into (cancellation
+    // reason, notes, reschedule chain, full participant list) — matches
+    // DoctorAppointmentsTable, which excludes no row either.
+    getRowCanExpand: () => true,
   });
 
   // Patient name search — debounced so typing doesn't fire a request per keystroke.
@@ -111,7 +139,7 @@ export function AppointmentDemoTabPanel({
       ? statusFilter.join(",")
       : undefined;
 
-  const dateFilterRaw = state.columnFilters.find((f) => f.id === "time")?.value as
+  const dateFilterRaw = state.columnFilters.find((f) => f.id === "date")?.value as
     | [number | undefined, number | undefined]
     | undefined;
   const startFrom =
@@ -123,10 +151,51 @@ export function AppointmentDemoTabPanel({
       ? endOfDayIST(dateFilterRaw[1]).toISOString()
       : undefined;
 
+  /*
+   * Two-way sync with the right-rail mini calendar. The column filter above
+   * is this tab's single source of truth; these two effects just mirror it
+   * with the calendar's shared range state one level up in AppointmentDemo.
+   * A ref tracks the last synced value *by content* (not object identity),
+   * so pushing a value down right after it was reported up (or vice versa)
+   * sees its own echo and stops instead of ping-ponging forever.
+   */
+  const lastSyncedRangeKey = useRef("");
+  const [dateFrom, dateTo] = dateFilterRaw ?? [];
+
+  // This tab's own filter changed (doctor used the column's date picker, or
+  // the effect below just wrote one in) — report it up to the calendar.
+  useEffect(() => {
+    if (!enableDateFilter) return;
+    const key = `${dateFrom ?? ""}-${dateTo ?? ""}`;
+    if (key === lastSyncedRangeKey.current) return;
+    lastSyncedRangeKey.current = key;
+    onCalendarRangeChange?.(
+      dateFrom || dateTo
+        ? { from: dateFrom ? new Date(dateFrom) : undefined, to: dateTo ? new Date(dateTo) : undefined }
+        : null,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableDateFilter, dateFrom, dateTo]);
+
+  // The calendar's range changed (doctor picked/cleared a date there) —
+  // mirror it into this tab's own column filter.
+  useEffect(() => {
+    if (!enableDateFilter) return;
+    const from = calendarRange?.from?.getTime();
+    const to = calendarRange?.to?.getTime();
+    const key = `${from ?? ""}-${to ?? ""}`;
+    if (key === lastSyncedRangeKey.current) return;
+    lastSyncedRangeKey.current = key;
+    table.getColumn("date")?.setFilterValue(from || to ? [from, to] : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableDateFilter, calendarRange?.from, calendarRange?.to]);
+
   const sort = useMemo(() => {
     if (state.sorting.length === 0) return DEFAULT_SORT[tab];
     const [{ id, desc }] = state.sorting;
-    if (id !== "time") return DEFAULT_SORT[tab];
+    // Date and Time are separate columns but both derive from the same
+    // `start` timestamp, so either one sorts the same underlying field.
+    if (id !== "date" && id !== "time") return DEFAULT_SORT[tab];
     return desc ? "-date" : "date";
   }, [state.sorting, tab]);
 
@@ -180,16 +249,31 @@ export function AppointmentDemoTabPanel({
   }, [data, state.pagination.pageSize]);
 
   return (
-    <DataTable
+    <DataTableWithViews
       table={table}
       loading={isFetching}
+      toolbar={<DataTableToolbar table={table} />}
       emptyState={
         <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
           {emptyMessage}
         </div>
       }
-    >
-      <DataTableToolbar table={table} showViewOptions={false} />
-    </DataTable>
+      renderSubComponent={(row) => (
+        <AppointmentDetailPanel row={row} perspective="doctor" />
+      )}
+      renderCard={(row) => (
+        <DoctorAppointmentCard
+          row={row}
+          callbacks={callbacks}
+          patient={row.original.subject_id != null ? patients[row.original.subject_id] : null}
+        />
+      )}
+      // Pushed up a breakpoint from the usual 1/2/3/4 ladder: this page's
+      // right rail (calendar + overview) eats a fixed chunk of width, so a
+      // viewport just past the ordinary "4-up" threshold can still render
+      // each card cramped on a smaller/lower-res secondary display even
+      // though it reads fine on a larger primary one.
+      gridClassName="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+    />
   );
 }

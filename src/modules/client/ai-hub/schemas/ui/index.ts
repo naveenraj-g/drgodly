@@ -13,6 +13,7 @@ import patientLinkForm from "./patient_link_form.json";
 import vitalsDashboard from "./vitals_dashboard.json";
 import vitalsTable from "./vitals_table.json";
 import selectPatientChartReviewForm from "./select_patient_chart_review_form.json";
+import selectPatientVitalsForm from "./select_patient_vitals_form.json";
 import patientChartReviewDashboard from "./patient_chart_review_dashboard.json";
 import appointmentCreateForm from "./appointment_create_form.json";
 import appointmentPickPractitionerForm from "./appointment_pick_practitioner_form.json";
@@ -65,6 +66,10 @@ import chooseExtractionsForm from "./choose_extractions_form.json";
 import adminSelectPatientForm from "./admin_select_patient_form.json";
 import adminSelectPatientAppointmentForm from "./admin_select_patient_appointment_form.json";
 import adminUploadReportForm from "./admin_upload_report_form.json";
+import doctorSelectPatientForm from "./doctor_select_patient_form.json";
+import doctorSelectPatientAppointmentForm from "./doctor_select_patient_appointment_form.json";
+import doctorUploadReportForm from "./doctor_upload_report_form.json";
+import doctorAttachDocumentForm from "./doctor_attach_document_form.json";
 import addConditionsForm from "./add_conditions_form.json";
 import addObservationsForm from "./add_observations_form.json";
 import addMedicationRequestsForm from "./add_medication_requests_form.json";
@@ -87,6 +92,7 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   vitals_dashboard: vitalsDashboard,
   vitals_table: vitalsTable,
   select_patient_chart_review_form: selectPatientChartReviewForm,
+  select_patient_vitals_form: selectPatientVitalsForm,
   patient_chart_review_dashboard: patientChartReviewDashboard,
   appointment_create_form: appointmentCreateForm,
   appointment_pick_practitioner_form: appointmentPickPractitionerForm,
@@ -139,6 +145,10 @@ export const UI_SCHEMA_REGISTRY: Record<string, unknown> = {
   admin_select_patient_form: adminSelectPatientForm,
   admin_select_patient_appointment_form: adminSelectPatientAppointmentForm,
   admin_upload_report_form: adminUploadReportForm,
+  doctor_select_patient_form: doctorSelectPatientForm,
+  doctor_select_patient_appointment_form: doctorSelectPatientAppointmentForm,
+  doctor_upload_report_form: doctorUploadReportForm,
+  doctor_attach_document_form: doctorAttachDocumentForm,
   add_conditions_form: addConditionsForm,
   add_observations_form: addObservationsForm,
   add_medication_requests_form: addMedicationRequestsForm,

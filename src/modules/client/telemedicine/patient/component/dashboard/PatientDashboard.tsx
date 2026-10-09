@@ -27,6 +27,7 @@ import { StatCard } from "./StatCard";
 import { AppointmentBarChart, type AppointmentBarChartData } from "./AppointmentBarChart";
 import { AppointmentSummaryChart } from "./AppointmentSummaryChart";
 import { RecentAppointmentsTable, type DashboardAppointment } from "./RecentAppointmentsTable";
+import { VitalsInsights } from "@/modules/client/telemedicine/shared/components/vitals/VitalsInsights";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -39,6 +40,8 @@ interface PatientDashboardProps {
    * Stats and chart data are derived from this array.
    */
   appointments: TAppointmentResponse[];
+  /** FHIR Patient.id of the logged-in patient — scopes the Vitals card. */
+  patientId: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -106,7 +109,7 @@ function buildMonthlyData(
  * @param userName - Authenticated user's display name.
  * @param appointments - Raw appointment list from `getMyAppointmentsAction`.
  */
-export function PatientDashboard({ userName, appointments }: PatientDashboardProps) {
+export function PatientDashboard({ userName, appointments, patientId }: PatientDashboardProps) {
   /* ── Counts ── */
   const stats = useMemo(() => {
     const total = appointments.length;
@@ -219,6 +222,14 @@ export function PatientDashboard({ userName, appointments }: PatientDashboardPro
           <RecentAppointmentsTable appointments={recentAppointments} />
         </div>
       </div>
+
+      {/* Vitals — kept outside the ordered grid above (not one more item
+          competing for an order slot) so it's reliably the last thing on the
+          page at every breakpoint, same as it reads in the design. */}
+      <VitalsInsights
+        patientId={patientId}
+        emptyPatientMessage="No vitals recorded yet."
+      />
     </div>
   );
 }

@@ -1,17 +1,15 @@
 /**
  * @file demoQueries.ts
- * @description TanStack Query key factory + fetchers for the appointment-demo
- * page: one paginated/filtered list per tab (Today/Upcoming/Past/Cancelled),
- * a lightweight total-only count per tab (for the tab-strip labels), a
- * same-day summary for Today's stat cards/donut, and the mini calendar's
- * month highlight dates.
+ * @description TanStack Query key factory + fetchers for the doctor
+ * appointments page: one paginated/filtered list per tab (Today/Upcoming/
+ * Past/Cancelled), a lightweight total-only count per tab (for the tab-strip
+ * labels), a same-day summary for Today's stat cards/donut, and the mini
+ * calendar's month highlight dates.
  * @layer client/telemedicine/doctor/component/appointment-demo
  *
- * Mirrors appointmentQueries.ts's shape (key factory + a fetcher that calls
- * the same server action page.tsx uses for its SSR seed) so this page follows
- * the same "SSR seeds the default query, useQuery re-fetches on the client,
- * every filter/sort/page is forwarded to the server" pattern as the real
- * DoctorAppointmentsTable — see that file's fetchDoctorAppointments.
+ * page.tsx SSR-fetches the "Today" tab's first page via fetchDemoTabPage and
+ * hands it to AppointmentDemo as a TanStack Query seed; every other fetch —
+ * other tabs, any filter/sort/page change — goes through the fetchers here.
  */
 
 import { addDays } from "date-fns";
@@ -32,7 +30,7 @@ import { listAppointmentsAction } from "@/modules/server/presentation/actions/ap
 import { getPatientByIdAction } from "@/modules/server/presentation/actions/patient";
 import { getConsultationByFhirAppointmentIdAction } from "@/modules/server/presentation/actions/consultation/core.actions";
 import { doctorAppointmentKeys } from "@/modules/client/telemedicine/doctor/component/appointments/list/appointmentQueries";
-import { isTelemedicine, toCoarseStatus, type CoarseStatus } from "./appointmentDisplay";
+import { isTelemedicine } from "./appointmentDisplay";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +49,12 @@ export interface DemoTodaySummary {
   telemedicine: number;
   inPerson: number;
   pendingNotesCount: number;
-  statusBreakdown: Record<CoarseStatus, number>;
+  /**
+   * Count per *raw* FHIR status code (not a coarse bucket) — the donut shows
+   * exactly these, same precision as the table's own status badges, so
+   * e.g. "pending" and "booked" never collapse into one misleading slice.
+   */
+  statusBreakdown: Record<string, number>;
 }
 
 /** Everything a tab's server query needs — pagination, sort, and whichever
@@ -90,8 +93,12 @@ export const appointmentDemoKeys = {
     [...appointmentDemoKeys.all, "appointment-demo-count", params] as const,
   todaySummary: (params: { practitionerId: number; orgId: string | null }) =>
     [...appointmentDemoKeys.all, "appointment-demo-today-summary", params] as const,
-  calendar: (params: { practitionerId: number; orgId: string | null }) =>
-    [...appointmentDemoKeys.all, "appointment-demo-calendar", params] as const,
+  calendar: (params: { practitionerId: number; orgId: string | null; month: Date }) =>
+    [
+      ...appointmentDemoKeys.all,
+      "appointment-demo-calendar",
+      { practitionerId: params.practitionerId, orgId: params.orgId, month: formatApiDate(params.month) },
+    ] as const,
 };
 
 // ── Patient enrichment ────────────────────────────────────────────────────────
@@ -244,14 +251,10 @@ export async function fetchDemoTodaySummary(params: {
 
   const telemedicineCount = appointments.filter(isTelemedicine).length;
 
-  const statusBreakdown: Record<CoarseStatus, number> = {
-    completed: 0,
-    "in-progress": 0,
-    scheduled: 0,
-    cancelled: 0,
-  };
+  const statusBreakdown: Record<string, number> = {};
   appointments.forEach((a) => {
-    statusBreakdown[toCoarseStatus(a.status)] += 1;
+    const code = a.status ?? "unknown";
+    statusBreakdown[code] = (statusBreakdown[code] ?? 0) + 1;
   });
 
   const fulfilledIds = appointments.filter((a) => a.status === "fulfilled").map((a) => a.id);
@@ -268,21 +271,22 @@ export async function fetchDemoTodaySummary(params: {
 
 // ── Calendar month highlight ─────────────────────────────────────────────────
 
-/** Fetches every distinct calendar day this month that has an appointment. */
+/** Fetches every distinct calendar day in the given month that has an appointment. */
 export async function fetchDemoCalendarMonth({
   practitionerId,
   orgId,
+  month,
 }: {
   practitionerId: number;
   orgId: string | null;
+  month: Date;
 }): Promise<Date[]> {
-  const now = new Date();
   const [page] = await listAppointmentsAction({
     payload: {
       practitioner_id: practitionerId,
       ...(orgId ? { org_id: orgId } : {}),
-      start_from: startOfMonthIST(now).toISOString(),
-      start_to: endOfMonthIST(now).toISOString(),
+      start_from: startOfMonthIST(month).toISOString(),
+      start_to: endOfMonthIST(month).toISOString(),
       limit: 200,
       offset: 0,
       sort: "date",

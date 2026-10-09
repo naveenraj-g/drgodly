@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 2: Configure Slot Generation" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

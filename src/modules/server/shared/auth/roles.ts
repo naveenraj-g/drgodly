@@ -27,6 +27,14 @@
 export const ROLES = {
   /** Full administrative access to the telemedicine application. */
   "telemedicine-admin": ["application-admin"],
+  /**
+   * Staff who may see records across patients within their own org — doctors
+   * and admins. Used to gate the org-wide ("omit user_id") branch of
+   * patient-authored resource lists (AI Intake, AI Consultation) so a
+   * non-staff caller can never see another patient's records by supplying
+   * or omitting user_id on a direct server-action call.
+   */
+  "telemedicine-staff": ["application-admin", "doctor"],
 } as const;
 
 /** Union of all defined permission group keys. */

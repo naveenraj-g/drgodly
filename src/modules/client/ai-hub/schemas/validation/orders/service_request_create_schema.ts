@@ -68,12 +68,6 @@ export const serviceRequestCreateSchema = z
       toOptionalInt,
       z.number().int().positive().optional(),
     ),
-
-    // Timing
-    authored_on: z.preprocess(toOptionalStr, z.string().optional()),
-
-    // Notes
-    note_text: z.preprocess(toOptionalStr, z.string().optional()),
   })
   .transform((d) => ({
     user_id: d.user_id,
@@ -98,9 +92,6 @@ export const serviceRequestCreateSchema = z
       ? `Practitioner/${d.requester_ref_id}`
       : undefined,
 
-    // Authored on datetime
-    authored_on: d.authored_on,
-
     // Category array
     category:
       d.category_code || d.category_text
@@ -113,7 +104,4 @@ export const serviceRequestCreateSchema = z
             },
           ]
         : undefined,
-
-    // Notes array
-    note: d.note_text ? [{ text: d.note_text }] : undefined,
   }));

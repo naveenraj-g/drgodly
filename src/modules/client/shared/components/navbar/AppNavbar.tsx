@@ -17,6 +17,7 @@ type TUser = {
   email: string;
   image?: string | null;
   username?: string | null;
+  activeOrganizationId?: string | null;
 };
 
 const AppNavbar = ({ user, apps }: { user: TUser; apps: unknown[] }) => {
@@ -48,7 +49,7 @@ const AppNavbar = ({ user, apps }: { user: TUser; apps: unknown[] }) => {
             variant="outline"
           />
           <Separator orientation="vertical" className="h-6!" />
-          <CommandSearch apps={apps} user={user} />
+          <CommandSearch orgId={user.activeOrganizationId} />
           {navbarBreadcrumbs && (
             <>
               <Separator orientation="vertical" className="h-6!" />

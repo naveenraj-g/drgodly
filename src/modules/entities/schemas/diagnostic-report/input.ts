@@ -145,6 +145,7 @@ export type TUpdateDiagnosticReport = z.infer<typeof UpdateDiagnosticReportValid
 export const ListDiagnosticReportsValidationSchema = z.object({
   status: z.string().optional(),
   patient_id: z.number().int().optional(),
+  encounter_id: z.number().int().optional(),
   issued_from: z.string().optional(),
   issued_to: z.string().optional(),
   user_id: z.string().optional(),

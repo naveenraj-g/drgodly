@@ -33,6 +33,7 @@ import {
 } from "@/modules/client/telemedicine/doctor/component/clinical-records/IntakeReportFields";
 import { unwrapSoapNote } from "@/modules/client/telemedicine/doctor/component/clinical-records/clinicalDraft";
 import {
+  AiGeneratedBadge,
   isDoctorApproved,
   ReviewBadge,
   ReviewBanner,
@@ -277,6 +278,10 @@ export function AssessmentTab({ plan }: { plan: Record<string, unknown> | undefi
 
   return (
     <div className="space-y-4 text-sm">
+      {/* Always shown, independent of the consultation's publish state — the
+          doctor's review only ever edits the SOAP note, never this plan. */}
+      <AiGeneratedBadge />
+
       {riskLevel && (
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">

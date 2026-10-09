@@ -267,8 +267,17 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
     });
 
     try {
-      const row = await prisma.consultation.update({
-        where: { fhir_appointment_id: dto.fhir_appointment_id },
+      /* updateMany's where can carry org_id alongside fhir_appointment_id
+         (update's where cannot — it needs a unique-constraint match). A
+         count of 0 means either the appointment doesn't exist or it belongs
+         to a different org, so a doctor in one org can't overwrite another
+         org's SOAP note/clinical data by guessing a fhir_appointment_id —
+         the same defense-in-depth already used by getByFhirAppointmentId. */
+      const { count } = await prisma.consultation.updateMany({
+        where: {
+          fhir_appointment_id: dto.fhir_appointment_id,
+          ...(dto.org_id ? { org_id: dto.org_id } : {}),
+        },
         data: {
           service_requests: dto.service_requests
             ? pj(dto.service_requests)
@@ -290,6 +299,14 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
           published_at: dto.mark_published ? new Date() : undefined,
           published_by: dto.mark_published ? dto.published_by : undefined,
         },
+      });
+      if (count === 0) {
+        throw new NotFoundError(
+          `Consultation for appointment ${dto.fhir_appointment_id} not found`,
+        );
+      }
+      const row = await prisma.consultation.findUniqueOrThrow({
+        where: { fhir_appointment_id: dto.fhir_appointment_id },
       });
 
       const result = toDto(row);
@@ -338,8 +355,16 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
     });
 
     try {
-      const row = await prisma.consultation.update({
-        where: { fhir_appointment_id: dto.fhir_appointment_id },
+      /* See saveClinicalData for why this is updateMany+refetch rather than
+         update: org_id has to sit in the where clause alongside
+         fhir_appointment_id, and update's where must match a unique
+         constraint on its own. Count 0 means wrong org or no such
+         appointment — same defense-in-depth as getByFhirAppointmentId. */
+      const { count } = await prisma.consultation.updateMany({
+        where: {
+          fhir_appointment_id: dto.fhir_appointment_id,
+          ...(dto.org_id ? { org_id: dto.org_id } : {}),
+        },
         data: dto.clear
           ? {
               /* Leaves the stale draft_* JSON in place — harmless, since every
@@ -358,6 +383,14 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
               draft_conditions: dto.conditions ? pj(dto.conditions) : undefined,
               draft_updated_at: new Date(),
             },
+      });
+      if (count === 0) {
+        throw new NotFoundError(
+          `Consultation for appointment ${dto.fhir_appointment_id} not found`,
+        );
+      }
+      const row = await prisma.consultation.findUniqueOrThrow({
+        where: { fhir_appointment_id: dto.fhir_appointment_id },
       });
 
       const result = toDto(row);
@@ -401,9 +434,23 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
     });
 
     try {
-      const row = await prisma.consultation.update({
-        where: { fhir_appointment_id: dto.fhir_appointment_id },
+      /* See saveClinicalData for why this is updateMany+refetch rather than
+         update — org_id has to sit in the where clause alongside
+         fhir_appointment_id. */
+      const { count } = await prisma.consultation.updateMany({
+        where: {
+          fhir_appointment_id: dto.fhir_appointment_id,
+          ...(dto.org_id ? { org_id: dto.org_id } : {}),
+        },
         data: { status: "ABANDONED" },
+      });
+      if (count === 0) {
+        throw new NotFoundError(
+          `Consultation for appointment ${dto.fhir_appointment_id} not found`,
+        );
+      }
+      const row = await prisma.consultation.findUniqueOrThrow({
+        where: { fhir_appointment_id: dto.fhir_appointment_id },
       });
 
       const result = toDto(row);
@@ -517,10 +564,12 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
    * Returns null when no consultation was provisioned for this appointment.
    *
    * @param fhirAppointmentId - FHIR Appointment.id.
+   * @param orgId - When supplied, a row belonging to a different org is treated as not found.
    * @returns The Consultation record or null.
    */
   async getByFhirAppointmentId(
     fhirAppointmentId: number,
+    orgId?: string,
   ): Promise<TConsultationResponse | null> {
     const startTimeMs = Date.now();
     const operationId = randomUUID();
@@ -536,7 +585,11 @@ export class ConsultationPrismaRepository implements IConsultationRepository {
         where: { fhir_appointment_id: fhirAppointmentId },
       });
 
-      const result = row ? toDto(row) : null;
+      /* fhir_appointment_id is already a unique index, so this can't change
+         which row is found — it's a defense-in-depth check that the row
+         actually belongs to the caller's org before handing it back. */
+      const result =
+        row && (!orgId || row.org_id === orgId) ? toDto(row) : null;
 
       logOperation("success", {
         name: "ConsultationPrismaRepository.getByFhirAppointmentId",

@@ -48,11 +48,14 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   CheckCircle2,
-  CalendarDays,
   ChevronDown,
   ChevronUp,
-  User,
   Loader2,
   Sparkles,
   CloudCheck,
@@ -773,70 +776,71 @@ export function AppointmentReview({
   return (
     // 156
     <div className="flex flex-col h-[calc(100dvh-132px)] gap-0">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-6 py-3 border-b bg-background shrink-0">
-        <div className="flex items-center gap-4">
+      {/* ── Header ──
+          Minimal: one identity line (title dropped its explanatory subtitle —
+          the page speaks for itself), patient/doctor/date collapsed into
+          plain muted text instead of separate icon+separator blocks and a
+          heavy doctor-name Badge, and the two status signals (autosave,
+          unpublished changes) shrunk to icon-only with a tooltip for detail
+          so they read as glanceable state rather than sentences competing
+          with Confirm & Save for width on a laptop-width viewport. */}
+      <div className="flex items-center justify-between gap-3 px-6 py-3 border-b bg-background shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <BackButton />
           <Separator orientation="vertical" className="h-8" />
-          <div>
-            <p className="text-sm font-semibold">Post-Consultation Review</p>
-            <p className="text-xs text-muted-foreground">
-              Review and confirm AI-generated clinical data before saving to
-              records
-            </p>
-          </div>
-          <Separator orientation="vertical" className="h-8" />
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <User className="h-3.5 w-3.5" />
-            <span>{patientName}</span>
-          </div>
-          {appointmentDate && (
-            <>
-              <Separator orientation="vertical" className="h-4" />
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CalendarDays className="h-3.5 w-3.5" />
-                <span>{appointmentDate}</span>
-              </div>
-            </>
-          )}
-          <Badge variant="secondary" className="text-xs">
+          <p className="text-sm font-semibold whitespace-nowrap">
+            Post-Consultation Review
+          </p>
+          <Separator orientation="vertical" className="h-4" />
+          <p className="text-sm text-muted-foreground truncate">
+            {patientName}
+            {appointmentDate && <> · {appointmentDate}</>}
+            {" · "}
             {doctorName}
-          </Badge>
-          {hasUnpublishedChanges && (
-            <Badge
-              variant="outline"
-              className="gap-1 text-xs text-amber-600 border-amber-600/30 bg-amber-500/10"
-            >
-              <AlertTriangle className="h-3 w-3" />
-              Unpublished changes
-            </Badge>
-          )}
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Autosave status — reassures the doctor nothing typed is lost
-              before they explicitly confirm. */}
-          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-            {draftSaveState === "saving" && (
-              <>
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Saving draft…
-              </>
-            )}
-            {draftSaveState === "saved" && lastDraftSavedAt && (
-              <>
-                <CloudCheck className="h-3 w-3 text-emerald-600" />
-                Draft saved{" "}
-                {formatDisplayTime(lastDraftSavedAt)}
-              </>
-            )}
-            {draftSaveState === "error" && (
-              <>
-                <FileClock className="h-3 w-3 text-destructive" />
-                Draft save failed — will retry on next edit
-              </>
-            )}
-          </span>
+        <div className="flex items-center gap-2 shrink-0">
+          {hasUnpublishedChanges && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center justify-center h-7 w-7 rounded-md text-amber-600">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Unpublished changes</TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Autosave status — icon-only; hover for the detail. Reassures
+              the doctor nothing typed is lost before they explicitly confirm,
+              without spelling that out inline every time. */}
+          {draftSaveState !== "idle" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center justify-center h-7 w-7 rounded-md">
+                  {draftSaveState === "saving" && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {draftSaveState === "saved" && (
+                    <CloudCheck className="h-4 w-4 text-emerald-600" />
+                  )}
+                  {draftSaveState === "error" && (
+                    <FileClock className="h-4 w-4 text-destructive" />
+                  )}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {draftSaveState === "saving" && "Saving draft…"}
+                {draftSaveState === "saved" &&
+                  lastDraftSavedAt &&
+                  `Draft saved ${formatDisplayTime(lastDraftSavedAt)}`}
+                {draftSaveState === "error" &&
+                  "Draft save failed — will retry on next edit"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           <Button
             onClick={handleConfirm}
             size="sm"
@@ -848,7 +852,7 @@ export function AppointmentReview({
             ) : (
               <CheckCircle2 className="h-4 w-4" />
             )}
-            {isPending ? "Saving..." : "Confirm & Save to Records"}
+            {isPending ? "Saving..." : "Confirm & Save"}
           </Button>
         </div>
       </div>

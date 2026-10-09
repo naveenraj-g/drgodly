@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 1: Episode of Care (Optional)" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

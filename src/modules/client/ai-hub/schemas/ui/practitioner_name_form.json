@@ -14,7 +14,7 @@
           {
             "id": "form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Step 2: Add Names" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Step 2: Add Names" }, "usageHint": "h3" }
           },
           {
             "id": "form-subtitle",

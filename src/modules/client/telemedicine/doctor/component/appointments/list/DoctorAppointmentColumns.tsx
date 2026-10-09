@@ -74,8 +74,12 @@ function formatTime(isoString: string | null | undefined): string {
   return formatDisplayTime(isoString);
 }
 
-/** @private Maps a FHIR status code to a display label. */
-const STATUS_LABEL: Record<string, string> = {
+/**
+ * Maps a FHIR status code to a display label. Exported so other views that
+ * need the same per-status precision (e.g. TodaysOverviewDonut) show the
+ * identical wording instead of inventing their own.
+ */
+export const STATUS_LABEL: Record<string, string> = {
   proposed: "Proposed",
   pending: "Pending",
   booked: "Booked",
@@ -104,11 +108,15 @@ const STATUS_CLASS: Record<string, string> = {
 
 /**
  * Renders a coloured status Badge for a FHIR appointment status code.
+ * Exported — AppointmentDemoColumns reuses this directly rather than
+ * collapsing into a coarser bucket, so two rows that genuinely differ (e.g.
+ * "pending" vs "booked" — only one of which can join a meeting) don't end up
+ * showing the same badge.
  *
  * @param status - FHIR appointment status string (may be null).
  * @returns Rendered Badge element.
  */
-function AppointmentStatusBadge({
+export function AppointmentStatusBadge({
   status,
 }: {
   status: string | null | undefined;

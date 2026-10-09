@@ -10,8 +10,8 @@
  *                            search input; click one to select.
  *   Right (flex-1)       — Detail cards for the selected appointment:
  *                            IntakeInsights (if pre-appointment intake exists)
- *                            VitalsInsights (vitals trend charts — currently
- *                              sample data, see that file's header)
+ *                            VitalsInsights (vitals trend charts, filterable
+ *                              by range — see that file's header)
  *
  *                          Deliberately just these two — no TreatmentEngine/
  *                          ConsultationInsights/"no clinical data" fallback
@@ -61,7 +61,7 @@ import { DoctorAssistant } from "./DoctorAssistant";
 import { AppointmentDetailActions } from "./AppointmentDetailActions";
 import { PreviousAppointmentDialog } from "./PreviousAppointmentDialog";
 import { IntakeInsights } from "../intake/IntakeInsights";
-import { VitalsInsights } from "./VitalsInsights";
+import { VitalsInsights } from "@/modules/client/telemedicine/shared/components/vitals/VitalsInsights";
 import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
 import { useDoctorStore } from "@/modules/client/telemedicine/doctor/stores/doctor.store";
 import type {
@@ -392,7 +392,7 @@ export function DoctorDashboard({
                     "no intake" (renders null) — otherwise this would sit
                     alone in one half of the row with a blank gap beside it. */}
                 <div className={hasIntake === false ? "@3xl:col-span-2" : undefined}>
-                  <VitalsInsights />
+                  <VitalsInsights patientId={selectedAppointment?.subject_id} />
                 </div>
               </div>
             </>

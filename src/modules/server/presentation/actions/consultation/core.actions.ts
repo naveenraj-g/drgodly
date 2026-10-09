@@ -11,6 +11,7 @@
 "use server";
 
 import type { AuthResponse } from "@/modules/server/auth/types";
+import { ROLES } from "@/modules/server/shared/auth/roles";
 import {
   CreateConsultationActionSchema,
   CompleteConsultationActionSchema,
@@ -106,10 +107,15 @@ export const saveClinicalDataAction = authenticatedProcedure
     }): Promise<TSaveClinicalDataControllerOutput> => {
       /* The approver comes from the session, never the request body — the
          client sends mark_published as intent only, so a doctor cannot be
-         recorded as having approved a record they did not. */
+         recorded as having approved a record they did not.
+         org_id is likewise injected here, never trusted from the client —
+         the repository requires it to match before writing, so a doctor in
+         one org can't overwrite another org's SOAP note/clinical data by
+         guessing a fhir_appointment_id. */
       const enrichedPayload = {
         ...input.payload,
         published_by: ctx.session.session.userId,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
       };
       return saveClinicalDataController(enrichedPayload);
     },
@@ -126,10 +132,17 @@ export const saveClinicalDraftAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TSaveClinicalDraftAction;
+      ctx: { session: AuthResponse };
     }): Promise<TSaveClinicalDraftControllerOutput> => {
-      return saveClinicalDraftController(input.payload);
+      // Merge session org_id into the payload — prevents client from supplying a different org_id
+      const enrichedPayload = {
+        ...input.payload,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
+      };
+      return saveClinicalDraftController(enrichedPayload);
     },
   );
 
@@ -143,10 +156,17 @@ export const abandonConsultationAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TAbandonConsultationAction;
+      ctx: { session: AuthResponse };
     }): Promise<TAbandonConsultationControllerOutput> => {
-      return abandonConsultationController(input.payload);
+      // Merge session org_id into the payload — prevents client from supplying a different org_id
+      const enrichedPayload = {
+        ...input.payload,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
+      };
+      return abandonConsultationController(enrichedPayload);
     },
   );
 
@@ -160,10 +180,17 @@ export const getConsultationByFhirAppointmentIdAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TGetConsultationByFhirAppointmentIdAction;
+      ctx: { session: AuthResponse };
     }): Promise<TGetConsultationByFhirAppointmentIdControllerOutput> => {
-      return getConsultationByFhirAppointmentIdController(input.payload);
+      // Merge session org_id into the payload — prevents client from supplying a different org_id
+      const enrichedPayload = {
+        ...input.payload,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
+      };
+      return getConsultationByFhirAppointmentIdController(enrichedPayload);
     },
   );
 
@@ -173,6 +200,12 @@ export const getConsultationByFhirAppointmentIdAction = authenticatedProcedure
  * Admin/doctor portal can omit user_id to see org-wide records — org_id
  * itself is injected from the session, so that "org-wide" is always the
  * caller's own org, never one supplied by the client.
+ *
+ * user_id is only trusted from the client when the caller holds a
+ * "telemedicine-staff" role (doctor/admin) — anyone else has their user_id
+ * forced to their own session id, whatever they supplied or omitted, so a
+ * patient account can never read another patient's consultation records by
+ * calling this action directly with a different user_id (or none at all).
  */
 export const listConsultationsAction = authenticatedProcedure
   .createServerAction()
@@ -185,10 +218,14 @@ export const listConsultationsAction = authenticatedProcedure
       input: TListConsultationsAction;
       ctx: { session: AuthResponse };
     }): Promise<TListConsultationsControllerOutput> => {
-      // Inject org_id from session — client cannot list another org's consultations
+      const isStaff = (ROLES["telemedicine-staff"] as readonly string[]).includes(
+        ctx.session.session.activeRole,
+      );
       const enrichedPayload = {
         ...input.payload,
+        // Inject org_id from session — client cannot list another org's consultations
         org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        user_id: isStaff ? input.payload.user_id : ctx.session.user.id,
       };
       return listConsultationsController(enrichedPayload);
     },

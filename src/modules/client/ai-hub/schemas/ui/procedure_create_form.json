@@ -14,7 +14,7 @@
           {
             "id": "proc-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Procedure" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Procedure" }, "usageHint": "h3" }
           },
           {
             "id": "proc-subtitle",

@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 2: Choose What to Add" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

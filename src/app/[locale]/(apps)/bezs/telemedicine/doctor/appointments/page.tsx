@@ -9,24 +9,23 @@
  *     exists (via requirePractitionerProfile).
  *
  * Data flow:
- *  SSR → listAppointmentsAction(org_id, practitioner_id, page 0)
- *      → DoctorAppointmentsTable (initialData, practitionerId props)
- *  Client → useQuery → fetchDoctorAppointments → re-renders on page change
+ *  SSR-fetches the "Today" tab's first page (10 rows) via fetchDemoTabPage,
+ *  then hands it to AppointmentDemo as a TanStack Query seed for that one
+ *  tab's AppointmentDemoTabPanel. Every other tab (Upcoming/Past/Cancelled),
+ *  and every filter/sort/page change within any tab, fetches client-side via
+ *  demoQueries.ts — nothing is filtered, sorted, or paginated in the browser.
  */
 
-import Link from "next/link";
-import { ClipboardList } from "lucide-react";
 import { redirect } from "@/i18n/navigation";
 import { getLocale } from "next-intl/server";
-import { Button } from "@/components/ui/button";
 import { getServerSession } from "@/modules/server/auth/get-session";
 import { requirePractitionerProfile } from "@/modules/server/auth/require-profile";
-import { listAppointmentsAction } from "@/modules/server/presentation/actions/appointment";
-import { DoctorAppointmentsTable } from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentsTable";
-import { DEFAULT_APPOINTMENT_SORT } from "@/modules/client/telemedicine/doctor/component/appointments/list/appointmentQueries";
+import { AppointmentDemo } from "@/modules/client/telemedicine/doctor/component/appointment-demo/AppointmentDemo";
+import { fetchDemoTabPage } from "@/modules/client/telemedicine/doctor/component/appointment-demo/demoQueries";
 import { DoctorModalProvider } from "@/modules/client/telemedicine/doctor/provider/DoctorModalProvider";
 
-/** Page-level page size — must match INITIAL_PAGE_SIZE in the table component. */
+/** Must match AppointmentDemoTabPanel's INITIAL_PAGE_SIZE so the SSR seed's
+ *  query key matches the client's default query exactly. */
 const INITIAL_PAGE_SIZE = 10;
 
 /**
@@ -48,66 +47,28 @@ export default async function DoctorAppointmentsPage() {
   const practitioner = await requirePractitionerProfile();
 
   const orgId = session.session.activeOrganizationId ?? null;
-  const practitionerId = practitioner.id;
   const base = `/${locale}/bezs/telemedicine/doctor`;
 
-  // Pre-fetch page 0 scoped to this practitioner. Sort must match the client
-  // fetcher's (fetchDoctorAppointments) exactly — this seeds the same
-  // TanStack Query cache key, so a mismatch here would show unsorted SSR
-  // data until the 60s staleTime lapsed and the client refetch corrected it.
-  const [data] = await listAppointmentsAction({
-    payload: {
-      limit: INITIAL_PAGE_SIZE,
-      offset: 0,
-      org_id: orgId ?? undefined,
-      practitioner_id: practitionerId,
-      sort: DEFAULT_APPOINTMENT_SORT,
-    },
+  const initialToday = await fetchDemoTabPage({
+    tab: "today",
+    practitionerId: practitioner.id,
+    orgId,
+    pageIndex: 0,
+    pageSize: INITIAL_PAGE_SIZE,
+    sort: "date",
   });
 
-  /** Safe empty fallback if the action fails at render time. */
-  const initialData = data ?? {
-    total: 0,
-    limit: INITIAL_PAGE_SIZE,
-    offset: 0,
-    data: [],
-  };
-
   return (
-    <div className="space-y-6 w-full">
-      {/* ── Page header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Appointments</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage patient appointments for your practice.
-          </p>
-        </div>
-
-        {/*
-         * In-app entry point to Clinical Records. The doctor sidebar comes from
-         * the Bezs menu service rather than this repo, so this link is what
-         * makes the section reachable until a menu entry is added there.
-         */}
-        <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
-          <Link href={`${base}/clinical-records`}>
-            <ClipboardList className="size-4" />
-            Clinical Records
-          </Link>
-        </Button>
-      </div>
-
-      {/* ── Appointments table ── */}
-      <DoctorAppointmentsTable
-        initialData={initialData}
+    <>
+      <AppointmentDemo
+        initialToday={initialToday}
+        practitionerId={practitioner.id}
         orgId={orgId}
-        practitionerId={practitionerId}
         viewHref={`${base}/appointments`}
         clinicalRecordsHref={`${base}/clinical-records`}
       />
-
-      {/* Modal singletons — controlled by doctor Zustand store */}
+      {/* Modal singletons — controlled by doctor Zustand store (Confirm/Cancel/Reschedule) */}
       <DoctorModalProvider />
-    </div>
+    </>
   );
 }

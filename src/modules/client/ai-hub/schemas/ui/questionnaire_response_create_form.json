@@ -14,7 +14,7 @@
           {
             "id": "qr-form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Questionnaire Response" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Questionnaire Response" }, "usageHint": "h3" }
           },
           {
             "id": "qr-form-subtitle",

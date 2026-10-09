@@ -150,7 +150,7 @@ export function PatientConsult({
 
   return (
     <LiveKitRoom
-      video={true}
+      video={false}
       audio={true}
       token={token}
       serverUrl={livekitUrl}

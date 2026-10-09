@@ -12,8 +12,10 @@
  *      Per-file status chips (pending → uploading → done / error) update as FileNest processes.
  *
  * FHIR records created per upload session (when the Upload button is clicked):
- *   • ONE DiagnosticReport  — basedOn: ServiceRequest, presentedForm[]: one entry per file.
+ *   • ONE DiagnosticReport  — basedOn: ServiceRequest, encounter_id: this visit,
+ *                             presentedForm[]: one entry per file.
  *   • ONE DocumentReference per file — content[0].attachment.url = fileId,
+ *                                      context.encounter: [this visit],
  *                                      context.related: [DiagnosticReport, ServiceRequest].
  *
  * Must be mounted once inside PatientModalProvider.
@@ -227,6 +229,8 @@ interface UploadResultContentProps {
   serviceRequestId: number;
   patientFhirId?: number;
   serviceRequestCode?: string;
+  /** FHIR Encounter.id — stamped on the created DiagnosticReport/DocumentReference so they scope to this visit, not just the order. */
+  encounterId?: number;
   /** Active organisation id — forwarded to the staging record registered on upload. */
   orgId?: string;
   /** Session user id — forwarded to the staging record registered on upload. */
@@ -247,6 +251,7 @@ function UploadResultContent({
   serviceRequestId,
   patientFhirId,
   serviceRequestCode,
+  encounterId,
   orgId,
   userId,
 }: UploadResultContentProps) {
@@ -344,6 +349,7 @@ function UploadResultContent({
           payload: {
             status: "preliminary",
             ...(subject ? { subject } : {}),
+            ...(encounterId != null ? { encounter_id: encounterId } : {}),
             based_on: [{ reference: `ServiceRequest/${serviceRequestId}` }],
             presented_form: records.map((r) => ({
               url: r.id,
@@ -392,7 +398,12 @@ function UploadResultContent({
                     },
                   },
                 ],
-                context: { related },
+                context: {
+                  ...(encounterId != null
+                    ? { encounter: [{ reference: `Encounter/${encounterId}` }] }
+                    : {}),
+                  related,
+                },
               },
             }),
           ),
@@ -439,7 +450,15 @@ function UploadResultContent({
         setIsSaving(false);
       }
     },
-    [serviceRequestId, patientFhirId, serviceRequestCode, orgId, userId, router],
+    [
+      serviceRequestId,
+      patientFhirId,
+      serviceRequestCode,
+      encounterId,
+      orgId,
+      userId,
+      router,
+    ],
   );
 
   // ── FileNest upload callbacks ───────────────────────────────────────────────
@@ -664,6 +683,7 @@ export function UploadResultModal() {
   const serviceRequestId = data?.serviceRequestId;
   const patientFhirId = data?.patientFhirId;
   const serviceRequestCode = data?.serviceRequestCode;
+  const encounterId = data?.encounterId;
   const orgId = data?.orgId;
   const userId = data?.userId;
 
@@ -757,6 +777,7 @@ export function UploadResultModal() {
               serviceRequestId={serviceRequestId}
               patientFhirId={patientFhirId ?? undefined}
               serviceRequestCode={serviceRequestCode ?? undefined}
+              encounterId={encounterId}
               orgId={orgId}
               userId={userId}
             />

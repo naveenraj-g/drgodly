@@ -155,9 +155,13 @@ mobileApiRegistry.registerPath({
   path: "/api/intake/get-by-appointment",
   tags: ["Intake"],
   summary: "Fetch the intake linked to a FHIR appointment",
-  description: "Doctor-side lookup. Returns null in the body when no intake is linked.",
+  description:
+    "Doctor-side lookup. Returns null in the body when no intake is linked. " +
+    "org_id is always taken from the token — never sent by the client.",
   security,
-  request: { query: GetIntakeByFhirAppointmentIdValidationSchema },
+  request: {
+    query: GetIntakeByFhirAppointmentIdValidationSchema.omit({ org_id: true }),
+  },
   responses: jsonResponses(200, "Found (or null)", IntakeResponseSchema.nullable()),
 });
 
@@ -166,9 +170,14 @@ mobileApiRegistry.registerPath({
   path: "/api/intake/list",
   tags: ["Intake"],
   summary: "Paginated intake list",
-  description: "All filters are optional query params; omitting them returns the full table.",
+  description:
+    "All filters are optional query params; omitting them returns the full table. " +
+    "org_id is always taken from the token — never sent by the client. user_id is " +
+    "only honored from the client when the caller holds a \"telemedicine-staff\" " +
+    "role (doctor/admin); every other caller has it forced to their own token " +
+    "subject regardless of what's sent.",
   security,
-  request: { query: ListIntakesValidationSchema },
+  request: { query: ListIntakesValidationSchema.omit({ org_id: true }) },
   responses: jsonResponses(200, "Paginated list", PaginatedIntakeResponseSchema),
 });
 
@@ -207,10 +216,15 @@ mobileApiRegistry.registerPath({
   summary: "Stage extracted FHIR clinical resources",
   description:
     "Written to by the clinical-extraction-agent right after a consultation ends, and by " +
-    "the doctor's Clinical Records workspace autosaving draft edits. published_by is injected " +
-    "from the token — the client sends mark_published as intent only.",
+    "the doctor's Clinical Records workspace autosaving draft edits. published_by and org_id " +
+    "are both injected from the token — the client sends mark_published as intent only, and " +
+    "never sends org_id.",
   security,
-  request: { body: jsonBody(SaveClinicalDataValidationSchema.omit({ published_by: true })) },
+  request: {
+    body: jsonBody(
+      SaveClinicalDataValidationSchema.omit({ published_by: true, org_id: true }),
+    ),
+  },
   responses: jsonResponses(200, "Saved", ConsultationResponseSchema),
 });
 
@@ -219,9 +233,11 @@ mobileApiRegistry.registerPath({
   path: "/api/consultation/abandon",
   tags: ["Consultation"],
   summary: "Abandon a consultation",
-  description: "Called when a participant leaves without completing the session.",
+  description:
+    "Called when a participant leaves without completing the session. org_id is " +
+    "always taken from the token — never sent by the client.",
   security,
-  request: { body: jsonBody(AbandonConsultationValidationSchema) },
+  request: { body: jsonBody(AbandonConsultationValidationSchema.omit({ org_id: true })) },
   responses: jsonResponses(200, "Abandoned", ConsultationResponseSchema),
 });
 
@@ -230,9 +246,13 @@ mobileApiRegistry.registerPath({
   path: "/api/consultation/get-by-appointment",
   tags: ["Consultation"],
   summary: "Fetch the consultation linked to a FHIR appointment",
-  description: "Returns null in the body when no consultation was provisioned (pre-feature bookings).",
+  description:
+    "Returns null in the body when no consultation was provisioned (pre-feature bookings). " +
+    "org_id is always taken from the token — never sent by the client.",
   security,
-  request: { query: GetConsultationByFhirAppointmentIdValidationSchema },
+  request: {
+    query: GetConsultationByFhirAppointmentIdValidationSchema.omit({ org_id: true }),
+  },
   responses: jsonResponses(200, "Found (or null)", ConsultationResponseSchema.nullable()),
 });
 
@@ -241,9 +261,14 @@ mobileApiRegistry.registerPath({
   path: "/api/consultation/list",
   tags: ["Consultation"],
   summary: "Paginated consultation list",
-  description: "All filters are optional query params; omitting them returns the full table.",
+  description:
+    "All filters are optional query params; omitting them returns the full table. " +
+    "org_id is always taken from the token — never sent by the client. user_id is " +
+    "only honored from the client when the caller holds a \"telemedicine-staff\" " +
+    "role (doctor/admin); every other caller has it forced to their own token " +
+    "subject regardless of what's sent.",
   security,
-  request: { query: ListConsultationsValidationSchema },
+  request: { query: ListConsultationsValidationSchema.omit({ org_id: true }) },
   responses: jsonResponses(200, "Paginated list", PaginatedConsultationResponseSchema),
 });
 

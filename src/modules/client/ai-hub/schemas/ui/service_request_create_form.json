@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Place Service Request" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

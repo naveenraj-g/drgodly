@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Add General Practitioners" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

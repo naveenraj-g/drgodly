@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Record Provenance" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

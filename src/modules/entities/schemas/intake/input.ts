@@ -85,6 +85,7 @@ export type TGetIntakeById = z.infer<typeof GetIntakeByIdValidationSchema>;
  */
 export const GetIntakeByFhirAppointmentIdValidationSchema = z.object({
   fhir_appointment_id: z.number().int().positive(),
+  org_id: z.string().optional(),
 });
 export type TGetIntakeByFhirAppointmentId = z.infer<
   typeof GetIntakeByFhirAppointmentIdValidationSchema

@@ -126,6 +126,34 @@ export function endOfDayIST(date: Date | string | number): Date {
 }
 
 /**
+ * Returns the real UTC instant corresponding to 00:00:00.000 of the Monday
+ * starting `date`'s calendar week *in IST* (ISO week, Monday–Sunday). See
+ * {@link startOfDayIST} for why this isn't date-fns's `startOfWeek()`.
+ *
+ * Subtracts whole real days (86,400,000 ms) from the original instant rather
+ * than reusing the zoned artificial date's own arithmetic — safe here since
+ * IST has no DST, mirroring the fixed-offset day subtraction already used
+ * elsewhere in this app (e.g. VitalsInsights' rolling-window ranges).
+ */
+export function startOfWeekIST(date: Date | string | number): Date {
+  const zoned = toZonedTime(new Date(date), APP_TIMEZONE);
+  const dayOfWeek = zoned.getDay(); // 0 (Sun) .. 6 (Sat)
+  const daysSinceMonday = (dayOfWeek + 6) % 7;
+  const monday = new Date(new Date(date).getTime() - daysSinceMonday * 86_400_000);
+  return startOfDayIST(monday);
+}
+
+/**
+ * Returns the real UTC instant corresponding to 23:59:59.999 of the Sunday
+ * ending `date`'s calendar week *in IST*. See {@link startOfWeekIST}.
+ */
+export function endOfWeekIST(date: Date | string | number): Date {
+  const monday = startOfWeekIST(date);
+  const sunday = new Date(monday.getTime() + 6 * 86_400_000);
+  return endOfDayIST(sunday);
+}
+
+/**
  * Returns the real UTC instant corresponding to 00:00:00.000 of the 1st of
  * `date`'s calendar month *in IST*. See {@link startOfDayIST} for why this
  * isn't date-fns's `startOfMonth()`.

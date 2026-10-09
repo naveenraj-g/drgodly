@@ -78,10 +78,12 @@ export interface IConsultationRepository {
    * or booking predates the feature).
    *
    * @param fhirAppointmentId - FHIR Appointment.id (integer).
+   * @param orgId - When supplied, a row belonging to a different org is treated as not found.
    * @returns The Consultation record, or null if not found.
    */
   getByFhirAppointmentId(
     fhirAppointmentId: number,
+    orgId?: string,
   ): Promise<TConsultationResponse | null>;
 
   /**

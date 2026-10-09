@@ -54,6 +54,12 @@ export interface EmrSessionHandlers {
    */
   ensureSession: (firstMessageText?: string) => Promise<string>;
   /**
+   * Syncs Next's router state to the URL ensureSession already applied via
+   * history.replaceState. Call once, after the send flow that created the
+   * session has fully settled — see ensureSession's doc comment for why.
+   */
+  syncRouterAfterSessionCreate: () => void;
+  /**
    * Persists a single message to the DB. Errors are swallowed — the message
    * is already in the Zustand store so the UI is unaffected.
    */
@@ -125,8 +131,18 @@ export function useEmrSession({
 
   /**
    * Returns the active session ID, creating a new session if one doesn't exist.
-   * The URL is updated with history.replaceState so the component stays mounted
-   * and any in-flight API call is not interrupted.
+   * The URL is updated with history.replaceState (not router.replace) so the
+   * component stays mounted and any in-flight API call is not interrupted.
+   *
+   * Tried router.replace here first — confirmed via live testing that the
+   * navigation request itself succeeds (the session route's RSC payload and
+   * JS chunk both load, per the network log), but the address bar never
+   * commits to it: router.replace runs as a low-priority transition, and the
+   * very next synchronous store update later in the same send flow (e.g.
+   * addMessage from the /api/workflow error/success handler) interrupts and
+   * drops it before it commits. See syncRouterAfterSessionCreate below for
+   * where the router is actually told about the new URL instead — once the
+   * whole send has settled, so nothing is left to interrupt it.
    */
   const ensureSession = useCallback(
     async (firstMessageText?: string): Promise<string> => {
@@ -156,6 +172,20 @@ export function useEmrSession({
     },
     [activeSessionId, userId, orgId, locale, basePath, setActiveSessionId, prependSession],
   );
+
+  /**
+   * Tells Next's router about the URL history.replaceState already applied
+   * silently in ensureSession. Call this once the send flow that created the
+   * session has fully settled (success or error) — at that point nothing else
+   * is about to fire a competing synchronous state update, so the transition
+   * actually commits instead of being interrupted. Without this, Next's
+   * router keeps believing the current route is the blank landing page
+   * forever, so a later click on a nav link back to that same route is a
+   * same-route no-op and never resets the stale session on screen.
+   */
+  const syncRouterAfterSessionCreate = useCallback(() => {
+    router.replace(window.location.pathname, { scroll: false });
+  }, [router]);
 
   /**
    * Writes a message row to the DB. Fire-and-forget: the message is already
@@ -263,6 +293,7 @@ export function useEmrSession({
 
   return {
     ensureSession,
+    syncRouterAfterSessionCreate,
     persistMessage,
     startNewChat,
     openSession,

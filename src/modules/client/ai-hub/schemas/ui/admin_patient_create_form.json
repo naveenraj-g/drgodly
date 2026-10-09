@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "New Patient Registration (Admin)" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

@@ -33,7 +33,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 6: Add Service Requests" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {
@@ -159,24 +159,6 @@
                     "placeholder": { "literalString": "Select category…" },
                     "items": "$category_concepts.concepts",
                     "valueType": { "literalString": "CodeableConcept" }
-                  }
-                },
-                {
-                  "id": "authored_on",
-                  "type": "DateTimeInput",
-                  "properties": {
-                    "label": { "literalString": "Authored On (optional)" },
-                    "enableDate": true,
-                    "enableTime": false
-                  }
-                },
-                {
-                  "id": "note_text",
-                  "type": "TextField",
-                  "properties": {
-                    "label": { "literalString": "Notes (optional)" },
-                    "placeholder": { "literalString": "Clinical notes or special instructions" },
-                    "textFieldType": "longText"
                   }
                 }
               ]

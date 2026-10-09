@@ -62,7 +62,15 @@ export function DataTablePagination<TData>({
   return (
     <div
       className={cn(
-        "flex w-full flex-col-reverse items-center justify-between gap-4 overflow-auto p-1 sm:flex-row sm:gap-8",
+        // flex-wrap rather than a hard flex-col-reverse/sm:flex-row switch:
+        // the old version forced every group (selected-rows text, rows-per-
+        // page, page indicator, nav buttons) onto its own full-width row —
+        // in reverse DOM order — the moment the bar dropped below `sm`,
+        // even when there was room for two or three groups on one line.
+        // This keeps everything on one row whenever it fits and only wraps
+        // the groups that actually don't, in their natural left-to-right
+        // order.
+        "flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2 overflow-auto p-1",
         className,
       )}
       {...props}
@@ -87,7 +95,7 @@ export function DataTablePagination<TData>({
         )}
       </div>
 
-      <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
+      <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-2">
         {/* Rows per page */}
         <div className="flex items-center space-x-2">
           <p className="whitespace-nowrap font-medium text-sm">Rows per page</p>

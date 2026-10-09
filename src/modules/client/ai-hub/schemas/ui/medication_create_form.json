@@ -14,7 +14,7 @@
           {
             "id": "form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Create Medication" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Create Medication" }, "usageHint": "h3" }
           },
           {
             "id": "form-subtitle",

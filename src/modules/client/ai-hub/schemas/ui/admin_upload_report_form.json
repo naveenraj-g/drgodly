@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 3: Upload Report" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

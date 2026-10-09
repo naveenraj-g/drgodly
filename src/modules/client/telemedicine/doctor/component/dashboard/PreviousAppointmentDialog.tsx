@@ -18,11 +18,13 @@
 
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FileText, Loader2, Stethoscope, UserRound } from "lucide-react";
 import { formatDisplayDate, formatDisplayTime } from "@/modules/shared/helper";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -146,10 +148,26 @@ export function PreviousAppointmentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl md:max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserRound className="size-4" />
-            Previous Visit
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-2 pr-8">
+            <DialogTitle className="flex items-center gap-2">
+              <UserRound className="size-4" />
+              Previous Visit
+            </DialogTitle>
+            {/* Deep link into the full clinical-records workspace for this
+                past appointment — this dialog is a read-only summary, so the
+                button is the way out to the real, editable workspace. Only
+                meaningful once an appointment has actually been found. */}
+            {lookup.status === "found" && patientId != null && (
+              <Button asChild size="sm" variant="outline" className="gap-1.5 shrink-0">
+                <Link
+                  href={`/bezs/telemedicine/doctor/clinical-records/${patientId}/${lookup.appointment.id}`}
+                >
+                  <Stethoscope className="size-3.5" />
+                  Clinical Records
+                </Link>
+              </Button>
+            )}
+          </div>
         </DialogHeader>
 
         {lookup.status === "loading" && (

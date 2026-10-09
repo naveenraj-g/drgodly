@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 3: Confirm Booking" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

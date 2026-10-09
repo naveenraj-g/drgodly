@@ -33,7 +33,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 5: Add Medication Requests" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {
@@ -201,15 +201,6 @@
                         }
                       }
                     ]
-                  }
-                },
-                {
-                  "id": "authored_on",
-                  "type": "DateTimeInput",
-                  "properties": {
-                    "label": { "literalString": "Authored On (optional)" },
-                    "enableDate": true,
-                    "enableTime": false
                   }
                 }
               ]

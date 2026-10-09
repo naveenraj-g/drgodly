@@ -74,9 +74,10 @@ export interface IIntakeRepository {
    * Used by doctors to retrieve the pre-appointment clinical context.
    *
    * @param fhirAppointmentId - FHIR Appointment.id (integer).
+   * @param orgId - When supplied, a row belonging to a different org is treated as not found.
    * @returns The linked Intake record, or null if no intake was linked.
    */
-  getByFhirAppointmentId(fhirAppointmentId: number): Promise<TIntakeResponse | null>;
+  getByFhirAppointmentId(fhirAppointmentId: number, orgId?: string): Promise<TIntakeResponse | null>;
 
   /**
    * Returns a paginated list of intake records with optional filters.

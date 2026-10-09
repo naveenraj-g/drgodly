@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 1: Select Appointment" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {
@@ -43,7 +43,7 @@
                   "org_id": "$org_id",
                   "status": "fulfilled"
                 },
-                "searchParam": "subject",
+                "searchParam": "patient_search",
                 "responsePath": "data",
                 "minChars": 0,
                 "debounceMs": 300,
@@ -54,9 +54,7 @@
               "display": {
                 "label": { "path": "subject_display" },
                 "description": { "template": "{start | datetime} · {status}" },
-                "tags": [
-                  { "path": "status" }
-                ]
+                "tags": [{ "path": "status" }]
               },
               "emits": [
                 { "key": "appointment_id", "path": "id" },

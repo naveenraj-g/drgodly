@@ -90,11 +90,17 @@ export function Form({
     });
 
     // Collect checkbox components (shadcn uses button[role=checkbox])
+    //
+    // data-field-name (checkbox.tsx) takes priority over el.id: the DOM id is
+    // now scoped per render (surfaceId-prefixed) to keep label/for association
+    // unique across repeated renders of the same step within one session, but
+    // the submitted key still has to be the plain workflow field name (e.g.
+    // "add_condition") that el.id alone no longer is.
     const checkboxes = formRef.current.querySelectorAll<HTMLButtonElement>(
       'button[role="checkbox"]',
     );
     checkboxes.forEach((el) => {
-      const id = el.id;
+      const id = el.dataset.fieldName || el.id;
       if (!id) return;
       formData[id] = el.getAttribute("data-state") === "checked";
     });

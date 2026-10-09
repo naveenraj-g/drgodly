@@ -14,7 +14,7 @@
           {
             "id": "vitals-form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Vital Signs" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Vital Signs" }, "usageHint": "h3" }
           },
           {
             "id": "vitals-form-subtitle",

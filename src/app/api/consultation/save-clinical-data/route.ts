@@ -13,6 +13,12 @@
  * anything the client sends — the client sends `mark_published` as intent
  * only, the same guarantee saveClinicalDataAction provides today, so an
  * approval can never be attributed to a doctor other than the caller.
+ *
+ * org_id is likewise always taken from the token, never the client — the
+ * repository requires it to match the target consultation's own org_id
+ * before writing, so a caller in one org can't overwrite another org's SOAP
+ * note/clinical data by guessing a fhir_appointment_id. Same guarantee
+ * saveClinicalDataAction provides today.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -31,7 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     const claims = await verifyBearerToken(req);
     const body = await req.json();
-    const payload = { ...body, published_by: claims.userId };
+    const payload = { ...body, published_by: claims.userId, org_id: claims.orgId };
     const data = await saveClinicalDataController(payload);
     return NextResponse.json(data);
   } catch (err) {

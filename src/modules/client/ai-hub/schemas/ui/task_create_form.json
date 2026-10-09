@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 2: Create Follow-up Task" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

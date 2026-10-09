@@ -14,7 +14,7 @@
           {
             "id": "ai-form-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Record Allergy / Intolerance" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Record Allergy / Intolerance" }, "usageHint": "h3" }
           },
           {
             "id": "ai-form-subtitle",

@@ -457,7 +457,7 @@ export function VoiceIntakeTest({
       // second "?".
       const wsUrlObj = new URL(wsUrl);
       wsUrlObj.searchParams.set("token", token);
-      console.log("[VoiceIntakeTest] connecting to WS:", wsUrlObj.toString());
+      // console.log("[VoiceIntakeTest] connecting to WS:", wsUrlObj.toString());
       const ws = new WebSocket(wsUrlObj.toString());
       wsRef.current = ws;
       ws.binaryType = "arraybuffer";
@@ -570,6 +570,29 @@ export function VoiceIntakeTest({
             }
             // Unrecognized status values are logged above but otherwise
             // ignored — no UI state to fall back to without a label for them.
+          }
+
+          if (data.type === "status_end") {
+            /*
+             * Agent-side signal that the conversation has ended — mirrors
+             * TextIntake's status_end handling: matched on data.status
+             * alone, auto-runs the same "End Call" flow the patient would
+             * otherwise trigger manually via the button.
+             */
+            flushPendingUserTranscript();
+            flushPendingAssistantText();
+            // UI-only notice — added via setMessages directly (not
+            // addMessage) so it never reaches messagesRef and therefore
+            // never pollutes the saved conversation/report payload in endCall.
+            setMessages((prev) => [
+              ...prev,
+              {
+                key: nanoid(),
+                from: "assistant",
+                content: "The conversation has ended.",
+              },
+            ]);
+            void endCall();
           }
 
           if (data.type === "transcript" && data.text !== undefined) {

@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Add Patient Identifiers" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {

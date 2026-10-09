@@ -13,6 +13,7 @@
 "use server";
 
 import type { AuthResponse } from "@/modules/server/auth/types";
+import { ROLES } from "@/modules/server/shared/auth/roles";
 import {
   CreateIntakeActionSchema,
   UpdateIntakeActionSchema,
@@ -150,10 +151,17 @@ export const getIntakeByFhirAppointmentIdAction = authenticatedProcedure
   .handler(
     async ({
       input,
+      ctx,
     }: {
       input: TGetIntakeByFhirAppointmentIdAction;
+      ctx: { session: AuthResponse };
     }): Promise<TGetIntakeByFhirAppointmentIdControllerOutput> => {
-      return getIntakeByFhirAppointmentIdController(input.payload);
+      // Merge session org_id into the payload — prevents client from supplying a different org_id
+      const enrichedPayload = {
+        ...input.payload,
+        org_id: ctx.session.session.activeOrganizationId ?? undefined,
+      };
+      return getIntakeByFhirAppointmentIdController(enrichedPayload);
     },
   );
 
@@ -163,6 +171,12 @@ export const getIntakeByFhirAppointmentIdAction = authenticatedProcedure
  * Admin/doctor portal can omit user_id to see org-wide records — org_id
  * itself is injected from the session, so that "org-wide" is always the
  * caller's own org, never one supplied by the client.
+ *
+ * user_id is only trusted from the client when the caller holds a
+ * "telemedicine-staff" role (doctor/admin) — anyone else has their user_id
+ * forced to their own session id, whatever they supplied or omitted, so a
+ * patient account can never read another patient's intake records by
+ * calling this action directly with a different user_id (or none at all).
  */
 export const listIntakesAction = authenticatedProcedure
   .createServerAction()
@@ -175,10 +189,14 @@ export const listIntakesAction = authenticatedProcedure
       input: TListIntakesAction;
       ctx: { session: AuthResponse };
     }): Promise<TListIntakesControllerOutput> => {
-      // Inject org_id from session — client cannot list another org's intakes
+      const isStaff = (ROLES["telemedicine-staff"] as readonly string[]).includes(
+        ctx.session.session.activeRole,
+      );
       const enrichedPayload = {
         ...input.payload,
+        // Inject org_id from session — client cannot list another org's intakes
         org_id: ctx.session.session.activeOrganizationId ?? undefined,
+        user_id: isStaff ? input.payload.user_id : ctx.session.user.id,
       };
       return listIntakesController(enrichedPayload);
     },

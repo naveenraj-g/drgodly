@@ -6,6 +6,12 @@
  *
  * Mirrors getConsultationByFhirAppointmentIdAction (ZSA). Authenticates via
  * bearer JWT — see verify-bearer-token.ts.
+ *
+ * org_id is always taken from the token, never the client — the repository
+ * treats it as a defense-in-depth check (fhir_appointment_id is already
+ * unique) that the consultation actually belongs to the caller's own org,
+ * the same guarantee getConsultationByFhirAppointmentIdAction provides on
+ * the web.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -21,10 +27,13 @@ import { getConsultationByFhirAppointmentIdController } from "@/modules/server/c
  */
 export async function GET(req: NextRequest) {
   try {
-    await verifyBearerToken(req);
+    const claims = await verifyBearerToken(req);
     const param = req.nextUrl.searchParams.get("fhir_appointment_id");
     const fhir_appointment_id = param ? Number(param) : NaN;
-    const data = await getConsultationByFhirAppointmentIdController({ fhir_appointment_id });
+    const data = await getConsultationByFhirAppointmentIdController({
+      fhir_appointment_id,
+      org_id: claims.orgId,
+    });
     return NextResponse.json(data);
   } catch (err) {
     return mobileErrorResponse(err, "[api/consultation/get-by-appointment]");

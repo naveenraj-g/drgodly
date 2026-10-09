@@ -1,10 +1,11 @@
 /**
  * @file AppointmentDemoColumns.tsx
- * @description Column definitions for the appointment-demo page's per-tab
+ * @description Column definitions for the doctor appointments page's per-tab
  * TanStack Table instances — mirrors DoctorAppointmentColumns.tsx's factory
- * pattern (callbacks injected, columns stay pure) but with the reference
- * design's cell styling (avatar + patient info, visit-type icon, reason/note
- * two-liner, coarse status badge).
+ * pattern (callbacks injected, columns stay pure), reuses its exact
+ * AppointmentStatusBadge/STATUS_LABEL for the status column, with this
+ * page's own cell styling otherwise (avatar + patient info, visit-type icon,
+ * reason/note two-liner).
  * @layer client/telemedicine/doctor/component/appointment-demo
  */
 
@@ -14,19 +15,30 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { formatDisplayDayMonth, formatDisplayTime } from "@/modules/shared/helper";
 import {
   DataTableColumnHeader,
+  DataTableExpandButton,
   DataTableRowActions,
   type RowAction,
 } from "@/modules/client/shared/components/tables";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Video } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  ClipboardList,
+  Eye,
+  Stethoscope,
+  User,
+  Users,
+  Video,
+  XCircle,
+} from "lucide-react";
 import type { TAppointmentResponse } from "@/modules/entities/schemas/appointment";
 import type { TPatientResponse } from "@/modules/entities/schemas/patient";
-import { APPOINTMENT_STATUS_OPTIONS } from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentColumns";
 import {
-  avatarColorFor,
-  initialsFor,
+  APPOINTMENT_STATUS_OPTIONS,
+  AppointmentStatusBadge,
+} from "@/modules/client/telemedicine/doctor/component/appointments/list/DoctorAppointmentColumns";
+import {
   isTelemedicine,
   noteLine,
   patientAge,
@@ -35,22 +47,6 @@ import {
   toCoarseStatus,
   type CoarseStatus,
 } from "./appointmentDisplay";
-
-// ── Status → badge classes ────────────────────────────────────────────────────
-
-const STATUS_BADGE: Record<CoarseStatus, string> = {
-  completed: "bg-green-100 text-green-700 border-green-200",
-  "in-progress": "bg-blue-100 text-blue-700 border-blue-200",
-  scheduled: "bg-sky-100 text-sky-700 border-sky-200",
-  cancelled: "bg-gray-100 text-gray-600 border-gray-200",
-};
-
-const STATUS_LABEL: Record<CoarseStatus, string> = {
-  completed: "Completed",
-  "in-progress": "In Progress",
-  scheduled: "Scheduled",
-  cancelled: "Cancelled",
-};
 
 // ── Callbacks ─────────────────────────────────────────────────────────────────
 
@@ -84,6 +80,13 @@ interface CreateColumnsOptions {
 }
 
 // ── Row primary action ────────────────────────────────────────────────────────
+//
+// Status-specific highlight button, shown *in addition to* the always-present
+// View/Join Meeting/In-Person buttons below (never a replacement for them —
+// see the actions cell). Only "completed" and "in-progress" (checked-in/
+// arrived) get one: a "scheduled" (incl. booked) appointment is already fully
+// covered by View plus the Join Meeting/In-Person pair when booked, and
+// "cancelled" has nothing further to do.
 
 function RowPrimaryAction({
   appointment,
@@ -101,9 +104,10 @@ function RowPrimaryAction({
       <Button
         size="sm"
         variant="outline"
-        className="h-7 px-2.5 text-xs"
+        className="h-7 px-2.5 text-xs gap-1"
         onClick={() => callbacks.onReview(appointment)}
       >
+        <ClipboardList className="size-3" />
         View Note
       </Button>
     );
@@ -112,39 +116,23 @@ function RowPrimaryAction({
     return (
       <Button
         size="sm"
-        className="h-7 px-2.5 text-xs"
+        className="h-7 px-2.5 text-xs gap-1"
         onClick={() =>
           telemedicine
             ? callbacks.onConsult(appointment)
             : callbacks.onInPersonConsult(appointment)
         }
       >
+        {telemedicine ? (
+          <Video className="size-3" />
+        ) : (
+          <Stethoscope className="size-3" />
+        )}
         {telemedicine ? "Join Visit" : "Continue Visit"}
       </Button>
     );
   }
-  if (status === "scheduled" && telemedicine) {
-    return (
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 px-2.5 text-xs"
-        onClick={() => callbacks.onConsult(appointment)}
-      >
-        Start Visit
-      </Button>
-    );
-  }
-  return (
-    <Button
-      size="sm"
-      variant="outline"
-      className="h-7 px-2.5 text-xs"
-      onClick={() => callbacks.onView(appointment)}
-    >
-      View Details
-    </Button>
-  );
+  return null;
 }
 
 // ── Column factory ────────────────────────────────────────────────────────────
@@ -162,6 +150,20 @@ export function createAppointmentDemoColumns({
   enableDateFilter,
 }: CreateColumnsOptions): ColumnDef<TAppointmentResponse>[] {
   return [
+    // ── Expand ───────────────────────────────────────────────────────────────
+    // Leads the row, same as DoctorAppointmentColumns — drives the
+    // AppointmentDetailPanel row-detail wired in AppointmentDemoTabPanel.
+    {
+      id: "expand",
+      header: () => null,
+      cell: ({ row }) => <DataTableExpandButton row={row} />,
+      enableSorting: false,
+      enableHiding: false,
+      enableResizing: false,
+      size: 40,
+      meta: { exportable: false },
+    },
+
     // ── Patient ──────────────────────────────────────────────────────────────
     {
       id: "patient",
@@ -177,12 +179,14 @@ export function createAppointmentDemoColumns({
         const gender = patientGenderLabel(patient);
         return (
           <div className="flex items-center gap-2.5">
+            {/* One consistent icon for every row rather than per-patient
+                initials/color — no profile photo is wired up here, and a
+                plain, uniform mark reads cleaner than a fake-personalized
+                fallback. Matches the real appointments page's own patient
+                icon (DoctorAppointmentColumns). */}
             <Avatar>
-              <AvatarFallback
-                className="font-semibold text-foreground/80"
-                style={{ backgroundColor: avatarColorFor(appointment.subject_id) }}
-              >
-                {initialsFor(appointment.subject_display)}
+              <AvatarFallback className="bg-muted text-muted-foreground">
+                <User className="size-4" />
               </AvatarFallback>
             </Avatar>
             <div>
@@ -190,11 +194,10 @@ export function createAppointmentDemoColumns({
                 {appointment.subject_display ?? "Unknown patient"}
               </div>
               <div className="text-xs text-muted-foreground">
-                {[
-                  age != null ? `${age} yrs` : null,
-                  gender,
-                  appointment.subject_id != null ? `ID ${appointment.subject_id}` : null,
-                ]
+                {/* ID moved to the expandable row's Participants section —
+                    see AppointmentDetailPanel — so it's available without
+                    cluttering this always-visible line. */}
+                {[age != null ? `${age} yrs` : null, gender]
                   .filter(Boolean)
                   .join(" · ")}
               </div>
@@ -231,19 +234,39 @@ export function createAppointmentDemoColumns({
       meta: { label: "Visit Type" },
     },
 
+    // ── Date ─────────────────────────────────────────────────────────────────
+    // Split from Time — matches DoctorAppointmentColumns, which keeps these
+    // as two independently sortable columns off the same `start` timestamp.
+    {
+      id: "date",
+      accessorFn: (row) => row.start,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label="Date" multiSort />
+      ),
+      cell: ({ row }) => (
+        <span className="text-sm font-medium tabular-nums">
+          {row.original.start ? formatDisplayDayMonth(row.original.start) : "—"}
+        </span>
+      ),
+      // dateRange renders a calendar-range popover in the toolbar; the parent
+      // reads [from, to] out of this column's filter value and forwards it
+      // as start_from/start_to. Only enabled on tabs not already date-scoped.
+      meta: enableDateFilter ? { label: "Date", variant: "dateRange" } : { label: "Date" },
+    },
+
     // ── Time ─────────────────────────────────────────────────────────────────
     {
       id: "time",
       accessorFn: (row) => row.start,
-      header: ({ column }) => <DataTableColumnHeader column={column} label="Time" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} label="Time" multiSort />
+      ),
       cell: ({ row }) => {
         const { start, end } = row.original;
         return (
           <div>
             <div className="text-sm font-medium tabular-nums">
-              {start
-                ? `${formatDisplayDayMonth(start)}, ${formatDisplayTime(start)}`
-                : "—"}
+              {start ? formatDisplayTime(start) : "—"}
             </div>
             {end && (
               <div className="text-xs text-muted-foreground tabular-nums">
@@ -253,10 +276,7 @@ export function createAppointmentDemoColumns({
           </div>
         );
       },
-      // dateRange renders a calendar-range popover in the toolbar; the parent
-      // reads [from, to] out of this column's filter value and forwards it
-      // as start_from/start_to. Only enabled on tabs not already date-scoped.
-      meta: enableDateFilter ? { label: "Time", variant: "dateRange" } : { label: "Time" },
+      meta: { label: "Time" },
     },
 
     // ── Reason / Notes (display only) ───────────────────────────────────────
@@ -281,14 +301,7 @@ export function createAppointmentDemoColumns({
       id: "status",
       accessorFn: (row) => row.status ?? "",
       header: ({ column }) => <DataTableColumnHeader column={column} label="Status" />,
-      cell: ({ row }) => {
-        const coarse = toCoarseStatus(row.original.status);
-        return (
-          <Badge variant="outline" className={STATUS_BADGE[coarse]}>
-            {STATUS_LABEL[coarse]}
-          </Badge>
-        );
-      },
+      cell: ({ row }) => <AppointmentStatusBadge status={row.original.status} />,
       enableSorting: false,
       meta: enableStatusFilter
         ? { label: "Status", variant: "multiSelect", options: APPOINTMENT_STATUS_OPTIONS }
@@ -307,6 +320,13 @@ export function createAppointmentDemoColumns({
         const appointment = row.original;
         const status = toCoarseStatus(appointment.status);
         const telemedicine = isTelemedicine(appointment);
+        // Matches DoctorAppointmentColumns exactly: both the virtual-room and
+        // in-person buttons show for *any* booked appointment, regardless of
+        // its own declared modality — the doctor picks the mode, not the
+        // record. Deliberately the literal "booked" status, not the coarser
+        // bucket above (which also covers proposed/pending/waitlist, none of
+        // which have a confirmed slot to join yet).
+        const isBooked = appointment.status === "booked";
         const canConfirm = appointment.status === "pending";
         const canCancel =
           appointment.status === "booked" || appointment.status === "pending";
@@ -316,20 +336,50 @@ export function createAppointmentDemoColumns({
         const canOpenClinicalRecords = appointment.subject_id != null;
 
         const actions: RowAction<TAppointmentResponse>[] = [
-          ...(canConfirm
-            ? [{ label: "Confirm", onClick: () => callbacks.onConfirm(appointment) }]
-            : []),
-          ...(canReschedule
-            ? [{ label: "Reschedule", onClick: () => callbacks.onReschedule(appointment) }]
-            : []),
-          ...(canCancel
-            ? [{ label: "Cancel", onClick: () => callbacks.onCancel(appointment) }]
+          // Omitted when "completed" — the primary button already covers the
+          // exact same action (onReview) far more prominently there.
+          ...(status !== "completed"
+            ? [
+                {
+                  label: "Review",
+                  icon: ClipboardList,
+                  onClick: () => callbacks.onReview(appointment),
+                },
+              ]
             : []),
           ...(canOpenClinicalRecords
             ? [
                 {
                   label: "View Patient Chart",
+                  icon: Stethoscope,
                   onClick: () => callbacks.onClinicalRecords(appointment),
+                },
+              ]
+            : []),
+          ...(canConfirm
+            ? [
+                {
+                  label: "Confirm",
+                  icon: CheckCircle2,
+                  onClick: () => callbacks.onConfirm(appointment),
+                },
+              ]
+            : []),
+          ...(canReschedule
+            ? [
+                {
+                  label: "Reschedule",
+                  icon: CalendarClock,
+                  onClick: () => callbacks.onReschedule(appointment),
+                },
+              ]
+            : []),
+          ...(canCancel
+            ? [
+                {
+                  label: "Cancel",
+                  icon: XCircle,
+                  onClick: () => callbacks.onCancel(appointment),
                 },
               ]
             : []),
@@ -337,15 +387,45 @@ export function createAppointmentDemoColumns({
 
         return (
           <div className="flex items-center justify-end gap-1">
+            {/* Always present, independent of status — same as the real
+                appointments page's inline View button. */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() => callbacks.onView(appointment)}
+            >
+              <Eye className="size-3" />
+              View
+            </Button>
             <RowPrimaryAction
               appointment={appointment}
               status={status}
               telemedicine={telemedicine}
               callbacks={callbacks}
             />
-            {actions.length > 0 && (
-              <DataTableRowActions row={row} actions={actions} />
+            {isBooked && (
+              <>
+                <Button
+                  size="sm"
+                  className="h-7 px-2.5 text-xs gap-1"
+                  onClick={() => callbacks.onConsult(appointment)}
+                >
+                  <Video className="size-3" />
+                  Join Meeting
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 px-2.5 text-xs gap-1"
+                  onClick={() => callbacks.onInPersonConsult(appointment)}
+                >
+                  <Stethoscope className="size-3" />
+                  In-Person
+                </Button>
+              </>
             )}
+            <DataTableRowActions row={row} actions={actions} />
           </div>
         );
       },

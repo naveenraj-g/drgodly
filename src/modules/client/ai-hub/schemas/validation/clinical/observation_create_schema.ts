@@ -14,13 +14,6 @@ const toOptionalInt = (v: unknown): number | undefined => {
   return isNaN(n) ? undefined : Math.floor(n);
 };
 
-const toOptionalNum = (v: unknown): number | undefined => {
-  if (!v || String(v) === "" || String(v) === "undefined" || String(v) === "null")
-    return undefined;
-  const n = Number(v);
-  return isNaN(n) ? undefined : n;
-};
-
 /**
  * Validates the observation creation form.
  *
@@ -53,25 +46,21 @@ export const observationCreateSchema = z
     category_display: z.preprocess(toOptionalStr, z.string().optional()),
     category_text: z.preprocess(toOptionalStr, z.string().optional()),
 
-    // Value
-    value_quantity: z.preprocess(toOptionalNum, z.number().optional()),
+    // Value — single free-typed field, resolved to a quantity or a string in
+    // the transform below depending on whether it parses as a number. Mirrors
+    // observationValueFields() in clinicalPayloads.ts, the review page's
+    // equivalent create path, rather than asking the doctor to pick which of
+    // two boxes to type into.
+    value: z.preprocess(toOptionalStr, z.string().optional()),
     value_quantity_unit: z.preprocess(toOptionalStr, z.string().optional()),
     value_quantity_system: z.preprocess(toOptionalStr, z.string().optional()),
     value_quantity_code: z.preprocess(toOptionalStr, z.string().optional()),
-    value_string: z.preprocess(toOptionalStr, z.string().optional()),
 
     // Interpretation — code-only select
     interpretation: z.preprocess(toOptionalStr, z.string().optional()),
 
     // Performer — DataSelect emits performer_ref_id
     performer_ref_id: z.preprocess(toOptionalInt, z.number().int().positive().optional()),
-
-    // Timing
-    effective_datetime: z.preprocess(toOptionalStr, z.string().optional()),
-    issued: z.preprocess(toOptionalStr, z.string().optional()),
-
-    // Note
-    note: z.preprocess(toOptionalStr, z.string().optional()),
   })
   .transform((d) => ({
     user_id: d.user_id,
@@ -100,21 +89,37 @@ export const observationCreateSchema = z
         ]
       : undefined,
 
-    value_quantity: d.value_quantity,
-    value_quantity_unit: d.value_quantity_unit,
-    value_quantity_system: d.value_quantity_system,
-    value_quantity_code: d.value_quantity_code,
-    value_string: d.value_string,
+    // Auto-detect quantity vs free text from the single Value field — same
+    // rule as observationValueFields() in clinicalPayloads.ts. Only one of
+    // value_quantity/value_string ends up set.
+    ...(() => {
+      const numeric = d.value !== undefined ? Number(d.value) : undefined;
+      const isNumeric = numeric !== undefined && !isNaN(numeric);
+      return isNumeric
+        ? {
+            value_quantity: numeric,
+            value_quantity_unit: d.value_quantity_unit,
+            value_quantity_system: d.value_quantity_system,
+            value_quantity_code: d.value_quantity_code,
+            value_string: undefined,
+          }
+        : { value_string: d.value };
+    })(),
 
-    // Interpretation — hardcode system since code-only select
-    interpretation_code: d.interpretation,
-    interpretation_system: d.interpretation
-      ? "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"
+    // Interpretation as list — same CodeableConcept[] shape as category, not
+    // flat top-level fields. The real API schema (see
+    // src/modules/entities/schemas/observation/input.ts) has no
+    // interpretation_code/interpretation_system fields at all; sending them
+    // 422s with "Extra inputs are not permitted".
+    interpretation: d.interpretation
+      ? [
+          {
+            coding_system:
+              "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+            coding_code: d.interpretation,
+          },
+        ]
       : undefined,
 
     performer: d.performer_ref_id ? `Practitioner/${d.performer_ref_id}` : undefined,
-
-    effective_datetime: d.effective_datetime,
-    issued: d.issued,
-    note: d.note,
   }));

@@ -1,0 +1,36 @@
+{
+  "id": "doctor-attach-document-root",
+  "type": "Card",
+  "properties": {
+    "child": {
+      "id": "doctor-attach-document-form",
+      "type": "Form",
+      "properties": {
+        "action": { "name": "create_document_reference" },
+        "submitLabel": { "literalString": "Finish" },
+        "gap": "medium",
+        "alignment": "stretch",
+        "children": [
+          {
+            "id": "attach-document-title",
+            "type": "Text",
+            "properties": {
+              "text": { "literalString": "Step 4: Attach to Visit Record" },
+              "usageHint": "h3"
+            }
+          },
+          {
+            "id": "attach-document-subtitle",
+            "type": "Text",
+            "properties": {
+              "text": {
+                "literalString": "The report has been saved. Click Finish to also file it as a document on this visit, so it appears in the Documents tab."
+              },
+              "usageHint": "caption"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

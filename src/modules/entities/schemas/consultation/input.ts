@@ -75,6 +75,14 @@ export type TCompleteConsultation = z.infer<typeof CompleteConsultationValidatio
  */
 export const SaveClinicalDataValidationSchema = z.object({
   fhir_appointment_id: z.number().int().positive(),
+  /**
+   * Caller's org. Injected by the server action from the session — never
+   * trusted from the client. The repository requires this to match the
+   * target consultation's own org_id before writing, so a doctor in one org
+   * cannot overwrite another org's SOAP note/clinical data by guessing a
+   * fhir_appointment_id.
+   */
+  org_id: z.string().optional(),
   service_requests: z.array(z.unknown()).optional(),
   medication_requests: z.array(z.unknown()).optional(),
   observations: z.array(z.unknown()).optional(),
@@ -116,6 +124,8 @@ export type TSaveClinicalData = z.infer<typeof SaveClinicalDataValidationSchema>
  */
 export const SaveClinicalDraftValidationSchema = z.object({
   fhir_appointment_id: z.number().int().positive(),
+  /** Caller's org, injected server-side — see SaveClinicalDataValidationSchema. */
+  org_id: z.string().optional(),
   soap_note: SoapNoteSchema.optional(),
   conditions: z.array(z.unknown()).optional(),
   observations: z.array(z.unknown()).optional(),
@@ -136,6 +146,8 @@ export type TSaveClinicalDraft = z.infer<typeof SaveClinicalDraftValidationSchem
 /** Payload for marking a consultation as ABANDONED (patient or doctor left without completing). */
 export const AbandonConsultationValidationSchema = z.object({
   fhir_appointment_id: z.number().int().positive(),
+  /** Caller's org, injected server-side — see SaveClinicalDataValidationSchema. */
+  org_id: z.string().optional(),
 });
 export type TAbandonConsultation = z.infer<typeof AbandonConsultationValidationSchema>;
 
@@ -144,6 +156,7 @@ export type TAbandonConsultation = z.infer<typeof AbandonConsultationValidationS
 /** Schema for fetching a consultation by its linked FHIR appointment ID. */
 export const GetConsultationByFhirAppointmentIdValidationSchema = z.object({
   fhir_appointment_id: z.number().int().positive(),
+  org_id: z.string().optional(),
 });
 export type TGetConsultationByFhirAppointmentId = z.infer<
   typeof GetConsultationByFhirAppointmentIdValidationSchema

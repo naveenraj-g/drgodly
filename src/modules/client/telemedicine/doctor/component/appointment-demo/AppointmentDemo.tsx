@@ -1,16 +1,17 @@
 /**
  * @file AppointmentDemo.tsx
- * @description Visual-redesign prototype of "My Appointments" — a design
- * reference for a restyled appointments screen, kept on its own route
- * (/doctor/appointment-demo) so it stays isolated from the real Appointments
- * page (DoctorAppointmentsTable) while still being wired to real data and
- * real server-side pagination/filtering. Each tab (Today/Upcoming/Past/
- * Cancelled) is its own AppointmentDemoTabPanel — a self-contained
- * useServerDataTable + useQuery instance, exactly like DoctorAppointmentsTable
- * — so pagination, sorting, and every filter are resolved server-side via
- * listAppointmentsAction, never client-side. This component only owns the
- * cross-tab bits: the tab-strip counts, the "Today" stat cards/donut summary,
- * and the mini calendar.
+ * @description Doctor "My Appointments" screen — rendered at
+ * /doctor/appointments (see that route's page.tsx). Started life as a
+ * visual-redesign prototype at a separate /doctor/appointment-demo route;
+ * that route is gone now that this replaced the original single-list
+ * DoctorAppointmentsTable-based page. The file/identifier names here (and
+ * in its sibling files) still say "Demo" — a naming cleanup pass, not a
+ * functional change, that hasn't happened yet. Each tab (Today/Upcoming/
+ * Past/Cancelled) is its own AppointmentDemoTabPanel — a self-contained
+ * useServerDataTable + useQuery instance — so pagination, sorting, and
+ * every filter are resolved server-side via listAppointmentsAction, never
+ * client-side. This component only owns the cross-tab bits: the tab-strip
+ * counts, the "Today" stat cards/donut summary, and the mini calendar.
  * @layer client/telemedicine/doctor/component/appointment-demo
  */
 
@@ -19,28 +20,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { formatDisplayDateLong } from "@/modules/shared/helper";
-import {
-  CalendarIcon,
-  CalendarClock,
-  ChevronRight,
-  FileText,
-  Stethoscope,
-  UserPlus,
-  Users,
-  Video,
-} from "lucide-react";
+import type { DateRange } from "react-day-picker";
+import { CalendarClock, FileText, Users, Video } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 import { AppointmentDemoTabPanel } from "./AppointmentDemoTabPanel";
 import { TodaysOverviewDonut } from "./TodaysOverviewDonut";
@@ -115,7 +99,7 @@ interface AppointmentDemoProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 /**
- * Top-level layout for the appointment-demo page. The real app shell (top
+ * Top-level layout for the doctor appointments page. The app shell (top
  * navbar, left nav) is provided by the (apps) layout and the external Bezs
  * menu service — this component only renders the page's own content area,
  * matching how every other doctor page under that layout works.
@@ -128,7 +112,24 @@ export function AppointmentDemo({
   clinicalRecordsHref,
 }: AppointmentDemoProps) {
   const router = useRouter();
-  const [pickerDate, setPickerDate] = useState<Date>(() => new Date());
+
+  // ── Mini calendar (right rail) — month shown + a picked date range, kept
+  // here (not local to DemoCalendarPanel) because both drive a network
+  // fetch: month re-queries the highlight dots for that month, and a picked
+  // range is two-way synced with whichever tab is showing — it flows down
+  // to filter that tab's list, and any change the doctor makes in that
+  // tab's own "Time" column filter flows back up to update the calendar.
+  const [activeTab, setActiveTab] = useState<DemoTab>("today");
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
+  const [calendarRange, setCalendarRange] = useState<DateRange | null>(null);
+
+  /* Switching tabs clears the range rather than carrying it over silently —
+     each tab has its own "Time" filter state, so a range picked while
+     looking at Past shouldn't keep filtering Upcoming once you switch. */
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as DemoTab);
+    setCalendarRange(null);
+  };
 
   // ── Tab-strip counts — cheap, always-on, independent of which tab is mounted ──
   const countQueries = {
@@ -162,10 +163,15 @@ export function AppointmentDemo({
     staleTime: 60_000,
   });
 
-  // ── Mini calendar highlight dates ─────────────────────────────────────────
+  // ── Mini calendar highlight dates — refetches per shown month, not just
+  // once for "now", so navigating months actually updates the dots. ──────
   const calendarQuery = useQuery({
-    queryKey: appointmentDemoKeys.calendar({ practitionerId, orgId }),
-    queryFn: () => fetchDemoCalendarMonth({ practitionerId, orgId }),
+    queryKey: appointmentDemoKeys.calendar({
+      practitionerId,
+      orgId,
+      month: calendarMonth,
+    }),
+    queryFn: () => fetchDemoCalendarMonth({ practitionerId, orgId, month: calendarMonth }),
     staleTime: 60_000,
   });
 
@@ -224,13 +230,6 @@ export function AppointmentDemo({
     },
   ];
 
-  const QUICK_ACTIONS = [
-    { label: "Block Time", icon: CalendarClock },
-    { label: "Add Patient", icon: UserPlus },
-    { label: "Start Instant Consult", icon: Video },
-    { label: "View Waiting Room", icon: Users },
-  ];
-
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5 items-start">
       {/* ── Main column ── */}
@@ -243,37 +242,21 @@ export function AppointmentDemo({
           </p>
         </div>
 
-        {/* Tabs + date picker */}
-        <Tabs defaultValue="today">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <TabsList variant="line">
-              {TABS.map((tab) => {
-                const query = countQueries[tab.value];
-                const count = query.isLoading ? "…" : (query.data ?? 0);
-                return (
-                  <TabsTrigger key={tab.value} value={tab.value}>
-                    {tab.label} ({count})
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <CalendarIcon className="size-3.5" />
-                  {formatDisplayDateLong(pickerDate)}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="single"
-                  selected={pickerDate}
-                  onSelect={(date) => date && setPickerDate(date)}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+        {/* Tabs — controlled so switching tabs can clear the mini calendar's
+            picked range (see handleTabChange) instead of letting it silently
+            keep filtering whichever tab you land on next. */}
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList variant="line">
+            {TABS.map((tab) => {
+              const query = countQueries[tab.value];
+              const count = query.isLoading ? "…" : (query.data ?? 0);
+              return (
+                <TabsTrigger key={tab.value} value={tab.value}>
+                  {tab.label} ({count})
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
 
           {TABS.map((tab) => (
             <TabsContent key={tab.value} value={tab.value} className="mt-4 space-y-4">
@@ -310,6 +293,8 @@ export function AppointmentDemo({
                 initialData={tab.value === "today" ? initialToday : undefined}
                 enableStatusFilter={tab.enableStatusFilter}
                 enableDateFilter={tab.enableDateFilter}
+                calendarRange={calendarRange}
+                onCalendarRangeChange={setCalendarRange}
               />
             </TabsContent>
           ))}
@@ -317,63 +302,26 @@ export function AppointmentDemo({
       </div>
 
       {/* ── Right rail ── */}
-      <div className="space-y-4">
-        <DemoCalendarPanel today={new Date()} highlightDates={calendarQuery.data ?? []} />
+      {/* Below xl the outer 2-col layout above collapses to one column, so
+          these two cards would otherwise stack full-width one under the
+          other beneath the table — side by side reads much better at that
+          width. At xl+ they're back in the narrow 320px sidebar, where
+          side-by-side wouldn't fit, so this returns to a single column. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
+        <DemoCalendarPanel
+          today={new Date()}
+          highlightDates={calendarQuery.data ?? []}
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+          range={calendarRange}
+          onRangeChange={setCalendarRange}
+        />
 
         <Card className="p-4">
           <h2 className="text-sm font-semibold mb-3">Today&apos;s Overview</h2>
-          <TodaysOverviewDonut
-            counts={
-              summary?.statusBreakdown ?? {
-                completed: 0,
-                "in-progress": 0,
-                scheduled: 0,
-                cancelled: 0,
-              }
-            }
+          <TodaysOverviewDonut counts={summary?.statusBreakdown ?? {}}
           />
         </Card>
-
-        <Card className="p-2">
-          <h2 className="text-sm font-semibold px-2 pt-1.5 pb-2">Quick Actions</h2>
-          <div className="flex flex-col">
-            {QUICK_ACTIONS.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="flex items-center gap-2.5 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors text-left"
-              >
-                <action.icon className="size-4 text-muted-foreground shrink-0" />
-                <span className="flex-1">{action.label}</span>
-                <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-gradient-to-br from-violet-50 to-blue-50 border-violet-100 dark:from-violet-950/30 dark:to-blue-950/30 dark:border-violet-900">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 text-white">
-              <Stethoscope className="size-4.5" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Let DrGodly AI help you</h3>
-                <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Get patient summaries, draft notes, check guidelines and more.
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Badge
-          variant="outline"
-          className="w-full justify-center py-1.5 text-[11px] text-muted-foreground font-normal"
-        >
-          Design prototype — real, server-paginated appointment data
-        </Badge>
       </div>
     </div>
   );

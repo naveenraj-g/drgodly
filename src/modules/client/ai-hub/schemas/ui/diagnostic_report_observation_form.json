@@ -14,7 +14,7 @@
           {
             "id": "obs-title",
             "type": "Text",
-            "properties": { "text": { "literalString": "Step 2: Add Result Observation" }, "usageHint": "h2" }
+            "properties": { "text": { "literalString": "Step 2: Add Result Observation" }, "usageHint": "h3" }
           },
           {
             "id": "obs-subtitle",

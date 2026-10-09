@@ -20,7 +20,7 @@ function presenter(data: TIntakeResponse | null) {
 export type TGetIntakeByFhirAppointmentIdControllerOutput = ReturnType<typeof presenter>;
 
 /**
- * @param input - Raw payload ({ fhir_appointment_id }).
+ * @param input - Raw payload ({ fhir_appointment_id, org_id }).
  * @returns Linked Intake or null.
  */
 export async function getIntakeByFhirAppointmentIdController(
@@ -28,5 +28,10 @@ export async function getIntakeByFhirAppointmentIdController(
 ): Promise<TGetIntakeByFhirAppointmentIdControllerOutput> {
   const parsed = await GetIntakeByFhirAppointmentIdValidationSchema.safeParseAsync(input);
   if (!parsed.success) throw new InputParseError(parsed.error);
-  return presenter(await getIntakeByFhirAppointmentIdUseCase(parsed.data.fhir_appointment_id));
+  return presenter(
+    await getIntakeByFhirAppointmentIdUseCase(
+      parsed.data.fhir_appointment_id,
+      parsed.data.org_id,
+    ),
+  );
 }

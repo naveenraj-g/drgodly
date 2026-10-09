@@ -195,6 +195,7 @@ export function ServiceRequestRecordCard({
         serviceRequestId: sr.id,
         serviceRequestCode: sr.code_display ?? sr.code_text ?? undefined,
         patientFhirId: sr.subject_id ?? undefined,
+        encounterId: sr.encounter_id ?? undefined,
         orgId,
         userId,
       },

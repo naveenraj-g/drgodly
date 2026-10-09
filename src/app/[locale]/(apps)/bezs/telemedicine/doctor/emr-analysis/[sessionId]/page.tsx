@@ -50,6 +50,8 @@ export default async function EmrAnalysisSessionPage({
 
   return (
     <EMRChatContainer
+      // Keyed by session identity — see doctor/emr/page.tsx for why.
+      key={sessionId}
       userId={userId}
       orgId={orgId}
       sessionId={sessionId}

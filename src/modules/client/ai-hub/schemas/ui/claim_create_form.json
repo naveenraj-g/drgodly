@@ -16,7 +16,7 @@
             "type": "Text",
             "properties": {
               "text": { "literalString": "Step 1: Submit Insurance Claim" },
-              "usageHint": "h2"
+              "usageHint": "h3"
             }
           },
           {
