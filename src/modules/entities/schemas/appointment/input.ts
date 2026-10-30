@@ -83,6 +83,22 @@ export const BookAppointmentValidationSchema = z.object({
   appointment_type_code: z.string().optional(),
   appointment_type_display: z.string().optional(),
   appointment_type_text: z.string().optional(),
+  /**
+   * Specialties stored as Appointment.specialty[] (create-only on fhir-gql).
+   * The booking page sends the booked PractitionerRole's specialties; code
+   * 409968004 (Preventive medicine) switches the doctor's confirm flow to the
+   * plan-definition dialog.
+   */
+  specialty: z
+    .array(
+      z.object({
+        coding_system: z.string().optional(),
+        coding_code: z.string().optional(),
+        coding_display: z.string().optional(),
+        text: z.string().optional(),
+      }),
+    )
+    .optional(),
   service_type_code: z.string().optional(),
   service_type_display: z.string().optional(),
   reason_code: z.string().optional(),

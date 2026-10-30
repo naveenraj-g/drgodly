@@ -4,12 +4,12 @@ This is a scoped reference for the mobile app's **text-based AI intake chat** �
 the free-form conversation a patient has with the intake bot before a visit,
 from opening the chat to walking away with a saved, doctor-visible record.
 
-**As of now: text only.** Voice intake is out of scope for this document —
-when it's built, it reuses this exact same flow end to end; the only thing
-that changes is the transport for the chat turns (a WebSocket instead of the
-HTTP calls described in §2 below). Everything in §1 and §3–§5 (starting a
-session, detecting completion, generating the report, saving it) carries over
-unchanged. Don't build for voice yet — ask when that's ready to start.
+**This document covers text only.** Voice intake reuses this exact same
+flow end to end — the only thing that changes is the transport for the
+conversation (a WebSocket carrying raw audio instead of the HTTP calls
+described in §2 below). Its WebSocket/audio protocol is documented
+separately in `mobile-voice-intake-guide.md`, which points back here for
+the report and save steps (§4–§6).
 
 Deliberately **out of scope** here: linking a completed intake to a booked
 appointment (one call, mentioned briefly in §6 — ask if you need the full

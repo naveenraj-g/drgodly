@@ -1,4 +1,4 @@
-﻿import { createContainer } from "@evyweb/ioctopus";
+import { createContainer } from "@evyweb/ioctopus";
 import { DI_RETURN_TYPES, DI_SYMBOLS } from "./types";
 import {
   registerOrganizationModule,
@@ -24,6 +24,17 @@ import {
   registerDocumentReferenceModule,
   registerStagingMedicalRecordModule,
   registerVitalsModule,
+  registerPlanDefinitionModule,
+  registerActivityDefinitionModule,
+  registerProcedureModule,
+  registerTaskModule,
+  registerCareTeamModule,
+  registerEpisodeOfCareModule,
+  registerCarePlanModule,
+  registerFlagModule,
+  registerQuestionnaireModule,
+  registerQuestionnaireResponseModule,
+  registerRiskAssessmentModule,
 } from "./modules";
 
 const ApplicationContainer = createContainer();
@@ -51,6 +62,17 @@ registerDiagnosticReportModule(ApplicationContainer);
 registerDocumentReferenceModule(ApplicationContainer);
 registerStagingMedicalRecordModule(ApplicationContainer);
 registerVitalsModule(ApplicationContainer);
+registerPlanDefinitionModule(ApplicationContainer);
+registerActivityDefinitionModule(ApplicationContainer);
+registerProcedureModule(ApplicationContainer);
+registerTaskModule(ApplicationContainer);
+registerCareTeamModule(ApplicationContainer);
+registerEpisodeOfCareModule(ApplicationContainer);
+registerCarePlanModule(ApplicationContainer);
+registerFlagModule(ApplicationContainer);
+registerQuestionnaireModule(ApplicationContainer);
+registerQuestionnaireResponseModule(ApplicationContainer);
+registerRiskAssessmentModule(ApplicationContainer);
 
 export const getInjection = <K extends keyof typeof DI_SYMBOLS>(
   symbol: K,

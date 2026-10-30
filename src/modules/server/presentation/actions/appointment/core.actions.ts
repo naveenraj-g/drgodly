@@ -27,6 +27,7 @@ import {
   UpdateAppointmentActionSchema,
   DeleteAppointmentActionSchema,
   RescheduleAppointmentActionSchema,
+  ConfirmPreventiveAppointmentActionSchema,
   type TBookAppointmentAction,
   type TCreateAppointmentAction,
   type TGetMyAppointmentsAction,
@@ -35,6 +36,7 @@ import {
   type TUpdateAppointmentAction,
   type TDeleteAppointmentAction,
   type TRescheduleAppointmentAction,
+  type TConfirmPreventiveAppointmentAction,
 } from "@/modules/entities/schemas/appointment";
 import {
   bookAppointmentController,
@@ -45,6 +47,7 @@ import {
   updateAppointmentController,
   deleteAppointmentController,
   rescheduleAppointmentController,
+  confirmPreventiveAppointmentController,
   type TBookAppointmentControllerOutput,
   type TCreateAppointmentControllerOutput,
   type TGetMyAppointmentsControllerOutput,
@@ -52,6 +55,7 @@ import {
   type TGetAppointmentByIdControllerOutput,
   type TUpdateAppointmentControllerOutput,
   type TRescheduleAppointmentControllerOutput,
+  type TConfirmPreventiveAppointmentControllerOutput,
 } from "@/modules/server/core/appointment/interface-adapters/controllers";
 import { runWithTransport } from "@/modules/server/presentation/transport/runWithTransport";
 import { authenticatedProcedure } from "../procedures";
@@ -199,3 +203,30 @@ export const rescheduleAppointmentAction = authenticatedProcedure
       return { result: data, transport: input.transportOptions };
     });
   });
+
+/**
+ * Confirms a preventive-medicine appointment with a chosen PlanDefinition:
+ * creates the Encounter, applies the plan (ServiceRequests) and marks the
+ * appointment fulfilled. org_id / user_id always come from the session.
+ */
+export const confirmPreventiveAppointmentAction = authenticatedProcedure
+  .createServerAction()
+  .input(ConfirmPreventiveAppointmentActionSchema, { skipInputParsing: true })
+  .handler(
+    async ({
+      input,
+      ctx,
+    }: {
+      input: TConfirmPreventiveAppointmentAction;
+      ctx: { session: AuthResponse };
+    }) => {
+      return await runWithTransport<TConfirmPreventiveAppointmentControllerOutput>(async () => {
+        const data = await confirmPreventiveAppointmentController({
+          ...input.payload,
+          org_id: ctx.session.session.activeOrganizationId ?? undefined,
+          user_id: ctx.session.user.id,
+        });
+        return { result: data, transport: input.transportOptions };
+      });
+    },
+  );

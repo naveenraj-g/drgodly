@@ -7,6 +7,8 @@
  * Reads the target appointment from store data. No props required.
  * Uses AlertDialog and calls updateAppointmentAction with status "booked"
  * (pending → booked). Mounted once inside DoctorModalProvider.
+ * Preventive-medicine appointments (specialty 409968004) are delegated to
+ * ConfirmPreventiveAppointmentDialog, which also applies a plan definition.
  */
 
 "use client";
@@ -29,6 +31,8 @@ import { updateAppointmentAction } from "@/modules/server/presentation/actions/a
 import { handleZSAError } from "@/modules/client/shared/error/handleZSAError";
 import { useDoctorStore } from "../../stores/doctor.store";
 import { doctorAppointmentKeys } from "../../component/appointments/list/appointmentQueries";
+import { isPreventiveAppointment } from "@/modules/entities/schemas/appointment";
+import { ConfirmPreventiveAppointmentDialog } from "./preventive/ConfirmPreventiveAppointmentDialog";
 
 /**
  * Self-contained confirm appointment dialog.
@@ -64,6 +68,18 @@ export function ConfirmAppointmentModal() {
   async function handleConfirm() {
     if (!data?.appointment?.id) return;
     await execute({ payload: { id: data.appointment.id, status: "booked" } });
+  }
+
+  // Preventive-medicine visits (specialty 409968004) must be confirmed together
+  // with a plan definition — hand over to the plan-picker dialog.
+  if (data?.appointment && isPreventiveAppointment(data.appointment)) {
+    return (
+      <ConfirmPreventiveAppointmentDialog
+        open={open}
+        appointment={data.appointment}
+        onClose={onClose}
+      />
+    );
   }
 
   return (

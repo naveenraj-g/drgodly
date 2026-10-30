@@ -459,6 +459,17 @@ export function BookAppointment({
            available on read without a secondary Practitioner/Patient fetch. */
         practitioner_display: practitionerName || undefined,
         patient_display: patientDisplayName || undefined,
+        /* Specialties come from the booked practitioner role. Appointment.specialty
+           is create-only on fhir-gql, and the doctor's confirm flow keys off it
+           (409968004 = preventive medicine). Rows without a code/text are dropped. */
+        specialty: (selectedRole.specialty ?? [])
+          .filter((s) => s.coding_code || s.text)
+          .map((s) => ({
+            coding_system: s.coding_system ?? undefined,
+            coding_code: s.coding_code ?? undefined,
+            coding_display: s.coding_display ?? undefined,
+            text: s.text ?? undefined,
+          })),
         /* Appointment type is a floor, not an override. fhir-gql already copies
            the slot's own type onto the appointment, and it treats a supplied
            code as a wholesale replacement — so sending ROUTINE unconditionally

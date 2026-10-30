@@ -14,3 +14,4 @@ export * from "./getAppointmentById.controller";
 export * from "./updateAppointment.controller";
 export * from "./deleteAppointment.controller";
 export * from "./rescheduleAppointment.controller";
+export * from "./confirmPreventiveAppointment.controller";
