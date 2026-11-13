@@ -183,6 +183,9 @@ export function DynamicSelect({
   const [search, setSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
 
+  // Tracks the previous search term to prevent duplicate or looping fetches
+  const prevSearchRef = useRef("");
+
   // ── Server-fetch state ───────────────────────────────────────────────────────
   /** Items accumulated across all fetched pages (first-page and load-more). */
   const [serverItems, setServerItems] = useState<Record<string, unknown>[]>([]);
@@ -399,10 +402,17 @@ export function DynamicSelect({
    * when source is configured and minChars is met. For client-only mode, the
    * filteredStatic memo handles filtering without any async fetch.
    *
+   * Guards against redundant calls when value has not changed to prevent infinite
+   * update cycles during cmdk synchronization.
+   *
    * @param value - Current search input value.
    */
   const handleSearchChange = useCallback(
     (value: string) => {
+      // Guard against cmdk re-emitting identical value on sync/render
+      if (value === prevSearchRef.current) return;
+      const prev = prevSearchRef.current;
+      prevSearchRef.current = value;
       setSearch(value);
 
       if (!source) return; // client-only: filteredStatic handles it
@@ -411,12 +421,15 @@ export function DynamicSelect({
 
       if (value.length < minChars) {
         // Below threshold: clear server results so static items (if any) show through.
-        // For minChars=0, go back to the initial unfiltered page fetch.
+        // For minChars=0, only reload page 0 if the user had previously typed a query and erased it.
         if (minChars === 0 && value.length === 0) {
-          setServerItems([]);
-          setNextOffset(0);
-          setHasMore(false);
-          void fetchPage(0, "");
+          if (prev.length > 0) {
+            debounceRef.current = setTimeout(() => {
+              setNextOffset(0);
+              setHasMore(false);
+              void fetchPage(0, "");
+            }, debounceMs);
+          }
         } else if (minChars > 0) {
           setServerItems([]);
           setNextOffset(0);
@@ -444,6 +457,7 @@ export function DynamicSelect({
     setSelectedItem(item);
     setOpen(false);
     setSearch("");
+    prevSearchRef.current = "";
     // Keep serverItems so re-opening the dropdown restores the list without a refetch.
   }, []);
 
@@ -501,9 +515,9 @@ export function DynamicSelect({
         </PopoverTrigger>
 
         <PopoverContent
-          className="p-0"
+          className="p-0 w-auto min-w-[320px] max-w-[480px] shadow-md border-border/80"
           align="start"
-          style={{ width: triggerWidth ?? "100%" }}
+          style={{ minWidth: Math.max(triggerWidth ?? 0, 320) }}
         >
           <Command shouldFilter={false}>
             <CommandInput

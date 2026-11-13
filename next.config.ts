@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
   // build (e.g. after a production redeploy) and force a hard navigation
   // instead of failing with "Failed to find Server Action" — see
   // docker-build.sh for how this is set at build time.
-  deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+  // deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   webpack: (config, { dev }) => {
     // Only disable source maps in development
     if (dev) {

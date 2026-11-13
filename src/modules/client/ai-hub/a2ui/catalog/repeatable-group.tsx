@@ -1,6 +1,16 @@
+/**
+ * RepeatableGroup — A2UI catalog component for dynamic multi-item arrays.
+ *
+ * Layer: client / ai-hub / a2ui / catalog
+ *
+ * Renders an array of identical component templates that can be added,
+ * removed, or duplicated by the user. Serializes all items into a hidden JSON
+ * input picked up by form.tsx collectFormData.
+ */
+
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useDynamicComponent } from "../hooks/use-dynamic-component";
 import type { RepeatableGroupNode, AnyComponentNode } from "../types";
 import type { IMessageProcessor } from "../rendering/processor";
@@ -19,14 +29,20 @@ interface ItemInstance {
   nodes: AnyComponentNode[];
 }
 
-function cloneWithPrefix(nodes: AnyComponentNode[], prefix: string): AnyComponentNode[] {
+function cloneWithPrefix(
+  nodes: AnyComponentNode[],
+  prefix: string,
+): AnyComponentNode[] {
   return nodes.map((node) => {
     const cloned = { ...node, id: `${prefix}${node.id}` } as AnyComponentNode;
-    const props = (cloned as any).properties;
+    const props = (cloned as { properties?: { children?: AnyComponentNode[] } })
+      .properties;
     if (props && Array.isArray(props.children)) {
-      (cloned as any).properties = {
+      (
+        cloned as { properties: { children: AnyComponentNode[] } }
+      ).properties = {
         ...props,
-        children: cloneWithPrefix(props.children as AnyComponentNode[], prefix),
+        children: cloneWithPrefix(props.children, prefix),
       };
     }
     return cloned;
@@ -89,6 +105,15 @@ interface RepeatableGroupProps {
   weight?: string | number;
 }
 
+/**
+ * Renders an A2UI RepeatableGroup with polished clinical item cards and actions.
+ *
+ * @param props.processor  - IMessageProcessor for dispatching actions.
+ * @param props.surfaceId  - Scoped surface id.
+ * @param props.component  - RepeatableGroup definition.
+ * @param props.weight     - Flex weight.
+ * @returns React repeatable group container.
+ */
 export function RepeatableGroup({
   processor,
   surfaceId,
@@ -179,11 +204,15 @@ export function RepeatableGroup({
   const canAdd = items.length < maxItems;
 
   return (
-    <div className="space-y-3" style={{ flex: weight }}>
-      {label && <Label className="text-sm font-medium">{label}</Label>}
+    <div className="space-y-3.5" style={{ flex: weight }}>
+      {label && (
+        <Label className="text-sm font-semibold tracking-tight text-foreground">
+          {label}
+        </Label>
+      )}
 
       <div
-        className="space-y-3"
+        className="space-y-3.5"
         onInput={syncToHiddenInput}
         onChange={syncToHiddenInput}
       >
@@ -193,15 +222,20 @@ export function RepeatableGroup({
             ref={(el) => {
               if (el) itemRefs.current.set(item.instanceId, el);
             }}
-            className="rounded-md border p-4 space-y-3"
+            className="rounded-xl border border-border/70 bg-muted/15 p-4 space-y-4 shadow-2xs transition-colors hover:border-border/90"
             data-repeater-group={groupId}
             data-repeater-item={index}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">
-                Item {index + 1}
-              </span>
-              <div className="flex gap-1">
+            <div className="flex items-center justify-between pb-2.5 border-b border-border/40">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold">
+                  {index + 1}
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Entry {index + 1}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
                 {allowDuplicate && (
                   <Button
                     type="button"
@@ -209,7 +243,8 @@ export function RepeatableGroup({
                     size="sm"
                     onClick={() => duplicateItem(item.instanceId)}
                     disabled={!canAdd}
-                    className="h-7 w-7 p-0"
+                    title="Duplicate entry"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
@@ -220,7 +255,8 @@ export function RepeatableGroup({
                   size="sm"
                   onClick={() => removeItem(item.instanceId)}
                   disabled={!canRemove}
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                  title="Remove entry"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -254,9 +290,9 @@ export function RepeatableGroup({
         size="sm"
         onClick={addItem}
         disabled={!canAdd}
-        className="w-full"
+        className="w-full h-9 border-dashed border-primary/40 hover:border-primary hover:bg-primary/5 text-primary font-medium transition-all"
       >
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="h-3.5 w-3.5 mr-1.5" />
         {addLabel}
       </Button>
     </div>

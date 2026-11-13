@@ -19,7 +19,10 @@ fi
 
 # Extract a NEXT_PUBLIC_* value from the env file
 get_var() {
-  grep -E "^${1}=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'"
+  # `tr -d '\r'` strips Windows CRLF line endings. Without it, a trailing \r is
+  # baked into the NEXT_PUBLIC_* values (e.g. client_id "abc\r"), which breaks
+  # the OAuth client_id and redirect_uri at runtime.
+  grep -E "^${1}=" "$ENV_FILE" | cut -d '=' -f2- | tr -d '"' | tr -d "'" | tr -d '\r'
 }
 
 # Server Actions encryption key must stay IDENTICAL across builds/instances —

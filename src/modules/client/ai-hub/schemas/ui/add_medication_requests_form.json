@@ -1,30 +1,18 @@
 {
   "id": "add-medication-requests-root",
-  "type": "Column",
+  "type": "Card",
   "properties": {
-    "gap": "small",
-    "children": [
-      {
-        "id": "amr-back-form",
-        "type": "Form",
-        "properties": {
-          "action": { "name": "back_to_choose" },
-          "submitLabel": { "literalString": "← Change selection" },
-          "gap": "small",
-          "alignment": "start",
-          "children": []
-        }
-      },
-      {
-        "id": "amr-main-card",
-        "type": "Card",
-        "properties": {
-          "child": {
-            "id": "add-medication-requests-form",
+    "child": {
+      "id": "add-medication-requests-form",
       "type": "Form",
       "properties": {
         "action": { "name": "create_medication_requests_batch" },
-        "submitLabel": { "literalString": "Save Prescriptions →" },
+        "secondaryAction": {
+          "name": "back_to_choose",
+          "label": { "literalString": "← Change Categories" },
+          "variant": "outline"
+        },
+        "submitLabel": { "literalString": "Save Prescriptions & Continue →" },
         "gap": "medium",
         "alignment": "stretch",
         "children": [
@@ -32,7 +20,7 @@
             "id": "amr-form-title",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Step 5: Add Medication Requests" },
+              "text": { "literalString": "Step 5 of 6 · Add Medication Requests" },
               "usageHint": "h3"
             }
           },
@@ -41,7 +29,7 @@
             "type": "Text",
             "properties": {
               "text": {
-                "literalString": "Add one or more prescriptions for this consultation. Status and intent are required for each item."
+                "literalString": "Add one or more prescription orders for this consultation. Status and clinical intent are required."
               },
               "usageHint": "caption"
             }
@@ -51,42 +39,21 @@
             "id": "amr-existing-label",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Existing Medication Requests" },
-              "usageHint": "h4"
+              "text": { "literalString": "Existing Encounter Prescriptions" },
+              "usageHint": "h5"
             }
           },
           {
-            "id": "amr-existing-count-row",
-            "type": "Row",
+            "id": "amr-existing-suffix",
+            "type": "Text",
             "properties": {
-              "gap": "small",
-              "alignment": "center",
-              "children": [
-                {
-                  "id": "amr-existing-num",
-                  "type": "Text",
-                  "properties": { "text": "$existing_medication_requests.total", "usageHint": "h3" }
-                },
-                {
-                  "id": "amr-existing-suffix",
-                  "type": "Text",
-                  "properties": {
-                    "text": { "literalString": "medication request(s) already recorded for this encounter" },
-                    "usageHint": "caption"
-                  }
-                }
-              ]
+              "text": {
+                "literalString": "💊 $existing_medication_requests.total medication request(s) already recorded for this encounter."
+              },
+              "usageHint": "caption"
             }
           },
           { "id": "amr-divider-new", "type": "Divider", "properties": {} },
-          {
-            "id": "amr-new-label",
-            "type": "Text",
-            "properties": {
-              "text": { "literalString": "New Prescriptions" },
-              "usageHint": "h4"
-            }
-          },
           {
             "id": "medication_requests_group",
             "type": "RepeatableGroup",
@@ -102,8 +69,8 @@
                   "id": "medication_code",
                   "type": "TerminologySelect",
                   "properties": {
-                    "label": { "literalString": "Or Search by RxNorm" },
-                    "placeholder": { "literalString": "Search RxNorm…" },
+                    "label": { "literalString": "Medication (RxNorm Drug Name / Code)" },
+                    "placeholder": { "literalString": "Search drugs in RxNorm…" },
                     "valueType": { "literalString": "CodeableConcept" },
                     "serverSearch": {
                       "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
@@ -136,7 +103,7 @@
                         "weight": 1,
                         "properties": {
                           "label": { "literalString": "Intent *" },
-                          "placeholder": { "literalString": "Select intent…" },
+                          "placeholder": { "literalString": "Select intent (e.g. order)…" },
                           "items": "$intent_concepts.concepts",
                           "valueType": { "literalString": "code" }
                         }
@@ -149,7 +116,7 @@
                   "type": "TextField",
                   "properties": {
                     "label": { "literalString": "Dosage Instructions" },
-                    "placeholder": { "literalString": "e.g. 1 tablet twice daily" },
+                    "placeholder": { "literalString": "e.g. 1 tablet orally twice daily with meals" },
                     "textFieldType": "text"
                   }
                 },
@@ -157,8 +124,8 @@
                   "id": "route",
                   "type": "TerminologySelect",
                   "properties": {
-                    "label": { "literalString": "Route (optional)" },
-                    "placeholder": { "literalString": "Search route…" },
+                    "label": { "literalString": "Administration Route (optional)" },
+                    "placeholder": { "literalString": "Search route (e.g. Oral, Intravenous)…" },
                     "valueType": { "literalString": "CodeableConcept" },
                     "serverSearch": { "minChars": 2, "debounceMs": 200 }
                   }
@@ -185,8 +152,8 @@
                         "type": "TextField",
                         "weight": 1,
                         "properties": {
-                          "label": { "literalString": "Dispense Unit" },
-                          "placeholder": { "literalString": "e.g. tablets, mL" },
+                          "label": { "literalString": "Unit" },
+                          "placeholder": { "literalString": "tablets, mL" },
                           "textFieldType": "text"
                         }
                       },
@@ -195,8 +162,8 @@
                         "type": "TextField",
                         "weight": 1,
                         "properties": {
-                          "label": { "literalString": "Repeats" },
-                          "placeholder": { "literalString": "e.g. 3" },
+                          "label": { "literalString": "Refills / Repeats" },
+                          "placeholder": { "literalString": "e.g. 0, 1, 2" },
                           "textFieldType": "text"
                         }
                       }
@@ -209,8 +176,5 @@
         ]
       }
     }
-  }
-}
-    ]
   }
 }

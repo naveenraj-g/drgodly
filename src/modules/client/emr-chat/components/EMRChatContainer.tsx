@@ -239,6 +239,9 @@ export default function EMRChatContainer({
     // page refresh) never has a matching activeSessionId already set, so it
     // still gets the full restore below.
     if (useEmrChatStore.getState().activeSessionId === initialSession.id) {
+      if (initialSession.activeWorkflow?.id && !dbWorkflowStateId) {
+        setDbWorkflowStateId(initialSession.activeWorkflow.id);
+      }
       return;
     }
 

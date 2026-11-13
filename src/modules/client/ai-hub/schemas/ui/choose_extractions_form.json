@@ -7,7 +7,7 @@
       "type": "Form",
       "properties": {
         "action": { "name": "confirm_encounter" },
-        "submitLabel": { "literalString": "Next →" },
+        "submitLabel": { "literalString": "Continue to Extractions →" },
         "gap": "medium",
         "alignment": "stretch",
         "children": [
@@ -15,7 +15,7 @@
             "id": "ce-form-title",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Step 2: Choose What to Add" },
+              "text": { "literalString": "Step 2 of 6 · Choose Clinical Categories" },
               "usageHint": "h3"
             }
           },
@@ -24,7 +24,7 @@
             "type": "Text",
             "properties": {
               "text": {
-                "literalString": "Select one or more clinical extraction types to record for this consultation. You can add multiple items in each category on the next screens."
+                "literalString": "Select one or more clinical extraction types to record for this consultation. Only selected categories will appear as subsequent documentation steps."
               },
               "usageHint": "caption"
             }
@@ -34,36 +34,48 @@
             "id": "ce-section-label",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Extraction Types" },
-              "usageHint": "h4"
+              "text": { "literalString": "Clinical Record Categories" },
+              "usageHint": "h5"
             }
           },
           {
             "id": "add_condition",
             "type": "CheckBox",
             "properties": {
-              "label": { "literalString": "Condition — diagnoses and clinical findings (ICD-10 / SNOMED)" }
+              "variant": "card",
+              "icon": "condition",
+              "label": { "literalString": "Conditions & Diagnoses" },
+              "description": { "literalString": "Document acute, chronic, or provisional clinical findings (ICD-10 / SNOMED CT)." }
             }
           },
           {
             "id": "add_observation",
             "type": "CheckBox",
             "properties": {
-              "label": { "literalString": "Observation — measurements and lab results (LOINC)" }
+              "variant": "card",
+              "icon": "observation",
+              "label": { "literalString": "Observations & Measurements" },
+              "description": { "literalString": "Record vital signs, clinical metrics, exam findings, and lab measurements (LOINC)." }
             }
           },
           {
             "id": "add_medication_request",
             "type": "CheckBox",
             "properties": {
-              "label": { "literalString": "Medication Request — prescriptions and drug orders (RxNorm)" }
+              "variant": "card",
+              "icon": "medication",
+              "label": { "literalString": "Medication Requests & Prescriptions" },
+              "description": { "literalString": "Order drug prescriptions, dosage regimens, dispense quantities, and repeats (RxNorm)." }
             }
           },
           {
             "id": "add_service_request",
             "type": "CheckBox",
             "properties": {
-              "label": { "literalString": "Service Request — lab orders, imaging, and procedures" }
+              "variant": "card",
+              "icon": "service_request",
+              "label": { "literalString": "Service Requests & Orders" },
+              "description": { "literalString": "Request diagnostic imaging, laboratory tests, specialist referrals, or procedures." }
             }
           }
         ]

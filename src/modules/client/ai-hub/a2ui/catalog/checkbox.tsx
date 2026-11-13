@@ -1,3 +1,13 @@
+/**
+ * Checkbox — A2UI catalog checkbox and option card component.
+ *
+ * Layer: client / ai-hub / a2ui / catalog
+ *
+ * Renders standard checkboxes or interactive medical selection tiles (variant="card").
+ * Preserves the underlying shadcn button[role=checkbox] with data-field-name so
+ * form.tsx collectFormData gathers boolean values accurately.
+ */
+
 "use client";
 
 import { useState, useMemo } from "react";
@@ -6,6 +16,8 @@ import type { CheckboxNode } from "../types";
 import type { IMessageProcessor } from "../rendering/processor";
 import { Checkbox as ShadCNCheckbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Stethoscope, Activity, Pill, ClipboardList, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface CheckboxProps {
   processor: IMessageProcessor;
@@ -14,6 +26,39 @@ interface CheckboxProps {
   weight?: string | number;
 }
 
+/**
+ * Returns an optional Lucide icon matching common clinical category identifiers.
+ *
+ * @param iconName - Keyword or icon identifier.
+ * @returns React node icon or null.
+ */
+function renderCategoryIcon(iconName?: string): React.ReactNode {
+  if (!iconName) return null;
+  const lower = iconName.toLowerCase();
+  if (lower.includes("condition") || lower.includes("stethoscope") || lower.includes("diagnosis")) {
+    return <Stethoscope className="size-4.5 text-primary shrink-0" />;
+  }
+  if (lower.includes("observation") || lower.includes("vital") || lower.includes("activity")) {
+    return <Activity className="size-4.5 text-primary shrink-0" />;
+  }
+  if (lower.includes("medication") || lower.includes("prescription") || lower.includes("pill")) {
+    return <Pill className="size-4.5 text-primary shrink-0" />;
+  }
+  if (lower.includes("service") || lower.includes("order") || lower.includes("clipboard") || lower.includes("lab")) {
+    return <ClipboardList className="size-4.5 text-primary shrink-0" />;
+  }
+  return null;
+}
+
+/**
+ * Renders an A2UI Checkbox component supporting standard or clinical option card layouts.
+ *
+ * @param props.processor  - IMessageProcessor for state and bindings.
+ * @param props.surfaceId  - Scoped surface id preventing DOM id collisions.
+ * @param props.component  - CheckboxNode definition.
+ * @param props.weight     - Flex weight.
+ * @returns React checkbox or card element.
+ */
 export function Checkbox({
   processor,
   surfaceId,
@@ -32,33 +77,81 @@ export function Checkbox({
     [resolvePrimitive, component.properties.value],
   );
   const [checked, setChecked] = useState(initialValue);
+
   const label = useMemo(
     () => resolvePrimitive(component.properties.label),
     [resolvePrimitive, component.properties.label],
   );
 
-  const handleChange = (checked: boolean) => {
-    setChecked(checked);
+  const description = useMemo(
+    () =>
+      resolvePrimitive(
+        (component.properties as { description?: unknown })?.description,
+      ),
+    [resolvePrimitive, component.properties],
+  );
+
+  const variant =
+    (component.properties as { variant?: string })?.variant || "default";
+  const icon = (component.properties as { icon?: string })?.icon || component.id;
+
+  const handleChange = (newChecked: boolean) => {
+    setChecked(newChecked);
   };
 
-  // Scoped to surfaceId, not just component.id: the workflow JSON's checkbox
-  // ids are static (e.g. "add_condition"), so re-rendering the same step a
-  // second time in one session (e.g. going back and choosing again) creates
-  // a second DOM element with the same id while the first is still mounted
-  // (past chat messages stay in the DOM). A bare id="add_condition" would
-  // collide with that earlier instance, and since HTML label/for resolves to
-  // the *first* matching id in the document, clicking the label would then
-  // toggle the stale checkbox from the earlier message instead of this one
-  // (clicking the checkbox input itself was never affected — that's a direct
-  // element reference, not an id lookup).
-  //
-  // The submitted field name still has to be the plain component.id, though
-  // — form.tsx's collectFormData reads it straight off the DOM element, and
-  // the workflow's own actions/validation schema expect that exact key (e.g.
-  // "add_condition"), not a surfaceId-prefixed one. So the unique domId only
-  // fixes the label/id association; data-field-name carries the real
-  // submission key through for collectFormData to read instead of el.id.
   const domId = `${surfaceId}-${component.id}`;
+
+  if (variant === "card") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => handleChange(!checked)}
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            handleChange(!checked);
+          }
+        }}
+        className={cn(
+          "group relative flex items-start gap-3.5 rounded-xl border p-4 cursor-pointer transition-all duration-200 select-none",
+          checked
+            ? "border-primary/60 bg-primary/5 shadow-xs ring-1 ring-primary/25"
+            : "border-border/70 bg-card hover:border-border hover:bg-muted/30",
+        )}
+        style={{ flex: weight }}
+      >
+        <div className="pt-0.5 shrink-0 flex items-center gap-2">
+          <ShadCNCheckbox
+            id={domId}
+            data-field-name={component.id}
+            checked={checked}
+            onCheckedChange={handleChange}
+            className="size-4.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {renderCategoryIcon(icon)}
+            <Label
+              htmlFor={domId}
+              className="text-sm font-semibold leading-none cursor-pointer text-foreground group-hover:text-primary transition-colors"
+            >
+              {label}
+            </Label>
+          </div>
+          {description && (
+            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              {String(description)}
+            </p>
+          )}
+        </div>
+        {checked && (
+          <CheckCircle2 className="size-4 text-primary shrink-0 opacity-80" />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center space-x-2" style={{ flex: weight }}>
@@ -68,7 +161,11 @@ export function Checkbox({
         checked={checked}
         onCheckedChange={handleChange}
       />
-      {label && <Label htmlFor={domId}>{label}</Label>}
+      {label && (
+        <Label htmlFor={domId} className="cursor-pointer text-sm">
+          {label}
+        </Label>
+      )}
     </div>
   );
 }

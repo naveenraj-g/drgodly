@@ -7,7 +7,7 @@
       "type": "Form",
       "properties": {
         "action": { "name": "get_encounter_for_appointment" },
-        "submitLabel": { "literalString": "Next →" },
+        "submitLabel": { "literalString": "Continue to Extractions →" },
         "gap": "medium",
         "alignment": "stretch",
         "children": [
@@ -15,7 +15,7 @@
             "id": "appt-form-title",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Step 1: Select Appointment" },
+              "text": { "literalString": "Step 1 of 6 · Select Appointment" },
               "usageHint": "h3"
             }
           },
@@ -24,7 +24,7 @@
             "type": "Text",
             "properties": {
               "text": {
-                "literalString": "Select one of your appointments. The encounter is resolved automatically and the patient ID is carried into all subsequent clinical extraction steps."
+                "literalString": "Choose a fulfilled consultation appointment. Patient and encounter details will be linked automatically to all subsequent clinical entries."
               },
               "usageHint": "caption"
             }
@@ -34,8 +34,8 @@
             "id": "appointment_select",
             "type": "DynamicSelect",
             "properties": {
-              "label": { "literalString": "Appointment" },
-              "placeholder": { "literalString": "Search by patient name…" },
+              "label": { "literalString": "Consultation Appointment" },
+              "placeholder": { "literalString": "Search fulfilled appointments by patient name…" },
               "source": {
                 "url": "$fhir_gql_url/appointments/",
                 "staticParams": {

@@ -57,6 +57,42 @@ interface MessageListProps {
 }
 
 /**
+ * Detects whether an A2UI component node tree has a Card or DashboardCard surface
+ * at its root or as its main container, so the default outer message bubble can be
+ * omitted to prevent redundant nested borders and padding.
+ *
+ * @param node - The A2UI component node to evaluate.
+ * @returns True if the node has its own outer card surface.
+ */
+function hasRootCard(node: unknown): boolean {
+  if (!node || typeof node !== "object") return false;
+  const n = node as {
+    type?: string;
+    properties?: {
+      children?: unknown[];
+      child?: unknown;
+    };
+  };
+  if (n.type === "Card" || n.type === "DashboardCard") {
+    return true;
+  }
+  if (Array.isArray(n.properties?.children)) {
+    return n.properties.children.some(
+      (c) =>
+        typeof c === "object" &&
+        c !== null &&
+        ((c as { type?: string }).type === "Card" ||
+          (c as { type?: string }).type === "DashboardCard"),
+    );
+  }
+  if (n.properties?.child && typeof n.properties.child === "object") {
+    const childType = (n.properties.child as { type?: string }).type;
+    return childType === "Card" || childType === "DashboardCard";
+  }
+  return false;
+}
+
+/**
  * Scrollable list of chat messages. Renders the empty-state greeting when
  * there are no messages yet.
  *
@@ -91,47 +127,51 @@ export function MessageList({
             />
           ) : (
             <div className="flex flex-col gap-5">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex gap-3",
-                    msg.role === "user" ? "justify-end" : "justify-start",
-                  )}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="shrink-0 flex size-8 items-center justify-center rounded-full bg-primary/10">
-                      <Bot className="size-4 text-primary" />
-                    </div>
-                  )}
-
+              {messages.map((msg) => {
+                const isRootCard = msg.ui ? hasRootCard(msg.ui) : false;
+                return (
                   <div
+                    key={msg.id}
                     className={cn(
-                      msg.role === "user"
-                        ? "max-w-[70%]"
-                        : "flex-1 min-w-0",
+                      "flex gap-3",
+                      msg.role === "user" ? "justify-end" : "justify-start",
                     )}
                   >
-                    {msg.text && (
-                      <p className="inline-block rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground leading-relaxed">
-                        {msg.text}
-                      </p>
-                    )}
-
-                    {msg.ui && (
-                      <div
-                        className={cn(
-                          msg.role === "assistant" &&
-                            "rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-3",
-                        )}
-                      >
-                        <Renderer
-                          processor={processor}
-                          surfaceId={`surface-${msg.id}`}
-                          component={msg.ui}
-                        />
+                    {msg.role === "assistant" && (
+                      <div className="shrink-0 flex size-8 items-center justify-center rounded-full bg-primary/10">
+                        <Bot className="size-4 text-primary" />
                       </div>
                     )}
+
+                    <div
+                      className={cn(
+                        msg.role === "user"
+                          ? "max-w-[70%]"
+                          : "flex-1 min-w-0",
+                      )}
+                    >
+                      {msg.text && (
+                        <p className="inline-block rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm text-primary-foreground leading-relaxed">
+                          {msg.text}
+                        </p>
+                      )}
+
+                      {msg.ui && (
+                        <div
+                          className={cn(
+                            msg.role === "assistant" &&
+                              !isRootCard &&
+                              "rounded-2xl rounded-tl-sm border border-border bg-card px-4 py-3",
+                            isRootCard && "w-full",
+                          )}
+                        >
+                          <Renderer
+                            processor={processor}
+                            surfaceId={`surface-${msg.id}`}
+                            component={msg.ui}
+                          />
+                        </div>
+                      )}
 
                     {msg.toolCall && (
                       <div className="mt-2">
@@ -177,7 +217,8 @@ export function MessageList({
                     </div>
                   )}
                 </div>
-              ))}
+              );
+            })}
 
               {/* Loading skeleton while waiting for the AI response */}
               {loading && (

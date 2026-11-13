@@ -1,30 +1,18 @@
 {
   "id": "add-observations-root",
-  "type": "Column",
+  "type": "Card",
   "properties": {
-    "gap": "small",
-    "children": [
-      {
-        "id": "ao-back-form",
-        "type": "Form",
-        "properties": {
-          "action": { "name": "back_to_choose" },
-          "submitLabel": { "literalString": "← Change selection" },
-          "gap": "small",
-          "alignment": "start",
-          "children": []
-        }
-      },
-      {
-        "id": "ao-main-card",
-        "type": "Card",
-        "properties": {
-          "child": {
-            "id": "add-observations-form",
+    "child": {
+      "id": "add-observations-form",
       "type": "Form",
       "properties": {
         "action": { "name": "create_observations_batch" },
-        "submitLabel": { "literalString": "Save Observations →" },
+        "secondaryAction": {
+          "name": "back_to_choose",
+          "label": { "literalString": "← Change Categories" },
+          "variant": "outline"
+        },
+        "submitLabel": { "literalString": "Save Observations & Continue →" },
         "gap": "medium",
         "alignment": "stretch",
         "children": [
@@ -32,7 +20,7 @@
             "id": "ao-form-title",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Step 4: Add Observations" },
+              "text": { "literalString": "Step 4 of 6 · Add Clinical Observations" },
               "usageHint": "h3"
             }
           },
@@ -41,7 +29,7 @@
             "type": "Text",
             "properties": {
               "text": {
-                "literalString": "Add one or more clinical observations or measurements for this encounter. Status is required for each item."
+                "literalString": "Record one or more clinical observations, vital measurements, or laboratory findings. Status is required for FHIR compliance."
               },
               "usageHint": "caption"
             }
@@ -51,47 +39,26 @@
             "id": "ao-existing-label",
             "type": "Text",
             "properties": {
-              "text": { "literalString": "Existing Observations" },
-              "usageHint": "h4"
+              "text": { "literalString": "Existing Encounter Observations" },
+              "usageHint": "h5"
             }
           },
           {
-            "id": "ao-existing-count-row",
-            "type": "Row",
+            "id": "ao-existing-suffix",
+            "type": "Text",
             "properties": {
-              "gap": "small",
-              "alignment": "center",
-              "children": [
-                {
-                  "id": "ao-existing-num",
-                  "type": "Text",
-                  "properties": { "text": "$existing_observations.total", "usageHint": "h3" }
-                },
-                {
-                  "id": "ao-existing-suffix",
-                  "type": "Text",
-                  "properties": {
-                    "text": { "literalString": "observation(s) already recorded for this encounter" },
-                    "usageHint": "caption"
-                  }
-                }
-              ]
+              "text": {
+                "literalString": "🔬 $existing_observations.total observation(s) already recorded for this encounter."
+              },
+              "usageHint": "caption"
             }
           },
           { "id": "ao-divider-new", "type": "Divider", "properties": {} },
           {
-            "id": "ao-new-label",
-            "type": "Text",
-            "properties": {
-              "text": { "literalString": "New Observations" },
-              "usageHint": "h4"
-            }
-          },
-          {
             "id": "observations_group",
             "type": "RepeatableGroup",
             "properties": {
-              "label": { "literalString": "Observations to Add" },
+              "label": { "literalString": "Observations to Record" },
               "addLabel": { "literalString": "Add Another Observation" },
               "defaultCount": 1,
               "minItems": 1,
@@ -102,8 +69,8 @@
                   "id": "code",
                   "type": "TerminologySelect",
                   "properties": {
-                    "label": { "literalString": "LOINC Code" },
-                    "placeholder": { "literalString": "Search LOINC codes…" },
+                    "label": { "literalString": "LOINC Observation / Measurement Code" },
+                    "placeholder": { "literalString": "Search LOINC codes by name…" },
                     "valueType": { "literalString": "CodeableConcept" },
                     "serverSearch": {
                       "system": "http://loinc.org",
@@ -140,14 +107,24 @@
                           "items": "$category_concepts.concepts",
                           "valueType": { "literalString": "CodeableConcept" }
                         }
-                      },
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "obs-interp-row",
+                  "type": "Row",
+                  "properties": {
+                    "gap": "medium",
+                    "alignment": "stretch",
+                    "children": [
                       {
                         "id": "interpretation",
                         "type": "TerminologySelect",
                         "weight": 1,
                         "properties": {
                           "label": { "literalString": "Interpretation" },
-                          "placeholder": { "literalString": "Select interpretation…" },
+                          "placeholder": { "literalString": "Select interpretation (Normal, High, Low)…" },
                           "items": "$interpretation_concepts.concepts",
                           "valueType": { "literalString": "code" }
                         }
@@ -165,10 +142,10 @@
                       {
                         "id": "value",
                         "type": "TextField",
-                        "weight": 1,
+                        "weight": 2,
                         "properties": {
-                          "label": { "literalString": "Value" },
-                          "placeholder": { "literalString": "e.g. 98.6, or free text" },
+                          "label": { "literalString": "Measured Value" },
+                          "placeholder": { "literalString": "e.g. 120/80, 98.6, or text result" },
                           "textFieldType": "text"
                         }
                       },
@@ -177,8 +154,8 @@
                         "type": "TextField",
                         "weight": 1,
                         "properties": {
-                          "label": { "literalString": "Unit" },
-                          "placeholder": { "literalString": "e.g. °F, mmHg, mg/dL" },
+                          "label": { "literalString": "Unit of Measure" },
+                          "placeholder": { "literalString": "e.g. mmHg, °F, mg/dL" },
                           "textFieldType": "text"
                         }
                       }
@@ -191,8 +168,5 @@
         ]
       }
     }
-  }
-}
-    ]
   }
 }

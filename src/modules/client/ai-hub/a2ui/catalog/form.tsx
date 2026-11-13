@@ -1,3 +1,14 @@
+/**
+ * Form — A2UI catalog form container component.
+ *
+ * Layer: client / ai-hub / a2ui / catalog
+ *
+ * Collects input values across child components (inputs, selects, checkboxes,
+ * repeatable groups) on submit, packages them into an action context payload,
+ * and dispatches the action via the processor. Also supports optional secondary
+ * actions (e.g. back navigation or cancel) in an integrated action footer.
+ */
+
 "use client";
 
 import { useRef, useMemo, useCallback } from "react";
@@ -15,6 +26,25 @@ interface FormProps {
   weight?: string | number;
 }
 
+interface FormSecondaryAction {
+  name: string;
+  label: string | { literalString?: string };
+  variant?: "outline" | "ghost" | "secondary" | "default";
+  context?: Array<{
+    key: string;
+    value: { literalString?: string };
+  }>;
+}
+
+/**
+ * Renders an A2UI Form node with automatic input collection and action dispatch.
+ *
+ * @param props.processor  - IMessageProcessor for dispatching actions and resolving bindings.
+ * @param props.surfaceId  - Unique identifier for the rendering surface.
+ * @param props.component  - FormNode definition from the UI schema.
+ * @param props.weight     - Flex weight for row/column distribution.
+ * @returns React form element wrapping child nodes and submit footer.
+ */
 export function Form({
   processor,
   surfaceId,
@@ -34,6 +64,25 @@ export function Form({
     () => resolvePrimitive(component.properties.submitLabel) || "Submit",
     [resolvePrimitive, component.properties.submitLabel],
   );
+
+  const secondaryAction = (
+    component.properties as { secondaryAction?: FormSecondaryAction }
+  )?.secondaryAction;
+
+  const secondaryLabel = useMemo(() => {
+    if (!secondaryAction?.label) return null;
+    return typeof secondaryAction.label === "object"
+      ? resolvePrimitive(secondaryAction.label as { literalString?: string })
+      : secondaryAction.label;
+  }, [resolvePrimitive, secondaryAction]);
+
+  const handleSecondaryAction = useCallback(async () => {
+    if (!secondaryAction?.name) return;
+    await sendAction({
+      name: secondaryAction.name,
+      context: secondaryAction.context,
+    });
+  }, [secondaryAction, sendAction]);
 
   const alignment = component.properties?.alignment || "stretch";
   const gap = component.properties?.gap || "medium";
@@ -90,12 +139,6 @@ export function Form({
     });
 
     // Collect checkbox components (shadcn uses button[role=checkbox])
-    //
-    // data-field-name (checkbox.tsx) takes priority over el.id: the DOM id is
-    // now scoped per render (surfaceId-prefixed) to keep label/for association
-    // unique across repeated renders of the same step within one session, but
-    // the submitted key still has to be the plain workflow field name (e.g.
-    // "add_condition") that el.id alone no longer is.
     const checkboxes = formRef.current.querySelectorAll<HTMLButtonElement>(
       'button[role="checkbox"]',
     );
@@ -147,8 +190,31 @@ export function Form({
           weight={child.weight || "initial"}
         />
       ))}
-      <div className={cn("mt-2", classNames?.footer)}>
-        <ShadCNButton type="submit" className="w-full sm:w-auto">
+      <div
+        className={cn(
+          "mt-4 flex flex-col-reverse sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/40",
+          classNames?.footer,
+        )}
+      >
+        {secondaryAction && secondaryLabel ? (
+          <ShadCNButton
+            type="button"
+            variant={
+              (secondaryAction.variant as "outline" | "ghost" | "secondary") ||
+              "outline"
+            }
+            onClick={handleSecondaryAction}
+            className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
+          >
+            {secondaryLabel}
+          </ShadCNButton>
+        ) : (
+          <div />
+        )}
+        <ShadCNButton
+          type="submit"
+          className="w-full sm:w-auto min-w-[130px] font-medium shadow-xs"
+        >
           {submitLabel}
         </ShadCNButton>
       </div>

@@ -1,0 +1,26 @@
+# .gitattributes
+#
+# Normalizes line endings across the repo so files edited on Windows (CRLF)
+# and Linux (LF) behave the same. A stray CRLF in an env file or shell script
+# previously got baked into NEXT_PUBLIC_* build args (e.g. client_id "abc\r")
+# and broke OAuth sign-in in production.
+
+# Default: let git detect text files and always check them out with LF.
+* text=auto eol=lf
+
+# Shell scripts and env files must never be CRLF — bash would read the \r as
+# part of every value / command.
+*.sh text eol=lf
+.env* text eol=lf
+Dockerfile text eol=lf
+
+# Binary assets: never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

@@ -301,9 +301,9 @@ export function TerminologySelect({
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="p-0"
+          className="p-0 w-auto min-w-[320px] max-w-[460px] shadow-md border-border/80"
           align="start"
-          style={{ width: triggerWidth ?? "100%" }}
+          style={{ minWidth: Math.max(triggerWidth ?? 0, 320) }}
         >
           <Command shouldFilter={false}>
             <CommandInput
